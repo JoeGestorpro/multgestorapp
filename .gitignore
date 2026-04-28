@@ -11,6 +11,9 @@ frontend/.env.*
 backend/.env
 backend/.env.*
 
+# EXCEÇÃO (IMPORTANTE)
+!frontend/.env.production
+
 # Permitir exemplos seguros
 !.env.example
 !frontend/.env.example

@@ -40,13 +40,10 @@ function formatMonthLabel(value) {
 }
 
 async function getFinanceOverview() {
-  const [subscriptionsResult, invoicesResult, companiesResult, moduleRevenue, gatewayRevenue, alerts] = await Promise.all([
+  const [subscriptionsResult, invoicesResult, companiesResult] = await Promise.all([
     getSubscriptionOverviewMetrics(),
     getInvoiceOverviewMetrics(),
-    getCompanyOverviewMetrics(),
-    getRevenueByModule(),
-    getRevenueByGateway(),
-    getFinancialAlerts()
+    getCompanyOverviewMetrics()
   ]);
 
   const activeSubscriptions = Number(subscriptionsResult.active_subscriptions || 0);
@@ -68,11 +65,7 @@ async function getFinanceOverview() {
     monthlyChurn,
     newClientsMonth: Number(companiesResult.new_clients_this_month || 0),
     activeCompanies: Number(companiesResult.active_companies || 0),
-    arpa: activeSubscriptions > 0 ? mrr / activeSubscriptions : 0,
-    moduleRevenue: moduleRevenue.items,
-    gatewayRevenue: gatewayRevenue.items,
-    alerts: alerts.items,
-    alertSummary: alerts.summary
+    arpa: activeSubscriptions > 0 ? mrr / activeSubscriptions : 0
   };
 }
 
@@ -206,8 +199,7 @@ async function getRevenueByModule() {
     `SELECT
        COALESCE(invoices.module_key, subscriptions.module_key, modules.slug, 'sem_modulo') AS module_key,
        COALESCE(modules.name, subscriptions.plan_name, invoices.module_key, 'Sem modulo') AS module_name,
-       COALESCE(SUM(CASE WHEN invoices.status = ANY($1::text[]) THEN invoices.amount ELSE 0 END), 0)::numeric AS revenue_received,
-       COUNT(*) FILTER (WHERE invoices.status = ANY($1::text[]))::int AS paid_invoices
+       COALESCE(SUM(CASE WHEN invoices.status = ANY($1::text[]) THEN invoices.amount ELSE 0 END), 0)::numeric AS revenue_received
      FROM invoices
      LEFT JOIN subscriptions ON subscriptions.id = invoices.subscription_id
      LEFT JOIN modules ON modules.id = subscriptions.module_id
@@ -221,8 +213,7 @@ async function getRevenueByModule() {
     items: result.rows.map((row) => ({
       moduleKey: row.module_key,
       moduleName: row.module_name,
-      revenueReceived: Number(row.revenue_received || 0),
-      paidInvoices: Number(row.paid_invoices || 0)
+      revenueReceived: Number(row.revenue_received || 0)
     }))
   };
 }
@@ -235,21 +226,17 @@ async function getRevenueByGateway() {
   const result = await pool.query(
     `SELECT
        COALESCE(NULLIF(TRIM(invoices.gateway), ''), 'manual') AS gateway_name,
-       COALESCE(SUM(CASE WHEN invoices.status = ANY($1::text[]) THEN invoices.amount ELSE 0 END), 0)::numeric AS revenue_received,
-       COALESCE(SUM(CASE WHEN invoices.status = ANY($2::text[]) THEN invoices.amount ELSE 0 END), 0)::numeric AS revenue_pending,
-       COUNT(*)::int AS invoices_count
+       COALESCE(SUM(CASE WHEN invoices.status = ANY($1::text[]) THEN invoices.amount ELSE 0 END), 0)::numeric AS revenue_received
      FROM invoices
      GROUP BY COALESCE(NULLIF(TRIM(invoices.gateway), ''), 'manual')
      ORDER BY revenue_received DESC, gateway_name ASC`,
-    [PAID_STATUSES, PENDING_INVOICE_STATUSES]
+    [PAID_STATUSES]
   );
 
   return {
     items: result.rows.map((row) => ({
       gatewayName: row.gateway_name,
-      revenueReceived: Number(row.revenue_received || 0),
-      revenuePending: Number(row.revenue_pending || 0),
-      invoicesCount: Number(row.invoices_count || 0)
+      revenueReceived: Number(row.revenue_received || 0)
     }))
   };
 }
@@ -269,14 +256,8 @@ async function listFinanceSubscriptions(query = {}) {
        subscriptions.plan_id,
        plans.name AS plan_name_resolved,
        subscriptions.plan_name,
-       subscriptions.price,
-       subscriptions.billing_cycle,
        subscriptions.status,
        subscriptions.gateway,
-       subscriptions.started_at,
-       subscriptions.next_due_date,
-       subscriptions.current_period_end,
-       subscriptions.canceled_at,
        ${getMonthlyAmountExpression()}::numeric AS monthly_amount
      FROM subscriptions
      LEFT JOIN companies ON companies.id = subscriptions.company_id
@@ -290,7 +271,6 @@ async function listFinanceSubscriptions(query = {}) {
   return {
     items: result.rows.map((row) => ({
       ...row,
-      price: Number(row.price || 0),
       monthly_amount: Number(row.monthly_amount || 0)
     }))
   };
@@ -308,14 +288,9 @@ async function listFinanceEvents(query = {}) {
     `SELECT
        payment_gateway_events.id,
        payment_gateway_events.gateway,
-       payment_gateway_events.event_id,
        payment_gateway_events.event_type,
        payment_gateway_events.processing_status,
-       payment_gateway_events.company_id,
        companies.name AS company_name,
-       payment_gateway_events.subscription_id,
-       payment_gateway_events.error_message,
-       payment_gateway_events.processed_at,
        payment_gateway_events.created_at
      FROM payment_gateway_events
      LEFT JOIN companies ON companies.id = payment_gateway_events.company_id
@@ -329,122 +304,138 @@ async function listFinanceEvents(query = {}) {
 
 async function getFinancialAlerts() {
   const items = [];
+  const [hasPaymentEventsTable, hasInvoicesTable, hasPlansTable] = await Promise.all([
+    tableExists('payment_gateway_events'),
+    tableExists('invoices'),
+    tableExists('plans')
+  ]);
 
-  if (await tableExists('payment_gateway_events')) {
-    const webhookErrors = await pool.query(
-      `SELECT id, gateway, event_id, event_type, error_message, created_at
-       FROM payment_gateway_events
-       WHERE processing_status = 'error'
-       ORDER BY created_at DESC
+  const queryTasks = [
+    hasPaymentEventsTable
+      ? pool.query(
+        `SELECT gateway, event_type, error_message, created_at
+         FROM payment_gateway_events
+         WHERE processing_status = 'error'
+         ORDER BY created_at DESC
+         LIMIT 5`
+      )
+      : Promise.resolve({ rows: [] }),
+    pool.query(
+      `SELECT companies.name, companies.created_at
+       FROM companies
+       WHERE companies.status = 'active'
+         AND COALESCE(companies.is_deleted, false) = false
+         AND NOT EXISTS (
+           SELECT 1
+           FROM subscriptions
+           WHERE subscriptions.company_id = companies.id
+             AND subscriptions.status IN ('active', 'trialing')
+         )
+       ORDER BY companies.created_at DESC
        LIMIT 5`
-    );
+    ),
+    hasInvoicesTable
+      ? pool.query(
+        `SELECT invoices.id, invoices.paid_at
+         FROM invoices
+         LEFT JOIN subscriptions ON subscriptions.id = invoices.subscription_id
+         WHERE invoices.status = ANY($1::text[])
+           AND invoices.company_id IS NULL
+           AND subscriptions.company_id IS NULL
+         ORDER BY invoices.paid_at DESC NULLS LAST, invoices.created_at DESC
+         LIMIT 5`,
+        [PAID_STATUSES]
+      )
+      : Promise.resolve({ rows: [] }),
+    pool.query(
+      `SELECT companies.name, companies.created_at
+       FROM companies
+       WHERE companies.status = 'active'
+         AND COALESCE(companies.is_deleted, false) = false
+         AND NOT EXISTS (
+           SELECT 1
+           FROM first_access_tokens
+           WHERE first_access_tokens.company_id = companies.id
+         )
+       ORDER BY companies.created_at DESC
+       LIMIT 5`
+    ),
+    hasPlansTable
+      ? pool.query(
+        `SELECT name, module_key, created_at
+         FROM plans
+         WHERE is_active = true
+           AND COALESCE(price, 0) <= 0
+         ORDER BY created_at DESC
+         LIMIT 5`
+      )
+      : Promise.resolve({ rows: [] })
+  ];
 
-    webhookErrors.rows.forEach((row) => {
+  const [
+    webhookErrorsResult,
+    activeWithoutSubscriptionResult,
+    paidWithoutCompanyResult,
+    missingFirstAccessResult,
+    plansWithoutPriceResult
+  ] = await Promise.allSettled(queryTasks);
+
+  if (webhookErrorsResult.status === 'fulfilled') {
+    webhookErrorsResult.value.rows.forEach((row) => {
       items.push({
         severity: 'critical',
         code: 'webhook_error',
         title: 'Webhook com erro',
         message: `${row.gateway || 'gateway'}: ${row.event_type || 'evento'} falhou (${row.error_message || 'sem detalhe'})`,
-        createdAt: row.created_at,
-        context: row
+        createdAt: row.created_at
       });
     });
   }
 
-  const activeWithoutSubscription = await pool.query(
-    `SELECT companies.id, companies.name, companies.created_at
-     FROM companies
-     WHERE companies.status = 'active'
-       AND COALESCE(companies.is_deleted, false) = false
-       AND NOT EXISTS (
-         SELECT 1
-         FROM subscriptions
-         WHERE subscriptions.company_id = companies.id
-           AND subscriptions.status IN ('active', 'trialing')
-       )
-     ORDER BY companies.created_at DESC
-     LIMIT 5`
-  );
-
-  activeWithoutSubscription.rows.forEach((row) => {
-    items.push({
-      severity: 'warning',
-      code: 'active_company_without_subscription',
-      title: 'Cliente ativo sem assinatura',
-      message: `${row.name} esta ativo, mas sem assinatura ativa.`,
-      createdAt: row.created_at,
-      context: row
+  if (activeWithoutSubscriptionResult.status === 'fulfilled') {
+    activeWithoutSubscriptionResult.value.rows.forEach((row) => {
+      items.push({
+        severity: 'warning',
+        code: 'active_company_without_subscription',
+        title: 'Cliente ativo sem assinatura',
+        message: `${row.name} esta ativo, mas sem assinatura ativa.`,
+        createdAt: row.created_at
+      });
     });
-  });
+  }
 
-  if (await tableExists('invoices')) {
-    const paidWithoutCompany = await pool.query(
-      `SELECT invoices.id, invoices.subscription_id, invoices.amount, invoices.paid_at
-       FROM invoices
-       LEFT JOIN subscriptions ON subscriptions.id = invoices.subscription_id
-       WHERE invoices.status = ANY($1::text[])
-         AND invoices.company_id IS NULL
-         AND (subscriptions.company_id IS NULL)
-       ORDER BY invoices.paid_at DESC NULLS LAST, invoices.created_at DESC
-       LIMIT 5`,
-      [PAID_STATUSES]
-    );
-
-    paidWithoutCompany.rows.forEach((row) => {
+  if (paidWithoutCompanyResult.status === 'fulfilled') {
+    paidWithoutCompanyResult.value.rows.forEach((row) => {
       items.push({
         severity: 'critical',
         code: 'paid_invoice_without_company',
         title: 'Pagamento sem empresa vinculada',
         message: `Fatura paga ${row.id} sem empresa associada.`,
-        createdAt: row.paid_at,
-        context: row
+        createdAt: row.paid_at
       });
     });
   }
 
-  const missingFirstAccess = await pool.query(
-    `SELECT companies.id, companies.name, companies.created_at
-     FROM companies
-     WHERE companies.status = 'active'
-       AND COALESCE(companies.is_deleted, false) = false
-       AND NOT EXISTS (
-         SELECT 1
-         FROM first_access_tokens
-         WHERE first_access_tokens.company_id = companies.id
-       )
-     ORDER BY companies.created_at DESC
-     LIMIT 5`
-  );
-
-  missingFirstAccess.rows.forEach((row) => {
-    items.push({
-      severity: 'warning',
-      code: 'company_without_first_access',
-      title: 'Cliente sem primeiro acesso enviado',
-      message: `${row.name} ainda nao tem token de primeiro acesso gerado.`,
-      createdAt: row.created_at,
-      context: row
+  if (missingFirstAccessResult.status === 'fulfilled') {
+    missingFirstAccessResult.value.rows.forEach((row) => {
+      items.push({
+        severity: 'warning',
+        code: 'company_without_first_access',
+        title: 'Cliente sem primeiro acesso enviado',
+        message: `${row.name} ainda nao tem token de primeiro acesso gerado.`,
+        createdAt: row.created_at
+      });
     });
-  });
+  }
 
-  if (await tableExists('plans')) {
-    const plansWithoutPrice = await pool.query(
-      `SELECT id, name, module_key, billing_cycle, price, created_at
-       FROM plans
-       WHERE is_active = true
-         AND COALESCE(price, 0) <= 0
-       ORDER BY created_at DESC
-       LIMIT 5`
-    );
-
-    plansWithoutPrice.rows.forEach((row) => {
+  if (plansWithoutPriceResult.status === 'fulfilled') {
+    plansWithoutPriceResult.value.rows.forEach((row) => {
       items.push({
         severity: 'warning',
         code: 'plan_without_price',
         title: 'Plano sem preco definido',
         message: `${row.name} (${row.module_key || 'sem modulo'}) esta ativo com preco zerado.`,
-        createdAt: row.created_at,
-        context: row
+        createdAt: row.created_at
       });
     });
   }
