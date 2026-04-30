@@ -135,6 +135,7 @@ async function getCompanyBySlug(companySlug, client = pool) {
      INNER JOIN company_modules ON company_modules.company_id = companies.id
      INNER JOIN modules ON modules.id = company_modules.module_id
      WHERE companies.public_booking_slug = $1
+       AND COALESCE(companies.is_deleted, false) = false
        AND company_modules.status = 'active'
        AND modules.slug = 'barber'
        AND modules.is_active = true
@@ -367,9 +368,9 @@ function buildAvailabilitySlots({ date, settings, startsAtFloor, durationMinutes
 
 function validateEmailConfiguration() {
   const resendApiKeyExists = Boolean(String(process.env.RESEND_API_KEY || '').trim());
-  const emailFrom = String(
-    process.env.EMAIL_FROM || (process.env.NODE_ENV !== 'production' ? 'MultGestor <onboarding@resend.dev>' : '')
-  ).trim();
+  const emailFromAddress = String(process.env.EMAIL_FROM || '').trim();
+  const emailFromName = String(process.env.EMAIL_NAME || 'MultGestor').trim();
+  const emailFrom = emailFromAddress ? `${emailFromName} <${emailFromAddress}>` : '';
   const emailFromIsValid = /^.+<[^<>@\s]+@[^<>@\s]+>$/.test(emailFrom) || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailFrom);
 
   return {
@@ -520,8 +521,9 @@ async function preRegisterClient(companySlug, data, meta = {}) {
              status = 'pending',
              source = 'agendamento_online',
              updated_at = NOW()
-         WHERE id = $4`,
-        [name, phone, passwordHash, existingCustomer.id]
+         WHERE id = $4
+           AND company_id = $5`,
+        [name, phone, passwordHash, existingCustomer.id, company.id]
       );
       logFlowStep('pre-register', 'pending_user_updated', {
         customerId: existingCustomer.id
@@ -807,7 +809,9 @@ async function confirmClientEmail(token, meta = {}) {
          booking_customers.email,
          companies.public_booking_slug
        FROM email_verification_tokens
-       INNER JOIN booking_customers ON booking_customers.id = email_verification_tokens.booking_customer_id
+       INNER JOIN booking_customers
+         ON booking_customers.id = email_verification_tokens.booking_customer_id
+        AND booking_customers.company_id = email_verification_tokens.company_id
        INNER JOIN companies ON companies.id = email_verification_tokens.company_id
        WHERE email_verification_tokens.token_hash = $1
        LIMIT 1
@@ -846,8 +850,9 @@ async function confirmClientEmail(token, meta = {}) {
        SET email_verified = true,
            status = 'active',
            updated_at = NOW()
-       WHERE id = $1`,
-      [verification.booking_customer_id]
+       WHERE id = $1
+         AND company_id = $2`,
+      [verification.booking_customer_id, verification.company_id]
     );
 
     await writeAuthAudit('client_email_confirmed', {
@@ -996,8 +1001,12 @@ async function listClientAppointments(user) {
        companies.name AS company_name,
        companies.public_booking_slug
      FROM barber_appointments
-     INNER JOIN barber_services ON barber_services.id = barber_appointments.service_id
-     INNER JOIN barber_collaborators ON barber_collaborators.id = barber_appointments.collaborator_id
+     INNER JOIN barber_services
+       ON barber_services.id = barber_appointments.service_id
+      AND barber_services.company_id = barber_appointments.company_id
+     INNER JOIN barber_collaborators
+       ON barber_collaborators.id = barber_appointments.collaborator_id
+      AND barber_collaborators.company_id = barber_appointments.company_id
      LEFT JOIN users collaborator_users ON collaborator_users.id = barber_collaborators.user_id
      INNER JOIN companies ON companies.id = barber_appointments.company_id
      WHERE barber_appointments.company_id = $1
@@ -1147,8 +1156,10 @@ async function cancelClientAppointment(user, appointmentId) {
        SET status = 'canceled',
            updated_at = NOW()
        WHERE id = $1
+         AND company_id = $2
+         AND customer_id = $3
        RETURNING id, status, updated_at`,
-      [appointmentId]
+      [appointmentId, user.company_id, user.customer_id || user.id]
     );
 
     await writeAuthAudit('client_appointment_canceled', {

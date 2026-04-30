@@ -2,7 +2,8 @@ const { createEmailProvider } = require('../../providers/email');
 const {
   firstAccessEmail,
   passwordResetEmail,
-  clientEmailVerificationEmail
+  clientEmailVerificationEmail,
+  pinResetCodeEmail
 } = require('../../templates/email/auth.templates');
 
 function getFrontendUrl() {
@@ -75,9 +76,26 @@ async function sendClientEmailVerificationEmail({ to, name, token, expiresAt }) 
   });
 }
 
+async function sendBarberPinResetEmail({ to, name, companyName, code, expiresAt }) {
+  const template = pinResetCodeEmail({
+    name,
+    companyName,
+    code,
+    expiresAt
+  });
+
+  return sendMail({
+    to,
+    subject: template.subject,
+    text: template.text,
+    html: template.html
+  });
+}
+
 module.exports = {
   buildFrontendLink,
   sendFirstAccessEmail,
   sendPasswordResetEmail,
-  sendClientEmailVerificationEmail
+  sendClientEmailVerificationEmail,
+  sendBarberPinResetEmail
 };

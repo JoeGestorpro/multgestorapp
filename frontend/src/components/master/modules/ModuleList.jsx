@@ -4,26 +4,27 @@ import ModuleItem from './ModuleItem'
 function ModuleList({ loading, modules, onEdit, onToggle, togglingId }) {
   return (
     <SectionCard className="master-module-list-card">
-        <div className="panel-title">
-          <div>
-          <h2>Modulos configurados</h2>
-          <span>Inventario tecnico de modulos com configuracoes prontas para evolucao de backend.</span>
-          </div>
-          <span>{modules.length} registros</span>
+      <div className="panel-title">
+        <div>
+          <h2>Catalogo de modulos</h2>
+          <span>Catalogo tecnico controlado pelo sistema, com gestao comercial separada e leitura segura.</span>
         </div>
+        <span>{modules.length} registros</span>
+      </div>
 
       {loading ? (
         <p>Carregando modulos...</p>
       ) : (
-        <div className="table-wrap">
+        <>
+          <div className="table-wrap master-module-table">
           <table>
             <thead>
               <tr>
-                <th>Nome</th>
+                <th>Modulo</th>
                 <th>Slug</th>
                 <th>Status</th>
+                <th>Planos</th>
                 <th>Base path</th>
-                <th>Data criacao</th>
                 <th>Acoes</th>
               </tr>
             </thead>
@@ -35,17 +36,32 @@ function ModuleList({ loading, modules, onEdit, onToggle, togglingId }) {
                   onEdit={onEdit}
                   onToggle={onToggle}
                   toggling={String(module.id) === String(togglingId)}
+                  variant="table"
                 />
               ))}
 
               {modules.length === 0 && (
                 <tr>
-                  <td colSpan="6">Nenhum modulo cadastrado.</td>
+                  <td colSpan="6">Nenhum modulo do catalogo foi encontrado.</td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
+          </div>
+
+          <div className="master-module-card-list">
+            {modules.map((module) => (
+              <ModuleItem
+                key={`${module.id}-card`}
+                module={module}
+                onEdit={onEdit}
+                onToggle={onToggle}
+                toggling={String(module.id) === String(togglingId)}
+                variant="card"
+              />
+            ))}
+          </div>
+        </>
       )}
     </SectionCard>
   )

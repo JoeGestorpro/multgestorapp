@@ -65,6 +65,7 @@ export function AuthProvider({ children }) {
   const [scope, setScope] = useState(storedSession.scope)
   const [token, setToken] = useState(storedSession.token)
   const [loading, setLoading] = useState(true)
+  const [planLoading, setPlanLoading] = useState(false)
 
   const clearSession = useCallback((targetScope = scope) => {
     if (targetScope === 'master') {
@@ -83,7 +84,54 @@ export function AuthProvider({ children }) {
     setToken(null)
     setUser(null)
     setModules([])
+    setPlanLoading(false)
   }, [scope])
+
+  const applyCompanyPlanToUser = useCallback((currentUser, companyPlan) => {
+    if (!currentUser || !companyPlan) {
+      return currentUser
+    }
+
+    return {
+      ...currentUser,
+      plan_type: companyPlan.plan || currentUser.plan_type,
+      plan_status: companyPlan.status || currentUser.plan_status,
+      trial_ends_at: companyPlan.trialEndsAt ?? currentUser.trial_ends_at ?? null,
+      current_period_end: companyPlan.currentPeriodEnd ?? currentUser.current_period_end ?? null,
+      next_due_date: companyPlan.nextDueDate ?? currentUser.next_due_date ?? null,
+      max_collaborators: companyPlan.maxCollaborators ?? currentUser.max_collaborators ?? null,
+      plan_source: companyPlan.source || currentUser.plan_source || null,
+      plan_is_active: companyPlan.isActive ?? currentUser.plan_is_active ?? null
+    }
+  }, [])
+
+  const fetchBarberCompanyPlan = useCallback(async (authToken) => {
+    const response = await api.get('/barber/company/plan', {
+      headers: {
+        Authorization: `Bearer ${authToken}`
+      }
+    })
+
+    return response.data?.data || null
+  }, [])
+
+  const rehydrateBarberPlan = useCallback(async (authToken, baseUser) => {
+    if (!authToken || !baseUser?.company_id) {
+      return baseUser
+    }
+
+    setPlanLoading(true)
+
+    try {
+      const companyPlan = await fetchBarberCompanyPlan(authToken)
+      return applyCompanyPlanToUser(baseUser, companyPlan)
+    } catch (error) {
+      console.error('Erro ao reidratar plano da empresa no Barber:', error)
+      return baseUser
+    } finally {
+      setPlanLoading(false)
+    }
+  }, [applyCompanyPlanToUser, fetchBarberCompanyPlan])
 
   useEffect(() => {
     async function loadUser() {
@@ -101,7 +149,12 @@ export function AuthProvider({ children }) {
           }
         })
 
-        setUser(response.data.data.user)
+        const authUser = response.data.data.user
+        const resolvedUser = currentSession.scope === 'barber'
+          ? await rehydrateBarberPlan(currentSession.token, authUser)
+          : authUser
+
+        setUser(resolvedUser)
         setModules(response.data.data.modules || [])
         setToken(currentSession.token)
         setScope(currentSession.scope)
@@ -128,7 +181,7 @@ export function AuthProvider({ children }) {
     })
 
     const authToken = response.data.data.token
-    const authUser = response.data.data.user
+    const authUser = await rehydrateBarberPlan(authToken, response.data.data.user)
     const authModules = response.data.data.modules || []
 
     setStoredToken('barber', authToken)
@@ -221,15 +274,25 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(user && token),
       isMasterAuthenticated: Boolean(user && token && (scope === 'master' || user?.auth_scope === 'master')),
       isBarberAuthenticated: Boolean(user && token && (scope === 'barber' || user?.auth_scope === 'barber_admin')),
+      planLoading,
       login,
       loginBarber,
       loginMaster,
       register,
       logout,
       hasModule,
-      getDefaultRoute
+      getDefaultRoute,
+      refreshCompanyPlan: async () => {
+        if (scope !== 'barber' || !token || !user) {
+          return null
+        }
+
+        const nextUser = await rehydrateBarberPlan(token, user)
+        setUser(nextUser)
+        return nextUser
+      }
     }),
-    [user, modules, token, scope, loading, login, register, logout, hasModule, getDefaultRoute]
+    [user, modules, token, scope, loading, planLoading, login, register, logout, hasModule, getDefaultRoute, rehydrateBarberPlan]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

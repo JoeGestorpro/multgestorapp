@@ -1,86 +1,64 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import MasterLayout from '../components/master/MasterLayout'
 import PageHeader from '../components/master/PageHeader'
-import SectionCard from '../components/master/SectionCard'
+import StatCard from '../components/master/StatCard'
 import ModuleForm from '../components/master/modules/ModuleForm'
 import ModuleList from '../components/master/modules/ModuleList'
 import api from '../services/api'
 
 const MODULE_META_STORAGE_KEY = 'master-admin-module-meta'
+const CLIENT_OWNER_ROLE = 'admin_cliente'
+const CLIENT_OWNER_ROLES = [CLIENT_OWNER_ROLE]
+const MODULE_PLAN_OPTIONS = ['free', 'pro', 'plus']
+const SYSTEM_MODULE_CATALOG = [
+  {
+    slug: 'barber',
+    name: 'BarberGestor',
+    version: 'v1',
+    description: 'Modulo operacional para barbearias, com agenda, vendas, caixa, servicos, produtos e equipe.',
+    base_path: '/barber',
+    route_prefix: '/api/barber',
+    requires_auth: true,
+    multi_tenant_enabled: true,
+    operational_profile_label: 'Admin Cliente / Dono da empresa'
+  },
+  {
+    slug: 'clima',
+    name: 'ClimaGestor',
+    version: 'v1',
+    description: 'Modulo para operacao de climatizacao, preparado para evolucao comercial e atendimento especializado.',
+    base_path: '/clima',
+    route_prefix: '/api/clima',
+    requires_auth: true,
+    multi_tenant_enabled: true,
+    operational_profile_label: 'Admin Cliente / Dono da empresa'
+  },
+  {
+    slug: 'terra',
+    name: 'TerraGestor',
+    version: 'v1',
+    description: 'Modulo para rotinas de terraplanagem, com isolamento multiempresa e ativacao controlada pelo painel master.',
+    base_path: '/terra',
+    route_prefix: '/api/terra',
+    requires_auth: true,
+    multi_tenant_enabled: true,
+    operational_profile_label: 'Admin Cliente / Dono da empresa'
+  }
+]
 
 const emptyForm = {
   name: '',
   slug: '',
   description: '',
   version: 'v1',
-  status: true,
+  status: false,
   base_path: '',
   route_prefix: '',
   requires_auth: true,
-  allowed_roles: ['master_admin'],
+  allowed_roles: CLIENT_OWNER_ROLES,
   multi_tenant_enabled: true,
-  requires_subscription: false,
-  requires_onboarding: false,
-  trial_enabled: false,
-  trial_days: '0',
-  auto_activate_on_payment: false,
-  allow_manual_activation: true,
-  payment_gateway: 'manual',
-  webhook_enabled: false,
-  webhook_url: '',
-  external_api_base_url: '',
-  integration_key: '',
-  feature_flags: '{\n  \n}',
-  rate_limit: '120',
-  logging_enabled: true,
-  environment: 'prod',
-  db_schema_name: ''
-}
-
-const scaleReadiness = [
-  'Roteamento desacoplado',
-  'Autorizacao por perfil',
-  'Integracoes por gateway',
-  'Escala multi-tenant'
-]
-
-function normalizeSlug(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
-function normalizeBasePath(value) {
-  const sanitized = String(value || '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/\/+/g, '/')
-
-  if (!sanitized) {
-    return ''
-  }
-
-  return sanitized.startsWith('/') ? sanitized : `/${sanitized}`
-}
-
-function normalizeRoutePath(value) {
-  return normalizeBasePath(value)
-}
-
-function formatDate(value) {
-  if (!value) {
-    return '-'
-  }
-
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  }).format(new Date(value))
+  module_plans: MODULE_PLAN_OPTIONS,
+  default_plan: 'pro'
 }
 
 function readStoredModuleMeta() {
@@ -99,61 +77,45 @@ function writeStoredModuleMeta(value) {
 
 function buildModuleMeta(form) {
   return {
-    version: form.version,
-    base_path: form.base_path,
-    route_prefix: form.route_prefix,
-    requires_auth: form.requires_auth,
-    allowed_roles: form.allowed_roles,
-    multi_tenant_enabled: form.multi_tenant_enabled,
-    requires_subscription: form.requires_subscription,
-    requires_onboarding: form.requires_onboarding,
-    trial_enabled: form.trial_enabled,
-    trial_days: form.trial_days,
-    auto_activate_on_payment: form.auto_activate_on_payment,
-    allow_manual_activation: form.allow_manual_activation,
-    payment_gateway: form.payment_gateway,
-    webhook_enabled: form.webhook_enabled,
-    webhook_url: form.webhook_url,
-    external_api_base_url: form.external_api_base_url,
-    integration_key: form.integration_key,
-    feature_flags: form.feature_flags,
-    rate_limit: form.rate_limit,
-    logging_enabled: form.logging_enabled,
-    environment: form.environment,
-    db_schema_name: form.db_schema_name
+    module_plans: Array.isArray(form.module_plans) && form.module_plans.length > 0
+      ? form.module_plans
+      : ['free'],
+    default_plan: form.default_plan || 'free'
   }
 }
 
 function mergeModulesWithMeta(modules) {
   const metaStore = readStoredModuleMeta()
+  const modulesBySlug = new Map(modules.map((module) => [module.slug, module]))
 
-  return modules.map((module) => {
-    const meta = metaStore[module.id] || metaStore[module.slug] || {}
+  return SYSTEM_MODULE_CATALOG.map((catalogModule) => {
+    const persistedModule = modulesBySlug.get(catalogModule.slug)
+    const meta = persistedModule
+      ? (metaStore[persistedModule.id] || metaStore[persistedModule.slug] || {})
+      : (metaStore[catalogModule.slug] || {})
+    const modulePlans = Array.isArray(meta.module_plans) && meta.module_plans.length > 0
+      ? meta.module_plans.filter((plan) => MODULE_PLAN_OPTIONS.includes(plan))
+      : MODULE_PLAN_OPTIONS
 
     return {
-      ...module,
-      version: meta.version || 'v1',
-      base_path: meta.base_path || '',
-      route_prefix: meta.route_prefix || '',
-      requires_auth: meta.requires_auth ?? true,
-      allowed_roles: Array.isArray(meta.allowed_roles) && meta.allowed_roles.length > 0 ? meta.allowed_roles : ['master_admin'],
-      multi_tenant_enabled: meta.multi_tenant_enabled ?? true,
-      requires_subscription: Boolean(meta.requires_subscription),
-      requires_onboarding: Boolean(meta.requires_onboarding),
-      trial_enabled: Boolean(meta.trial_enabled),
-      trial_days: String(meta.trial_days ?? '0'),
-      auto_activate_on_payment: Boolean(meta.auto_activate_on_payment),
-      allow_manual_activation: meta.allow_manual_activation ?? true,
-      payment_gateway: meta.payment_gateway || 'manual',
-      webhook_enabled: Boolean(meta.webhook_enabled),
-      webhook_url: meta.webhook_url || '',
-      external_api_base_url: meta.external_api_base_url || '',
-      integration_key: meta.integration_key || '',
-      feature_flags: meta.feature_flags || '{\n  \n}',
-      rate_limit: String(meta.rate_limit ?? '120'),
-      logging_enabled: meta.logging_enabled ?? true,
-      environment: meta.environment || 'prod',
-      db_schema_name: meta.db_schema_name || ''
+      id: persistedModule?.id || catalogModule.slug,
+      name: persistedModule?.name || catalogModule.name,
+      slug: catalogModule.slug,
+      description: persistedModule?.description || catalogModule.description,
+      version: catalogModule.version,
+      is_active: persistedModule?.is_active ?? false,
+      created_at: persistedModule?.created_at || null,
+      updated_at: persistedModule?.updated_at || null,
+      base_path: catalogModule.base_path,
+      route_prefix: catalogModule.route_prefix,
+      requires_auth: catalogModule.requires_auth,
+      allowed_roles: CLIENT_OWNER_ROLES,
+      multi_tenant_enabled: catalogModule.multi_tenant_enabled,
+      operational_profile_label: catalogModule.operational_profile_label,
+      module_plans: modulePlans,
+      default_plan: modulePlans.includes(meta.default_plan) ? meta.default_plan : modulePlans[0],
+      planSummary: modulePlans.map((plan) => plan.toUpperCase()).join(' / '),
+      catalog_source: 'system'
     }
   })
 }
@@ -164,42 +126,26 @@ function toFormState(module) {
     slug: module.slug || '',
     description: module.description || '',
     version: module.version || 'v1',
-    status: module.is_active ?? true,
+    status: module.is_active ?? false,
     base_path: module.base_path || '',
     route_prefix: module.route_prefix || '',
     requires_auth: module.requires_auth ?? true,
-    allowed_roles: Array.isArray(module.allowed_roles) && module.allowed_roles.length > 0 ? module.allowed_roles : ['master_admin'],
+    allowed_roles: CLIENT_OWNER_ROLES,
     multi_tenant_enabled: module.multi_tenant_enabled ?? true,
-    requires_subscription: Boolean(module.requires_subscription),
-    requires_onboarding: Boolean(module.requires_onboarding),
-    trial_enabled: Boolean(module.trial_enabled),
-    trial_days: String(module.trial_days ?? '0'),
-    auto_activate_on_payment: Boolean(module.auto_activate_on_payment),
-    allow_manual_activation: module.allow_manual_activation ?? true,
-    payment_gateway: module.payment_gateway || 'manual',
-    webhook_enabled: Boolean(module.webhook_enabled),
-    webhook_url: module.webhook_url || '',
-    external_api_base_url: module.external_api_base_url || '',
-    integration_key: module.integration_key || '',
-    feature_flags: module.feature_flags || '{\n  \n}',
-    rate_limit: String(module.rate_limit ?? '120'),
-    logging_enabled: module.logging_enabled ?? true,
-    environment: module.environment || 'prod',
-    db_schema_name: module.db_schema_name || ''
+    module_plans: Array.isArray(module.module_plans) && module.module_plans.length > 0 ? module.module_plans : MODULE_PLAN_OPTIONS,
+    default_plan: module.default_plan || 'free'
   }
 }
 
 function Modules() {
   const [modules, setModules] = useState([])
   const [form, setForm] = useState(emptyForm)
-  const [editingModule, setEditingModule] = useState(null)
+  const [selectedModule, setSelectedModule] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [togglingId, setTogglingId] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [formErrors, setFormErrors] = useState({})
-  const [slugTouched, setSlugTouched] = useState(false)
 
   async function loadData(options = {}) {
     if (options.clearMessage !== false) {
@@ -209,7 +155,16 @@ function Modules() {
     try {
       const response = await api.get('/master/modules')
       const nextModules = Array.isArray(response.data.data) ? response.data.data : []
-      setModules(mergeModulesWithMeta(nextModules))
+      const mergedModules = mergeModulesWithMeta(nextModules)
+
+      setModules(mergedModules)
+      setSelectedModule((current) => {
+        if (current) {
+          return mergedModules.find((module) => String(module.slug) === String(current.slug)) || null
+        }
+
+        return null
+      })
     } catch (err) {
       setError(err.response?.data?.error || 'Nao foi possivel carregar os modulos')
     } finally {
@@ -225,175 +180,38 @@ function Modules() {
     return () => window.clearTimeout(timeoutId)
   }, [])
 
-  const slugConflict = useMemo(() => {
-    const normalizedSlug = normalizeSlug(form.slug)
-
-    if (!normalizedSlug) {
-      return false
+  useEffect(() => {
+    if (selectedModule) {
+      setForm(toFormState(selectedModule))
     }
+  }, [selectedModule])
 
-    return modules.some((module) => {
-      if (editingModule && String(module.id) === String(editingModule.id)) {
-        return false
-      }
-
-      return module.slug === normalizedSlug
-    })
-  }, [editingModule, form.slug, modules])
-
-  const basePathConflict = useMemo(() => {
-    const normalizedBasePath = normalizeBasePath(form.base_path)
-
-    if (!normalizedBasePath) {
-      return false
-    }
-
-    return modules.some((module) => {
-      if (editingModule && String(module.id) === String(editingModule.id)) {
-        return false
-      }
-
-      return normalizeBasePath(module.base_path) === normalizedBasePath
-    })
-  }, [editingModule, form.base_path, modules])
-
-  function handleFieldChange(event) {
-    const { name, type, checked, value } = event.target
-
-    setFormErrors((current) => ({
-      ...current,
-      [name]: ''
-    }))
-
-    if (name === 'name') {
-      setForm((current) => ({
-        ...current,
-        name: value,
-        slug: slugTouched ? current.slug : normalizeSlug(value)
-      }))
-      return
-    }
-
-    if (name === 'slug') {
-      setSlugTouched(true)
-      setForm((current) => ({
-        ...current,
-        slug: normalizeSlug(value)
-      }))
-      return
-    }
-
-    if (name === 'base_path') {
-      setForm((current) => ({
-        ...current,
-        base_path: normalizeBasePath(value)
-      }))
-      return
-    }
-
-    if (name === 'route_prefix') {
-      setForm((current) => ({
-        ...current,
-        route_prefix: normalizeRoutePath(value)
-      }))
-      return
-    }
-
-    setForm((current) => ({
-      ...current,
-      [name]: type === 'checkbox' ? checked : value
-    }))
-  }
-
-  function handleJsonChange(event) {
-    const { name, value } = event.target
-
-    setFormErrors((current) => ({
-      ...current,
-      [name]: ''
-    }))
-
-    setForm((current) => ({
-      ...current,
-      [name]: value
-    }))
-  }
-
-  function handleMultiSelectChange(name, selectedValue) {
+  function handlePlanToggle(plan) {
     setForm((current) => {
-      const currentValues = Array.isArray(current[name]) ? current[name] : []
-      const nextValues = currentValues.includes(selectedValue)
-        ? currentValues.filter((item) => item !== selectedValue)
-        : [...currentValues, selectedValue]
+      const currentPlans = Array.isArray(current.module_plans) ? current.module_plans : []
+      const nextPlans = currentPlans.includes(plan)
+        ? currentPlans.filter((item) => item !== plan)
+        : [...currentPlans, plan]
 
       return {
         ...current,
-        [name]: nextValues
+        module_plans: nextPlans,
+        default_plan: nextPlans.includes(current.default_plan) ? current.default_plan : (nextPlans[0] || '')
       }
     })
   }
 
-  function resetForm() {
-    setEditingModule(null)
-    setForm(emptyForm)
-    setFormErrors({})
-    setSlugTouched(false)
+  function handleDefaultPlanChange(plan) {
+    setForm((current) => ({
+      ...current,
+      default_plan: plan
+    }))
   }
 
-  function startEdit(module) {
-    setEditingModule(module)
-    setForm(toFormState(module))
-    setFormErrors({})
-    setSlugTouched(false)
+  function viewModule(module) {
+    setSelectedModule(module)
     setSuccess('')
     setError('')
-  }
-
-  function validateForm() {
-    const nextErrors = {}
-
-    if (!String(form.name || '').trim()) {
-      nextErrors.name = 'Nome obrigatorio'
-    }
-
-    if (!String(form.slug || '').trim()) {
-      nextErrors.slug = 'Slug obrigatorio'
-    } else if (slugConflict) {
-      nextErrors.slug = 'Este slug ja esta em uso'
-    }
-
-    if (!String(form.base_path || '').trim()) {
-      nextErrors.base_path = 'Base path obrigatorio'
-    } else if (basePathConflict) {
-      nextErrors.base_path = 'Este base path ja esta em uso'
-    }
-
-    if (form.requires_auth && !String(form.route_prefix || '').trim()) {
-      nextErrors.route_prefix = 'Prefixo de rota obrigatorio quando o modulo exige autenticacao'
-    }
-
-    if (!form.multi_tenant_enabled) {
-      nextErrors.multi_tenant_enabled = 'Multi-tenant habilitado deve permanecer verdadeiro'
-    }
-
-    if (form.webhook_enabled && !String(form.webhook_url || '').trim()) {
-      nextErrors.webhook_url = 'URL do webhook obrigatoria quando o webhook estiver habilitado'
-    }
-
-    if (form.trial_enabled && Number(form.trial_days || 0) <= 0) {
-      nextErrors.trial_days = 'Informe uma quantidade valida de dias para trial'
-    }
-
-    if (String(form.feature_flags || '').trim()) {
-      try {
-        JSON.parse(form.feature_flags)
-      } catch {
-        nextErrors.feature_flags = 'Feature flags precisa ser um JSON valido'
-      }
-    }
-
-    setFormErrors(nextErrors)
-    return Object.keys(nextErrors).length === 0
   }
 
   async function persistFrontendMeta(moduleRecord, sourceForm) {
@@ -408,10 +226,8 @@ function Modules() {
     writeStoredModuleMeta(nextStore)
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault()
-
-    if (!validateForm()) {
+  async function saveModulePlans() {
+    if (!selectedModule) {
       return
     }
 
@@ -419,32 +235,23 @@ function Modules() {
     setError('')
     setSuccess('')
 
-    const payload = {
-      name: form.name.trim(),
-      slug: normalizeSlug(form.slug),
-      description: form.description.trim(),
-      is_active: Boolean(form.status)
-    }
-
     try {
-      const response = editingModule
-        ? await api.patch(`/master/modules/${editingModule.id}`, payload)
-        : await api.post('/master/modules', payload)
-
-      const moduleRecord = response.data.data
-      await persistFrontendMeta(moduleRecord, form)
-
-      setSuccess(editingModule ? 'Modulo atualizado com sucesso' : 'Modulo criado com sucesso')
-      resetForm()
+      await persistFrontendMeta(selectedModule, form)
+      setSuccess('Planos do modulo salvos com sucesso')
       await loadData()
     } catch (err) {
-      setError(err.response?.data?.error || 'Nao foi possivel salvar o modulo')
+      setError(err.response?.data?.error || 'Nao foi possivel salvar os planos do modulo')
     } finally {
       setSaving(false)
     }
   }
 
   async function toggleModule(module) {
+    if (!module.id || !String(module.id).includes('-')) {
+      setError('Este modulo ainda nao possui registro persistido para ativacao pelo painel.')
+      return
+    }
+
     setError('')
     setSuccess('')
     setTogglingId(String(module.id))
@@ -466,67 +273,51 @@ function Modules() {
   return (
     <MasterLayout title="Modulos">
       <PageHeader
-        title="Gestao de Modulos"
-        description="Configure cada modulo como uma entidade tecnica de sistema com roteamento, acesso, regras operacionais e integracoes."
+        title="Catalogo de Modulos"
+        description="Gerencie modulos disponiveis, status comercial e planos associados."
       />
 
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
 
-      <section className="master-module-grid">
-        <ModuleForm
-          editingModule={editingModule}
-          form={form}
-          formErrors={formErrors}
-          onCancel={resetForm}
-          onChange={handleFieldChange}
-          onJsonChange={handleJsonChange}
-          onMultiSelectChange={handleMultiSelectChange}
-          onSubmit={handleSubmit}
-          saving={saving}
-          slugConflict={slugConflict}
-          basePathConflict={basePathConflict}
+      <section className="master-module-stats">
+        <StatCard
+          label="Total de modulos"
+          value={modules.length}
+          detail="Catalogo tecnico controlado pelo sistema"
         />
-
-        <SectionCard className="master-module-aside">
-          <div className="master-module-aside-copy">
-            <span className="master-module-kicker">Painel de configuracao tecnica</span>
-            <h2>Modulo tratado como nucleo configuravel de produto SaaS.</h2>
-            <p>
-              Os metadados avancados ficam preservados no frontend para preparar o backend escalavel sem alterar o contrato
-              atual de cadastro de modulos.
-            </p>
-          </div>
-
-          <div className="master-module-roadmap">
-            {scaleReadiness.map((item) => (
-              <span key={item}>{item}</span>
-            ))}
-          </div>
-
-          <div className="master-module-summary">
-            <div>
-              <strong>{modules.length}</strong>
-              <span>modulos configurados</span>
-            </div>
-            <div>
-              <strong>{modules.filter((module) => module.is_active).length}</strong>
-              <span>ativos em producao</span>
-            </div>
-          </div>
-        </SectionCard>
+        <StatCard
+          label="Modulos ativos"
+          value={modules.filter((module) => module.is_active).length}
+          detail="Disponiveis comercialmente no painel master"
+        />
+        <StatCard
+          label="Planos disponiveis"
+          value={MODULE_PLAN_OPTIONS.length}
+          detail="Free, Pro e Plus preparados por modulo"
+        />
       </section>
 
       <ModuleList
         loading={loading}
         modules={modules.map((module) => ({
           ...module,
-          createdLabel: formatDate(module.created_at),
-          activeCompaniesLabel: module.base_path || 'Em breve'
+          activeCompaniesLabel: module.base_path || 'Catalogado no sistema'
         }))}
-        onEdit={startEdit}
+        onEdit={viewModule}
         onToggle={toggleModule}
         togglingId={togglingId}
+      />
+
+      <ModuleForm
+        moduleRecord={selectedModule}
+        form={form}
+        onPlanToggle={handlePlanToggle}
+        onDefaultPlanChange={handleDefaultPlanChange}
+        onSavePlans={saveModulePlans}
+        onToggleModule={toggleModule}
+        saving={saving}
+        toggling={selectedModule ? String(selectedModule.id) === String(togglingId) : false}
       />
     </MasterLayout>
   )

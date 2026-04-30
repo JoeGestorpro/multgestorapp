@@ -110,8 +110,56 @@ function clientEmailVerificationEmail({ name, link, expiresAt }) {
   };
 }
 
+function pinResetCodeEmail({ name, companyName, code, expiresAt }) {
+  const title = 'Recuperacao de PIN - BarberGestor';
+  const safeTitle = escapeHtml(title);
+  const safeCode = escapeHtml(code);
+  const safeName = escapeHtml(name || 'cliente');
+  const safeCompanyName = escapeHtml(companyName || 'sua barbearia');
+  const safeExpiresAt = escapeHtml(formatExpiration(expiresAt));
+
+  const text = [
+    title,
+    '',
+    `Ola, ${name || 'cliente'}. Recebemos uma solicitacao para redefinir o PIN de seguranca da empresa ${companyName || 'sua barbearia'}.`,
+    '',
+    `Codigo de recuperacao: ${code}`,
+    '',
+    `Este codigo expira em ${formatExpiration(expiresAt)}.`,
+    'Se voce nao solicitou esta redefinicao, ignore esta mensagem.'
+  ].join('\n');
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;background:#f6f7f9;padding:32px;color:#1f2937">
+      <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;padding:28px">
+        <h1 style="font-size:22px;margin:0 0 16px;color:#111827">${safeTitle}</h1>
+        <p style="font-size:15px;line-height:1.6;margin:0 0 20px">
+          Ola, ${safeName}. Recebemos uma solicitacao para redefinir o PIN de seguranca da empresa <strong>${safeCompanyName}</strong>.
+        </p>
+        <div style="margin:0 0 20px;padding:18px;border-radius:12px;background:#111827;color:#fbbf24;text-align:center">
+          <p style="margin:0 0 8px;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#fcd34d">Codigo de recuperacao</p>
+          <strong style="font-size:34px;letter-spacing:0.28em">${safeCode}</strong>
+        </div>
+        <p style="font-size:14px;line-height:1.6;margin:0 0 16px;color:#4b5563">
+          Este codigo expira em <strong>${safeExpiresAt}</strong>.
+        </p>
+        <p style="font-size:13px;line-height:1.6;margin:0;color:#6b7280">
+          Se voce nao solicitou esta redefinicao, ignore esta mensagem.
+        </p>
+      </div>
+    </div>
+  `;
+
+  return {
+    subject: title,
+    text,
+    html
+  };
+}
+
 module.exports = {
   firstAccessEmail,
   passwordResetEmail,
-  clientEmailVerificationEmail
+  clientEmailVerificationEmail,
+  pinResetCodeEmail
 };

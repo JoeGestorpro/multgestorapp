@@ -141,7 +141,7 @@ app.get('/api/test-email', async (req, res) => {
 
   try {
     const response = await resend.emails.send({
-      from: 'onboarding@resend.dev',
+      from: `${String(process.env.EMAIL_NAME || 'MultGestor').trim()} <${String(process.env.EMAIL_FROM || '').trim()}>`,
       to,
       subject: 'Teste MultGestor',
       html: '<h1>Email funcionando &#128640;</h1>'
@@ -202,5 +202,9 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   validateRuntimeUrls();
+  if (typeof pool.getDatabaseTargetSummary === 'function') {
+    const target = pool.getDatabaseTargetSummary();
+    console.log(`[database] alvo do backend: ${target.label}`);
+  }
   console.log(`Servidor rodando na porta ${PORT}`);
 });

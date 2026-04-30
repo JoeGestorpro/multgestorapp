@@ -5,7 +5,7 @@ function sendError(res, error, fallbackMessage) {
 
   return res.status(statusCode).json({
     success: false,
-    error: statusCode >= 500 ? (error.message || fallbackMessage) : error.message
+    error: statusCode >= 500 ? (fallbackMessage || 'Erro interno do servidor') : error.message
   });
 }
 

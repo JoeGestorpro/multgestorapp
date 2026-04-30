@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BarberButton, BarberIcon } from './BarberUI'
+import PlanLock from '../common/PlanLock'
 
 const adminMenuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -10,7 +11,8 @@ const adminMenuItems = [
   { id: 'sales', label: 'Vendas', icon: 'sales' },
   { id: 'cashier', label: 'Caixa', icon: 'wallet' },
   { id: 'team', label: 'Colaboradores', icon: 'users' },
-  { id: 'reports', label: 'Relatorios', icon: 'reports' }
+  { id: 'reports', label: 'Relatorios', icon: 'reports' },
+  { id: 'settings', label: 'Configuracoes', icon: 'settings' }
 ]
 
 function getMenuItems(user, isAdmin) {
@@ -37,11 +39,14 @@ function BarberSidebar({
   activeView,
   isAdmin,
   modulesCount,
+  lockedViews = {},
   onNavigate,
+  onLockedFeature,
   onSwitchModule,
   open,
   onClose,
-  user
+  user,
+  planLabel
 }) {
   const menuItems = getMenuItems(user, isAdmin)
 
@@ -66,11 +71,20 @@ function BarberSidebar({
         <nav className="barber-nav">
           <div className="barber-nav-group">
             <p>{isAdmin ? 'Operacao' : 'Colaborador'}</p>
-            {menuItems.map((item) => (
+            {menuItems.map((item) => {
+              const locked = Boolean(lockedViews[item.id])
+              const lockMessage = lockedViews[item.id]
+
+              return (
               <button
-                className={`barber-nav-item ${activeView === item.id ? 'active' : ''}`.trim()}
+                className={`barber-nav-item ${activeView === item.id ? 'active' : ''} ${locked ? 'is-locked' : ''}`.trim()}
                 key={item.id}
                 onClick={() => {
+                  if (locked) {
+                    onLockedFeature?.(lockMessage)
+                    onClose()
+                    return
+                  }
                   onNavigate(item.id)
                   onClose()
                 }}
@@ -78,8 +92,10 @@ function BarberSidebar({
               >
                 <BarberIcon name={item.icon} />
                 <span>{item.label}</span>
+                {locked ? <PlanLock label="Plano" /> : null}
               </button>
-            ))}
+              )
+            })}
           </div>
         </nav>
 
@@ -89,6 +105,7 @@ function BarberSidebar({
           <p>
             Ambiente premium com foco em leitura rapida, fechamento de caixa e operacao sem atrito.
           </p>
+          <div className="barber-plan-pill">Plano atual: {planLabel}</div>
           {modulesCount > 1 && (
             <BarberButton className="barber-sidebar-switch" onClick={onSwitchModule} type="button" variant="ghost">
               <BarberIcon name="switch" />
@@ -141,6 +158,9 @@ function BarberLayout({
   user,
   isAdmin,
   modulesCount,
+  lockedViews,
+  onLockedFeature,
+  planLabel,
   onNavigate,
   onSwitchModule,
   onLogout,
@@ -153,11 +173,14 @@ function BarberLayout({
       <BarberSidebar
         activeView={activeView}
         isAdmin={isAdmin}
+        lockedViews={lockedViews}
         modulesCount={modulesCount}
         onClose={() => setSidebarOpen(false)}
+        onLockedFeature={onLockedFeature}
         onNavigate={onNavigate}
         onSwitchModule={onSwitchModule}
         open={sidebarOpen}
+        planLabel={planLabel}
         user={user}
       />
 

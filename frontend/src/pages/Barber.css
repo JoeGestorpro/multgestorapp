@@ -150,6 +150,14 @@
   color: var(--barber-accent);
 }
 
+.barber-nav-item.is-locked {
+  opacity: 0.82;
+}
+
+.barber-nav-item.is-locked:hover {
+  cursor: pointer;
+}
+
 .barber-sidebar-footer {
   background:
     linear-gradient(160deg, rgba(92, 255, 107, 0.12), rgba(244, 200, 108, 0.08)),
@@ -188,6 +196,57 @@
   width: 100%;
 }
 
+.barber-plan-pill,
+.barber-plan-summary,
+.plan-lock-badge {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.barber-plan-pill {
+  background: rgba(92, 255, 107, 0.1);
+  border: 1px solid rgba(92, 255, 107, 0.24);
+  border-radius: 999px;
+  color: var(--barber-soft);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+}
+
+.barber-plan-summary {
+  background: rgba(24, 34, 49, 0.85);
+  border: 1px solid var(--barber-border);
+  border-radius: 16px;
+  margin-top: 18px;
+  padding: 10px 14px;
+}
+
+.barber-plan-summary span {
+  color: var(--barber-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.barber-plan-summary strong {
+  color: var(--barber-text);
+  font-size: 13px;
+}
+
+.plan-lock-badge {
+  background: rgba(250, 204, 21, 0.14);
+  border: 1px solid rgba(250, 204, 21, 0.28);
+  border-radius: 999px;
+  color: var(--barber-gold);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 6px 10px;
+}
+
 .barber-main {
   min-width: 0;
   padding: 0 30px 34px;
@@ -206,6 +265,7 @@
 .barber-topbar-actions,
 .barber-user-chip,
 .barber-page-actions,
+.barber-inline-lock-target,
 .barber-inline-kpis,
 .barber-sale-meta,
 .barber-summary-item,
@@ -232,6 +292,35 @@
 .barber-topbar-copy strong {
   display: block;
   font-size: 20px;
+}
+
+.locked-feature {
+  cursor: not-allowed;
+  position: relative;
+}
+
+.locked-feature-content {
+  opacity: 0.54;
+  pointer-events: none;
+}
+
+.locked-feature-inline {
+  display: inline-flex;
+}
+
+.locked-feature-inline .locked-feature-content,
+.locked-feature-inline .barber-inline-lock-target {
+  display: inline-flex;
+}
+
+.locked-feature-overlay {
+  align-items: center;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
 }
 
 .barber-icon-button {
@@ -2647,6 +2736,141 @@
   }
 }
 
+.barber-settings-grid {
+  align-items: stretch;
+}
+
+.barber-settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.barber-settings-preview {
+  align-items: center;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(10, 14, 20, 0.84));
+  border: 1px solid rgba(212, 175, 55, 0.16);
+  border-radius: 20px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 72px minmax(0, 1fr);
+  padding: 20px;
+}
+
+.barber-settings-logo-placeholder {
+  align-items: center;
+  background: radial-gradient(circle at 30% 20%, rgba(251, 191, 36, 0.24), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 22px;
+  color: #fbbf24;
+  display: inline-flex;
+  height: 72px;
+  justify-content: center;
+  width: 72px;
+}
+
+.barber-settings-logo-placeholder .barber-icon {
+  height: 28px;
+  width: 28px;
+}
+
+.barber-settings-meta {
+  display: grid;
+  gap: 14px;
+}
+
+.barber-settings-meta-item {
+  background: rgba(9, 14, 21, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 16px;
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+}
+
+.barber-settings-meta-item span {
+  color: rgba(226, 232, 240, 0.66);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.barber-settings-meta-item strong {
+  color: #f8fafc;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.barber-settings-security-callout {
+  align-items: center;
+  background: linear-gradient(140deg, rgba(251, 191, 36, 0.12), rgba(15, 23, 42, 0.9));
+  border: 1px solid rgba(251, 191, 36, 0.18);
+  border-radius: 18px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 18px 20px;
+}
+
+.barber-settings-security-callout p,
+.barber-settings-preview p {
+  margin: 6px 0 0;
+}
+
+.barber-settings-security-flow {
+  background: rgba(8, 12, 18, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 20px;
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+}
+
+.barber-settings-stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.barber-settings-stepper span {
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 999px;
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 10px 14px;
+  text-transform: uppercase;
+}
+
+.barber-settings-stepper span.active {
+  background: rgba(251, 191, 36, 0.14);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+
+.barber-settings-hint {
+  align-items: center;
+  color: rgba(226, 232, 240, 0.76);
+  display: inline-flex;
+  gap: 10px;
+}
+
+.barber-settings-hint .barber-icon {
+  color: #fbbf24;
+}
+
+.barber-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.barber-settings-loading {
+  color: rgba(226, 232, 240, 0.72);
+}
+
 @media (max-width: 860px) {
   .barber-topbar,
   .barber-page-hero,
@@ -2690,7 +2914,8 @@
 
   .barber-public-auth-gate,
   .barber-client-header,
-  .barber-client-appointment-card {
+  .barber-client-appointment-card,
+  .barber-settings-security-callout {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -2705,7 +2930,8 @@
   .barber-sales-payment-grid,
   .barber-icon-grid,
   .barber-public-choice-grid,
-  .barber-appointment-card-grid {
+  .barber-appointment-card-grid,
+  .barber-settings-preview {
     grid-template-columns: 1fr;
   }
 

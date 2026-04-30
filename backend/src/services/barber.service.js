@@ -3,6 +3,18 @@ const fs = require('fs/promises');
 const path = require('path');
 const pool = require('../config/database');
 const supabase = require('../config/supabase');
+const emailService = require('./email/email.service');
+const {
+  getPlanLimits,
+  getCompanyPlanSnapshot
+} = require('./company-plan.service');
+const { canUsePlanFeature, getLockedFeatureMessage } = require('../utils/planFeatures');
+const {
+  isValidEmail,
+  isValidPassword,
+  isValidPin,
+  isFiniteNumberValue
+} = require('../utils/validators');
 
 const BUSINESS_TIMEZONE = 'America/Cuiaba';
 const PAYMENT_METHODS = ['dinheiro', 'pix', 'credito', 'debito', 'permuta'];
@@ -18,6 +30,7 @@ const COLLABORATOR_AVATAR_MIME_TYPES = {
   'image/webp': 'webp'
 };
 const UPLOADS_ROOT = path.resolve(__dirname, '..', '..', 'uploads');
+const PIN_RESET_EXPIRATION_MINUTES = 10;
 const PAYMENT_METHOD_ALIASES = {
   cash: 'dinheiro',
   dinheiro: 'dinheiro',
@@ -36,8 +49,49 @@ function createError(message, statusCode) {
   return error;
 }
 
+function createResponseError(statusCode, errorLabel, message) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.responseBody = {
+    error: errorLabel,
+    message
+  };
+  return error;
+}
+
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
+}
+
+function normalizePin(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function getDefaultCollaboratorPermissionState() {
+  return {
+    canLaunchSales: false,
+    canViewOwnDashboard: true,
+    canViewOwnReports: true
+  };
+}
+
+function usesLockedExtraPermissions(payload, baselinePermissions = getDefaultCollaboratorPermissionState()) {
+  return [
+    ['canLaunchSales', payload.canLaunchSales],
+    ['canViewOwnDashboard', payload.canViewOwnDashboard],
+    ['canViewOwnReports', payload.canViewOwnReports]
+  ].some(([key, value]) => value !== baselinePermissions[key]);
+}
+
+function ensureExtraPermissionsFeature(planType, payload, baselinePermissions) {
+  // REGRA GLOBAL: bloquear personalizacao de permissoes por plano com 403 amigavel.
+  if (canUsePlanFeature(planType, 'extra_permissions')) {
+    return;
+  }
+
+  if (usesLockedExtraPermissions(payload, baselinePermissions)) {
+    throw createError(getLockedFeatureMessage('extra_permissions'), 403);
+  }
 }
 
 function slugifyText(value) {
@@ -119,14 +173,304 @@ function toNullableInteger(value) {
 }
 
 function ensureCompany(companyId) {
+  // REGRA MULTI-TENANT: sempre usar company_id.
   if (!companyId) {
     throw createError('Usuario sem empresa vinculada', 403);
   }
 }
 
 function ensureAdmin(user, message = 'Apenas admin pode alterar o catalogo de servicos') {
-  if (!['admin', 'master_admin'].includes(user?.role)) {
+  if (!['admin', 'owner', 'master_admin'].includes(user?.role)) {
     throw createError(message, 403);
+  }
+}
+
+async function columnExists(tableName, columnName) {
+  const result = await pool.query(
+    `SELECT 1
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = $1
+       AND column_name = $2
+     LIMIT 1`,
+    [tableName, columnName]
+  );
+
+  return result.rowCount > 0;
+}
+
+async function ensurePinRecoverySchema() {
+  const requiredPinResetColumns = [
+    'id',
+    'company_id',
+    'user_id',
+    'email',
+    'token_hash',
+    'expires_at',
+    'used_at',
+    'created_at'
+  ];
+
+  const [hasPinHash, hasPinResetTokens, pinResetColumnsResult] = await Promise.all([
+    columnExists('users', 'pin_hash'),
+    pool.query(
+      `SELECT 1
+       FROM information_schema.tables
+       WHERE table_schema = 'public'
+         AND table_name = 'pin_reset_tokens'
+       LIMIT 1`
+    ),
+    pool.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'pin_reset_tokens'`
+    )
+  ]);
+
+  const availableColumns = new Set(pinResetColumnsResult.rows.map((row) => row.column_name));
+  const hasRequiredPinResetColumns = requiredPinResetColumns.every((columnName) => availableColumns.has(columnName));
+
+  if (!hasPinHash || hasPinResetTokens.rowCount === 0 || !hasRequiredPinResetColumns) {
+    throw createError('Atualizacao de banco pendente para recuperar PIN com seguranca', 503);
+  }
+}
+
+async function getSettings(companyId, user) {
+  ensureCompany(companyId);
+  ensureAdmin(user, 'Apenas admin pode acessar as configuracoes');
+
+  const [companyResult, planSnapshot] = await Promise.all([
+    pool.query(
+      `SELECT id, name, email, phone, public_booking_slug, created_at
+       FROM companies
+       WHERE id = $1
+       LIMIT 1`,
+      [companyId]
+    ),
+    getCompanyPlanSnapshot(companyId)
+  ]);
+
+  if (companyResult.rowCount === 0) {
+    throw createError('Empresa nao encontrada', 404);
+  }
+
+  const company = companyResult.rows[0];
+
+  return {
+    company: {
+      id: company.id,
+      name: company.name,
+      email: company.email,
+      phone: company.phone,
+      public_booking_slug: company.public_booking_slug,
+      created_at: company.created_at
+    },
+    security: {
+      recovery_email: user?.email || company.email || null,
+      pin_configured: null,
+      expires_in_minutes: PIN_RESET_EXPIRATION_MINUTES
+    },
+    plan: planSnapshot
+  };
+}
+
+async function getCompanyPlanProfile(companyId) {
+  ensureCompany(companyId);
+
+  const companyPlan = await getCompanyPlanSnapshot(companyId);
+
+  if (!companyPlan) {
+    throw createError('Empresa nao encontrada para carregar o plano', 404);
+  }
+
+  return {
+    company_id: companyId,
+    plan: companyPlan.plan_type,
+    status: companyPlan.plan_status,
+    isActive: Boolean(companyPlan.is_active),
+    trialEndsAt: companyPlan.trial_ends_at || null,
+    currentPeriodStart: companyPlan.current_period_start || null,
+    currentPeriodEnd: companyPlan.current_period_end || companyPlan.next_due_date || null,
+    nextDueDate: companyPlan.next_due_date || null,
+    maxCollaborators: companyPlan.max_collaborators ?? null,
+    gateway: companyPlan.gateway || null,
+    source: companyPlan.source || 'unknown',
+    subscriptionStatus: companyPlan.subscription_status || null,
+    features: companyPlan.features || {}
+  };
+}
+
+async function forgotPin(companyId, user, data = {}) {
+  ensureCompany(companyId);
+  ensureAdmin(user, 'Apenas admin pode iniciar a recuperacao de PIN');
+  await ensurePinRecoverySchema();
+
+  const email = normalizeEmail(data.email);
+
+  if (!isValidEmail(email)) {
+    throw createError('Informe um e-mail valido para recuperar o PIN.', 400);
+  }
+
+  const genericResponse = {
+    success: true,
+    message: 'Se o e-mail estiver correto, enviaremos um codigo de recuperacao.'
+  };
+
+  const accountResult = await pool.query(
+    `SELECT users.id, users.name, users.email, companies.name AS company_name
+     FROM users
+     INNER JOIN companies ON companies.id = users.company_id
+     WHERE users.company_id = $1
+       AND users.email = $2
+       AND users.role IN ('admin', 'owner')
+       AND COALESCE(users.is_active, true) = true
+     LIMIT 1`,
+    [companyId, email]
+  );
+
+  if (accountResult.rowCount === 0) {
+    return genericResponse;
+  }
+
+  const account = accountResult.rows[0];
+  const code = String(Math.floor(100000 + (Math.random() * 900000)));
+  const codeHash = await bcrypt.hash(code, 10);
+  const expiresAt = new Date(Date.now() + (PIN_RESET_EXPIRATION_MINUTES * 60 * 1000));
+
+  await pool.query(
+    `UPDATE pin_reset_tokens
+     SET used_at = NOW()
+     WHERE company_id = $1
+       AND user_id = $2
+       AND used_at IS NULL`,
+    [companyId, account.id]
+  );
+
+  await pool.query(
+    `INSERT INTO pin_reset_tokens (
+       company_id,
+       user_id,
+       email,
+       token_hash,
+       expires_at
+     )
+     VALUES ($1, $2, $3, $4, $5)`,
+    [companyId, account.id, account.email, codeHash, expiresAt]
+  );
+
+  try {
+    await emailService.sendBarberPinResetEmail({
+      to: account.email,
+      name: account.name,
+      companyName: account.company_name,
+      code,
+      expiresAt
+    });
+  } catch (error) {
+    console.error('[pin-reset-email] Falha ao enviar codigo de recuperacao:', {
+      companyId,
+      userId: account.id,
+      email: account.email,
+      error: error.message
+    });
+  }
+
+  return genericResponse;
+}
+
+async function resetPin(companyId, user, data = {}) {
+  ensureCompany(companyId);
+  ensureAdmin(user, 'Apenas admin pode redefinir o PIN');
+  await ensurePinRecoverySchema();
+
+  const email = normalizeEmail(data.email);
+  const code = String(data.code || '').trim();
+  const newPin = normalizePin(data.newPin || data.new_pin);
+
+  if (!isValidEmail(email)) {
+    throw createError('Informe um e-mail valido para redefinir o PIN.', 400);
+  }
+
+  if (!/^\d{6}$/.test(code)) {
+    throw createError('Informe o codigo de 6 digitos enviado por e-mail.', 400);
+  }
+
+  if (!isValidPin(newPin, 4)) {
+    throw createError('Informe um novo PIN com pelo menos 4 digitos.', 400);
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const tokenResult = await client.query(
+      `SELECT pin_reset_tokens.id,
+              pin_reset_tokens.user_id,
+              pin_reset_tokens.token_hash,
+              pin_reset_tokens.expires_at,
+              pin_reset_tokens.used_at
+       FROM pin_reset_tokens
+       INNER JOIN users
+         ON users.id = pin_reset_tokens.user_id
+        AND users.company_id = pin_reset_tokens.company_id
+       WHERE pin_reset_tokens.company_id = $1
+         AND pin_reset_tokens.email = $2
+         AND users.role IN ('admin', 'owner')
+       ORDER BY pin_reset_tokens.created_at DESC
+       LIMIT 1
+       FOR UPDATE`,
+      [companyId, email]
+    );
+
+    if (tokenResult.rowCount === 0) {
+      throw createError('Codigo de recuperacao invalido ou expirado.', 400);
+    }
+
+    const tokenRecord = tokenResult.rows[0];
+
+    if (tokenRecord.used_at || new Date(tokenRecord.expires_at).getTime() < Date.now()) {
+      throw createError('Codigo de recuperacao invalido ou expirado.', 400);
+    }
+
+    const codeMatches = await bcrypt.compare(code, tokenRecord.token_hash);
+
+    if (!codeMatches) {
+      throw createError('Codigo de recuperacao invalido ou expirado.', 400);
+    }
+
+    const pinHash = await bcrypt.hash(newPin, 10);
+
+    await client.query(
+      `UPDATE users
+       SET pin_hash = $1,
+           updated_at = NOW()
+       WHERE id = $2
+         AND company_id = $3`,
+      [pinHash, tokenRecord.user_id, companyId]
+    );
+
+    await client.query(
+      `UPDATE pin_reset_tokens
+       SET used_at = NOW()
+       WHERE company_id = $1
+         AND user_id = $2
+         AND used_at IS NULL`,
+      [companyId, tokenRecord.user_id]
+    );
+
+    await client.query('COMMIT');
+
+    return {
+      success: true,
+      message: 'PIN atualizado com sucesso.'
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
 }
 
@@ -353,6 +697,7 @@ function normalizeCollaboratorPayload(data = {}) {
     password: String(data.password || data.initialPassword || ''),
     phone: String(data.phone || '').trim() || null,
     commissionType: String(data.commission_type || data.commissionType || 'percentage').trim() || 'percentage',
+    commissionRateRaw: data.commission_rate ?? data.commissionRate,
     commissionRate: toNumber(data.commission_rate || data.commissionRate),
     isActive: data.is_active === undefined && data.isActive === undefined
       ? true
@@ -373,6 +718,8 @@ function normalizeCollaboratorPayload(data = {}) {
 }
 
 function validateCollaboratorPayload(payload, options = {}) {
+  // REGRA GLOBAL: nunca retornar 500 por erro de input.
+  // Toda validacao deve acontecer antes do banco.
   if (!payload.name) {
     throw createError('Nome do colaborador e obrigatorio', 400);
   }
@@ -381,16 +728,24 @@ function validateCollaboratorPayload(payload, options = {}) {
     throw createError('Email do colaborador e obrigatorio', 400);
   }
 
-  if (!options.allowMissingPassword && payload.password.length < 6) {
+  if (!isValidEmail(payload.email)) {
+    throw createError('Informe um e-mail válido para o colaborador.', 400);
+  }
+
+  if (!options.allowMissingPassword && !isValidPassword(payload.password, 6)) {
     throw createError('A senha inicial deve ter pelo menos 6 caracteres', 400);
   }
 
-  if (payload.password && payload.password.length < 6) {
+  if (payload.password && !isValidPassword(payload.password, 6)) {
     throw createError('A senha deve ter pelo menos 6 caracteres', 400);
   }
 
   if (!COMMISSION_TYPES.includes(payload.commissionType)) {
     throw createError('Tipo de comissao invalido', 400);
+  }
+
+  if (!isFiniteNumberValue(payload.commissionRateRaw)) {
+    throw createError('Informe uma comissao numerica valida', 400);
   }
 
   if (payload.commissionRate < 0) {
@@ -1785,13 +2140,39 @@ async function createCollaborator(companyId, user, data) {
   try {
     await client.query('BEGIN');
 
+    const companyPlan = await getCompanyPlanSnapshot(companyId);
+    const maxCollaborators = companyPlan?.max_collaborators ?? getPlanLimits(companyPlan?.plan_type).max_collaborators;
+    const defaultPermissions = getDefaultCollaboratorPermissionState();
+
+    if (maxCollaborators !== null) {
+      const collaboratorsCountResult = await client.query(
+        `SELECT COUNT(*)::int AS total
+         FROM barber_collaborators
+         WHERE company_id = $1
+           AND COALESCE(is_deleted, false) = false`,
+        [companyId]
+      );
+
+      const collaboratorsCount = collaboratorsCountResult.rows[0]?.total || 0;
+
+      if (collaboratorsCount >= maxCollaborators) {
+        throw createResponseError(
+          403,
+          'Limite atingido',
+          `Seu plano atual permite até ${maxCollaborators} colaboradores. Faça upgrade para liberar mais acessos.`
+        );
+      }
+    }
+
+    ensureExtraPermissionsFeature(companyPlan?.plan_type, payload, defaultPermissions);
+
     const existingUser = await client.query(
       'SELECT id, company_id, role FROM users WHERE email = $1 LIMIT 1',
       [payload.email]
     );
 
     if (existingUser.rowCount > 0) {
-      throw createError('Email ja cadastrado', 409);
+      throw createError('Este e-mail já possui acesso cadastrado.', 400);
     }
 
     const passwordHash = await bcrypt.hash(payload.password, 10);
@@ -1894,6 +2275,11 @@ async function createCollaborator(companyId, user, data) {
     };
   } catch (error) {
     await client.query('ROLLBACK');
+
+    if (error.code === '23505') {
+      throw createError('Este e-mail já possui acesso cadastrado.', 400);
+    }
+
     throw error;
   } finally {
     client.release();
@@ -1913,13 +2299,21 @@ async function updateCollaborator(companyId, user, collaboratorId, data) {
   try {
     await client.query('BEGIN');
 
+    const companyPlan = await getCompanyPlanSnapshot(companyId);
+
+    ensureExtraPermissionsFeature(companyPlan?.plan_type, payload, {
+      canLaunchSales: existing.can_launch_sales,
+      canViewOwnDashboard: existing.can_view_own_dashboard,
+      canViewOwnReports: existing.can_view_own_reports
+    });
+
     const duplicateUser = await client.query(
       'SELECT id FROM users WHERE email = $1 AND id <> $2 LIMIT 1',
       [payload.email, existing.user_id]
     );
 
     if (duplicateUser.rowCount > 0) {
-      throw createError('Email ja cadastrado', 409);
+      throw createError('Este e-mail já possui acesso cadastrado.', 400);
     }
 
     let passwordClause = '';
@@ -2024,6 +2418,11 @@ async function updateCollaborator(companyId, user, collaboratorId, data) {
     };
   } catch (error) {
     await client.query('ROLLBACK');
+
+    if (error.code === '23505') {
+      throw createError('Este e-mail já possui acesso cadastrado.', 400);
+    }
+
     throw error;
   } finally {
     client.release();
@@ -3166,22 +3565,40 @@ async function createAdvance(companyId, data, user) {
 async function validateApprovalCredential(userId, data) {
   const pin = String(data.pin || '').trim();
   const adminPassword = String(data.adminPassword || data.admin_password || '');
+  const hasPinHash = await columnExists('users', 'pin_hash');
 
   if (process.env.ADMIN_APPROVAL_PIN && pin && pin === process.env.ADMIN_APPROVAL_PIN) {
     return true;
   }
 
-  if (!adminPassword) {
-    throw createError('Informe a senha admin ou PIN para confirmar', 401);
+  const credentialColumns = ['password_hash'];
+
+  if (hasPinHash) {
+    credentialColumns.push('pin_hash');
   }
 
   const result = await pool.query(
-    'SELECT password_hash FROM users WHERE id = $1 LIMIT 1',
+    `SELECT ${credentialColumns.join(', ')}
+     FROM users
+     WHERE id = $1
+     LIMIT 1`,
     [userId]
   );
 
   if (result.rowCount === 0) {
     throw createError('Usuario admin nao encontrado', 404);
+  }
+
+  if (hasPinHash && pin && result.rows[0].pin_hash) {
+    const pinMatches = await bcrypt.compare(pin, result.rows[0].pin_hash);
+
+    if (pinMatches) {
+      return true;
+    }
+  }
+
+  if (!adminPassword) {
+    throw createError('Informe a senha admin ou PIN para confirmar', 401);
   }
 
   const passwordMatches = await bcrypt.compare(adminPassword, result.rows[0].password_hash);
@@ -3246,10 +3663,12 @@ async function calculateSettlement(companyId, collaboratorId, client = pool) {
        COALESCE(SUM(COALESCE(sale_commissions.total_commission, 0)), 0)::numeric AS total_commission
      FROM barber_sales
      LEFT JOIN (
-       SELECT sale_id, SUM(commission_amount) AS total_commission
+       SELECT sale_id, company_id, SUM(commission_amount) AS total_commission
        FROM barber_sale_items
-       GROUP BY sale_id
-     ) sale_commissions ON sale_commissions.sale_id = barber_sales.id
+       GROUP BY sale_id, company_id
+     ) sale_commissions
+       ON sale_commissions.sale_id = barber_sales.id
+      AND sale_commissions.company_id = barber_sales.company_id
      WHERE barber_sales.company_id = $1
        AND barber_sales.collaborator_id = $2
        AND ($3::timestamp IS NULL OR barber_sales.created_at > $3::timestamp)`,
@@ -3802,6 +4221,7 @@ async function listSales(companyId, user) {
          STRING_AGG(description, ' + ' ORDER BY created_at ASC) AS item_summary
        FROM barber_sale_items
        WHERE barber_sale_items.sale_id = barber_sales.id
+         AND barber_sale_items.company_id = barber_sales.company_id
      ) sale_item ON true
      WHERE barber_sales.company_id = $1
        ${collaborator ? 'AND barber_sales.collaborator_id = $2' : ''}
@@ -4242,6 +4662,7 @@ async function getMyReport(companyId, user, query = {}) {
          COALESCE(SUM(commission_amount), 0)::numeric AS total_commission
        FROM barber_sale_items
        WHERE barber_sale_items.sale_id = barber_sales.id
+         AND barber_sale_items.company_id = barber_sales.company_id
      ) sale_item ON true
      WHERE barber_sales.company_id = $1
        AND barber_sales.collaborator_id = $2
@@ -4412,6 +4833,10 @@ async function updateCustomerStatus(companyId, customerId, data = {}) {
 }
 
 module.exports = {
+  getSettings,
+  getCompanyPlanProfile,
+  forgotPin,
+  resetPin,
   openCash,
   getTodayCash,
   getDailyCash,

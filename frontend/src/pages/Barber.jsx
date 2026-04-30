@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import BarberLayout from '../components/barber/BarberLayout'
 import CollaboratorAvatar from '../components/barber/CollaboratorAvatar'
 import CollaboratorMobileDashboard from '../components/barber/CollaboratorMobileDashboard'
+import LockedFeature from '../components/common/LockedFeature'
 import ServiceIcon from '../components/barber/ServiceIcon'
 import { normalizeServiceIcon } from '../components/barber/ServiceIcon.utils'
 import {
@@ -20,6 +21,12 @@ import ClientesBarber from './barber/Clientes'
 import Servicos from './barber/Servicos'
 import Produtos from './barber/Produtos'
 import api from '../services/api'
+import {
+  canUseFeature,
+  getLockedFeatureMessage,
+  getPlanDisplayLabel,
+  normalizeFeaturePlanType
+} from '../utils/planFeatures'
 import './Barber.css'
 
 const emptyService = {
@@ -129,6 +136,23 @@ const emptyPersonalReport = {
   sales: []
 }
 
+const emptyBarberSettings = {
+  company: {
+    id: '',
+    name: '',
+    email: '',
+    phone: '',
+    public_booking_slug: '',
+    created_at: null
+  },
+  security: {
+    recovery_email: '',
+    pin_configured: null,
+    expires_in_minutes: 10
+  },
+  plan: null
+}
+
 const defaultServiceFilters = {
   search: '',
   status: 'all'
@@ -191,7 +215,16 @@ const viewMeta = {
     label: 'Relatorios',
     title: 'Historico e fechamento',
     description: 'Acompanhe fechamentos anteriores e a saude operacional da unidade.'
+  },
+  settings: {
+    label: 'Configuracoes',
+    title: 'Seguranca, empresa e controles sensiveis',
+    description: 'Gerencie recuperacao de PIN, dados principais da empresa e a base para configuracoes futuras.'
   }
+}
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase()
 }
 
 function money(value) {
@@ -425,6 +458,10 @@ function getInitialBarberView(pathname) {
     return 'reports'
   }
 
+  if (normalized.startsWith('/barber/configuracoes')) {
+    return 'settings'
+  }
+
   return 'dashboard'
 }
 
@@ -438,7 +475,8 @@ function getBarberViewPath(view) {
     sales: '/barber/vendas',
     cashier: '/barber/caixa',
     team: '/barber/colaboradores',
-    reports: '/barber/relatorios'
+    reports: '/barber/relatorios',
+    settings: '/barber/configuracoes'
   }[view] || '/barber/dashboard'
 }
 
@@ -491,7 +529,7 @@ function CustomTooltip({ active, payload, label }) {
 function Barber() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, modules, logout } = useAuth()
+  const { user, modules, logout, planLoading } = useAuth()
   const [activeView, setActiveView] = useState(() => getInitialBarberView(window.location.pathname))
   const [dashboard, setDashboard] = useState(emptyDashboard)
   const [appointmentsOverview, setAppointmentsOverview] = useState(emptyAppointmentsOverview)
@@ -535,13 +573,106 @@ function Barber() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [settingsData, setSettingsData] = useState(emptyBarberSettings)
+  const [settingsLoading, setSettingsLoading] = useState(false)
+  const [pinRecoveryOpen, setPinRecoveryOpen] = useState(false)
+  const [pinRecoveryStep, setPinRecoveryStep] = useState('request')
+  const [pinRecoverySubmitting, setPinRecoverySubmitting] = useState(false)
+  const [pinRecoveryForm, setPinRecoveryForm] = useState({
+    email: normalizeEmail(user?.email || ''),
+    code: '',
+    newPin: '',
+    confirmPin: ''
+  })
 
-  const isAdmin = ['admin', 'master_admin'].includes(user?.role)
-  const canManageCash = ['admin', 'master_admin', 'secretary'].includes(user?.role)
+  const isAdmin = ['admin', 'owner', 'master_admin'].includes(user?.role)
+  const canManageCash = ['admin', 'owner', 'master_admin', 'secretary'].includes(user?.role)
   const currentView = getInitialBarberView(location.pathname) || activeView
   const meta = viewMeta[currentView]
   const isEditingCollaborator = Boolean(editingCollaboratorId)
   const isCollaborator = user?.role === 'collaborator'
+  const currentPlanType = planLoading ? null : normalizeFeaturePlanType(user?.plan_type)
+  const planLabel = planLoading ? 'Carregando plano...' : getPlanDisplayLabel(currentPlanType)
+  const canUseCollaboratorsFeature = canUseFeature(currentPlanType, 'collaborators')
+  const canUseAdvancedReportsFeature = canUseFeature(currentPlanType, 'advanced_reports')
+  const canUseFinancialDashboardFeature = canUseFeature(currentPlanType, 'financial_dashboard')
+  const canUseAdvancedScheduleFeature = canUseFeature(currentPlanType, 'advanced_schedule')
+  const canUseExtraPermissionsFeature = canUseFeature(currentPlanType, 'extra_permissions')
+
+  const lockedViews = useMemo(() => {
+    const nextLockedViews = {}
+
+    if (planLoading) {
+      return nextLockedViews
+    }
+
+    if ((isAdmin || canManageCash) && !canUseAdvancedScheduleFeature) {
+      nextLockedViews.appointments = getLockedFeatureMessage('advanced_schedule')
+    }
+
+    if (canManageCash && !canUseFinancialDashboardFeature) {
+      nextLockedViews.cashier = getLockedFeatureMessage('financial_dashboard')
+    }
+
+    if (isAdmin && !canUseCollaboratorsFeature) {
+      nextLockedViews.team = getLockedFeatureMessage('collaborators')
+    }
+
+    if (!canUseAdvancedReportsFeature) {
+      nextLockedViews.reports = getLockedFeatureMessage('advanced_reports')
+    }
+
+    return nextLockedViews
+  }, [
+    canManageCash,
+    canUseAdvancedReportsFeature,
+    canUseAdvancedScheduleFeature,
+    canUseCollaboratorsFeature,
+    canUseFinancialDashboardFeature,
+    isAdmin
+    ,
+    planLoading
+  ])
+
+  const handleLockedFeature = useCallback((message) => {
+    setSuccess('')
+    setError(message || 'Este recurso nao esta disponivel no plano gratuito. Faca upgrade para liberar.')
+  }, [])
+
+  const loadSettings = useCallback(async (options = {}) => {
+    if (options.clearMessage !== false) {
+      setError('')
+    }
+
+    setSettingsLoading(true)
+
+    try {
+      const response = await api.get('/barber/settings')
+      const nextSettings = response.data?.data || emptyBarberSettings
+
+      setSettingsData(nextSettings)
+      setPinRecoveryForm((current) => ({
+        ...current,
+        email: current.email || nextSettings.security?.recovery_email || nextSettings.company?.email || normalizeEmail(user?.email || '')
+      }))
+    } catch (err) {
+      setError(err.response?.data?.error || 'Nao foi possivel carregar as configuracoes')
+    } finally {
+      setSettingsLoading(false)
+    }
+  }, [user?.email])
+
+  const resetPinRecoveryFlow = useCallback((emailValue = '') => {
+    setPinRecoveryStep('request')
+    setPinRecoveryOpen(false)
+    setPinRecoverySubmitting(false)
+    setPinRecoveryForm({
+      email: normalizeEmail(emailValue || settingsData.security?.recovery_email || settingsData.company?.email || user?.email || ''),
+      code: '',
+      newPin: '',
+      confirmPin: ''
+    })
+  }, [settingsData.company?.email, settingsData.security?.recovery_email, user?.email])
 
   const loadServiceCatalog = useCallback(async (filters = serviceFilters, options = {}) => {
     try {
@@ -614,18 +745,21 @@ function Barber() {
         api.get('/barber/dashboard'),
         api.get('/barber/services'),
         api.get(isCollaborator ? '/barber/my-sales' : '/barber/sales'),
-        api.get('/barber/advances'),
-        api.get('/barber/settlements'),
-        api.get('/barber/collaborators/financial-summary', {
-          params: buildCollaboratorFinancialParams(collaboratorFinancialFilters)
-        })
+        api.get('/barber/advances')
       ]
 
-      if (isAdmin || canManageCash) {
+      if (canUseAdvancedReportsFeature) {
+        requests.push(api.get('/barber/settlements'))
+        requests.push(api.get('/barber/collaborators/financial-summary', {
+          params: buildCollaboratorFinancialParams(collaboratorFinancialFilters)
+        }))
+      }
+
+      if ((isAdmin || canManageCash) && canUseAdvancedScheduleFeature) {
         requests.push(api.get('/barber/appointments'))
       }
 
-      if (isCollaborator) {
+      if (isCollaborator && canUseAdvancedReportsFeature) {
         requests.push(api.get('/barber/my-report'))
       }
 
@@ -634,7 +768,7 @@ function Barber() {
         requests.push(api.get('/barber/suppliers'))
       }
 
-      if (isAdmin || canManageCash) {
+      if ((isAdmin || canManageCash) && canUseCollaboratorsFeature) {
         requests.push(api.get('/barber/collaborators'))
       }
 
@@ -644,8 +778,6 @@ function Barber() {
         servicesResponse,
         salesResponse,
         advancesResponse,
-        settlementsResponse,
-        collaboratorFinancialSummaryResponse,
         ...restResponses
       ] = responses
 
@@ -654,12 +786,20 @@ function Barber() {
       setServiceCatalog(servicesResponse.data.data)
       setSales(salesResponse.data.data)
       setAdvances(advancesResponse.data.data)
-      setSettlements(settlementsResponse.data.data.settlements)
-      setCollaboratorFinancialSummary(collaboratorFinancialSummaryResponse.data.data || [])
 
       let responseIndex = 0
 
-      if (isAdmin || canManageCash) {
+      if (canUseAdvancedReportsFeature) {
+        setSettlements(restResponses[responseIndex].data.data.settlements)
+        responseIndex += 1
+        setCollaboratorFinancialSummary(restResponses[responseIndex].data.data || [])
+        responseIndex += 1
+      } else {
+        setSettlements([])
+        setCollaboratorFinancialSummary([])
+      }
+
+      if ((isAdmin || canManageCash) && canUseAdvancedScheduleFeature) {
         setAppointmentsOverview(restResponses[responseIndex].data.data || emptyAppointmentsOverview)
         responseIndex += 1
       } else {
@@ -678,14 +818,14 @@ function Barber() {
         setSuppliers([])
       }
 
-      if (isCollaborator) {
+      if (isCollaborator && canUseAdvancedReportsFeature) {
         setPersonalReport(restResponses[responseIndex].data.data)
         responseIndex += 1
       } else {
         setPersonalReport(emptyPersonalReport)
       }
 
-      if (isAdmin || canManageCash) {
+      if ((isAdmin || canManageCash) && canUseCollaboratorsFeature) {
         setCollaborators(restResponses[responseIndex].data.data)
         responseIndex += 1
       } else {
@@ -697,7 +837,15 @@ function Barber() {
     } finally {
       setLoading(false)
     }
-  }, [canManageCash, collaboratorFinancialFilters, isAdmin, isCollaborator])
+  }, [
+    canManageCash,
+    canUseAdvancedReportsFeature,
+    canUseAdvancedScheduleFeature,
+    canUseCollaboratorsFeature,
+    collaboratorFinancialFilters,
+    isAdmin,
+    isCollaborator
+  ])
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -706,6 +854,12 @@ function Barber() {
 
     return () => window.clearTimeout(timeoutId)
   }, [loadData])
+
+  useEffect(() => {
+    if (currentView === 'settings' && isAdmin) {
+      loadSettings({ clearMessage: false })
+    }
+  }, [currentView, isAdmin, loadSettings])
 
   useEffect(() => {
     function handleResize() {
@@ -717,6 +871,13 @@ function Barber() {
   }, [])
 
   const navigateView = useCallback((view) => {
+    const lockMessage = lockedViews[view]
+
+    if (lockMessage) {
+      handleLockedFeature(lockMessage)
+      return
+    }
+
     setActiveView(view)
 
     const targetPath = getBarberViewPath(view)
@@ -724,7 +885,88 @@ function Barber() {
     if (location.pathname !== targetPath) {
       navigate(targetPath)
     }
-  }, [location.pathname, navigate])
+  }, [handleLockedFeature, location.pathname, lockedViews, navigate])
+
+  function handlePinRecoveryFieldChange(field, value) {
+    setPinRecoveryForm((current) => ({
+      ...current,
+      [field]: field === 'email' ? normalizeEmail(value) : value
+    }))
+  }
+
+  function openPinRecovery() {
+    setError('')
+    setSuccess('')
+    setPinRecoveryOpen(true)
+    setPinRecoveryStep('request')
+    setPinRecoveryForm((current) => ({
+      ...current,
+      email: current.email || settingsData.security?.recovery_email || settingsData.company?.email || normalizeEmail(user?.email || ''),
+      code: '',
+      newPin: '',
+      confirmPin: ''
+    }))
+  }
+
+  async function handlePinRecoveryRequest(event) {
+    event.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (!pinRecoveryForm.email) {
+      setError('Informe o e-mail de acesso para recuperar o PIN.')
+      return
+    }
+
+    setPinRecoverySubmitting(true)
+
+    try {
+      const response = await api.post('/barber/settings/pin/forgot', {
+        email: pinRecoveryForm.email
+      })
+
+      setPinRecoveryStep('reset')
+      setSuccess(response.data?.message || 'Se o e-mail estiver correto, enviaremos um codigo de recuperacao.')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Nao foi possivel enviar o codigo de recuperacao.')
+    } finally {
+      setPinRecoverySubmitting(false)
+    }
+  }
+
+  async function handlePinResetSubmit(event) {
+    event.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (!/^\d{4,}$/.test(pinRecoveryForm.newPin)) {
+      setError('Informe um novo PIN com pelo menos 4 digitos.')
+      return
+    }
+
+    if (pinRecoveryForm.newPin !== pinRecoveryForm.confirmPin) {
+      setError('A confirmacao do PIN nao confere.')
+      return
+    }
+
+    setPinRecoverySubmitting(true)
+
+    try {
+      const response = await api.post('/barber/settings/pin/reset', {
+        email: pinRecoveryForm.email,
+        code: pinRecoveryForm.code,
+        newPin: pinRecoveryForm.newPin
+      })
+
+      setSuccess(response.data?.message || 'PIN atualizado com sucesso.')
+      resetPinRecoveryFlow(pinRecoveryForm.email)
+      await loadSettings({ clearMessage: false })
+    } catch (err) {
+      setError(err.response?.data?.error || 'Nao foi possivel redefinir o PIN.')
+    } finally {
+      setPinRecoverySubmitting(false)
+    }
+  }
 
   useEffect(() => {
     if (activeView !== 'services') {
@@ -1092,6 +1334,11 @@ function Barber() {
   }
 
   function openCollaboratorCreateModal() {
+    if (!canUseCollaboratorsFeature) {
+      handleLockedFeature(getLockedFeatureMessage('collaborators'))
+      return
+    }
+
     setEditingCollaboratorId('')
     setCollaboratorForm(emptyCollaborator)
     setCollaboratorModalOpen(true)
@@ -1396,6 +1643,11 @@ function Barber() {
     event.preventDefault()
     setError('')
     setSuccess('')
+
+    if (!canUseCollaboratorsFeature) {
+      handleLockedFeature(getLockedFeatureMessage('collaborators'))
+      return
+    }
 
     try {
       const formData = new FormData(event.currentTarget)
@@ -3914,6 +4166,220 @@ function Barber() {
     )
   }
 
+  function renderSettings() {
+    if (!isAdmin) {
+      return (
+        <BarberCard>
+          <div className="barber-panel-header">
+            <div>
+              <span className="barber-overline">Configuracoes</span>
+              <h3>Acesso restrito</h3>
+              <p>Apenas o dono/admin da barbearia pode gerenciar PIN e dados sensiveis da empresa.</p>
+            </div>
+            <BarberBadge tone="danger">Restrito</BarberBadge>
+          </div>
+        </BarberCard>
+      )
+    }
+
+    const companyName = settingsData.company?.name || user?.company_name || 'Barbearia'
+    const companyEmail = settingsData.company?.email || '-'
+    const companyPhone = settingsData.company?.phone || '-'
+    const publicBookingSlug = settingsData.company?.public_booking_slug || ''
+    const publicBookingUrl = publicBookingSlug ? `${window.location.origin}/agendar/${publicBookingSlug}` : ''
+
+    return (
+      <>
+        <section className="barber-grid-two barber-settings-grid">
+          <BarberCard className="barber-settings-card">
+            <div className="barber-panel-header">
+              <div>
+                <span className="barber-overline">Empresa</span>
+                <h3>Identidade da barbearia</h3>
+                <p>Base pronta para nome, logo e presenca visual do modulo.</p>
+              </div>
+              <BarberBadge tone="neutral">Em breve</BarberBadge>
+            </div>
+
+            <div className="barber-settings-preview">
+              <div className="barber-settings-logo-placeholder">
+                <BarberIcon name="catalog" />
+              </div>
+              <div>
+                <strong>{companyName}</strong>
+                <p>Marca d'agua, upload de logo e identidade visual entram nesta area na proxima etapa.</p>
+              </div>
+            </div>
+
+            <div className="barber-settings-meta">
+              <div className="barber-settings-meta-item">
+                <span>Nome da barbearia</span>
+                <strong>{companyName}</strong>
+              </div>
+              <div className="barber-settings-meta-item">
+                <span>E-mail comercial</span>
+                <strong>{companyEmail}</strong>
+              </div>
+              <div className="barber-settings-meta-item">
+                <span>Telefone</span>
+                <strong>{companyPhone}</strong>
+              </div>
+              <div className="barber-settings-meta-item">
+                <span>Link publico</span>
+                <strong>{publicBookingUrl || 'Sera exibido quando a agenda publica estiver configurada.'}</strong>
+              </div>
+            </div>
+          </BarberCard>
+
+          <BarberCard className="barber-settings-card">
+            <div className="barber-panel-header">
+              <div>
+                <span className="barber-overline">Seguranca</span>
+                <h3>Recuperacao e troca de PIN</h3>
+                <p>Use este fluxo para redefinir o PIN do dono/admin sem expor dados sensiveis no painel.</p>
+              </div>
+              <BarberBadge tone="admin">Prioridade</BarberBadge>
+            </div>
+
+            <div className="barber-settings-security-callout">
+              <div>
+                <strong>PIN sensivel da operacao</strong>
+                <p>O codigo enviado por e-mail expira em {settingsData.security?.expires_in_minutes || 10} minutos.</p>
+              </div>
+              <BarberButton onClick={openPinRecovery} type="button" variant="primary">
+                <BarberIcon name="refresh" />
+                <span>Esqueci meu PIN</span>
+              </BarberButton>
+            </div>
+
+            {settingsLoading ? (
+              <div className="barber-settings-loading">
+                <p>Carregando configuracoes de seguranca...</p>
+              </div>
+            ) : null}
+
+            {pinRecoveryOpen ? (
+              <div className="barber-settings-security-flow">
+                <div className="barber-settings-stepper">
+                  <span className={pinRecoveryStep === 'request' ? 'active' : ''}>1. Validar e-mail</span>
+                  <span className={pinRecoveryStep === 'reset' ? 'active' : ''}>2. Redefinir PIN</span>
+                </div>
+
+                {pinRecoveryStep === 'request' ? (
+                  <form className="barber-form-grid" onSubmit={handlePinRecoveryRequest}>
+                    <label>
+                      <span>E-mail de recuperacao</span>
+                      <input
+                        onChange={(event) => handlePinRecoveryFieldChange('email', event.target.value)}
+                        placeholder="dono@barbearia.com.br"
+                        type="email"
+                        value={pinRecoveryForm.email}
+                      />
+                    </label>
+
+                    <div className="barber-settings-actions">
+                      <BarberButton disabled={pinRecoverySubmitting} type="submit" variant="primary">
+                        <BarberIcon name="check" />
+                        <span>{pinRecoverySubmitting ? 'Enviando codigo...' : 'Enviar codigo'}</span>
+                      </BarberButton>
+                      <BarberButton
+                        onClick={() => resetPinRecoveryFlow(pinRecoveryForm.email)}
+                        type="button"
+                        variant="ghost"
+                      >
+                        <BarberIcon name="close" />
+                        <span>Fechar</span>
+                      </BarberButton>
+                    </div>
+                  </form>
+                ) : (
+                  <form className="barber-form-grid" onSubmit={handlePinResetSubmit}>
+                    <label>
+                      <span>E-mail de recuperacao</span>
+                      <input
+                        onChange={(event) => handlePinRecoveryFieldChange('email', event.target.value)}
+                        type="email"
+                        value={pinRecoveryForm.email}
+                      />
+                    </label>
+
+                    <div className="barber-input-grid">
+                      <label>
+                        <span>Codigo de 6 digitos</span>
+                        <input
+                          inputMode="numeric"
+                          maxLength={6}
+                          onChange={(event) => handlePinRecoveryFieldChange('code', event.target.value.replace(/\D/g, ''))}
+                          placeholder="000000"
+                          value={pinRecoveryForm.code}
+                        />
+                      </label>
+
+                      <label>
+                        <span>Novo PIN</span>
+                        <input
+                          inputMode="numeric"
+                          onChange={(event) => handlePinRecoveryFieldChange('newPin', event.target.value.replace(/\D/g, ''))}
+                          placeholder="Minimo 4 digitos"
+                          type="password"
+                          value={pinRecoveryForm.newPin}
+                        />
+                      </label>
+
+                      <label>
+                        <span>Confirmar PIN</span>
+                        <input
+                          inputMode="numeric"
+                          onChange={(event) => handlePinRecoveryFieldChange('confirmPin', event.target.value.replace(/\D/g, ''))}
+                          placeholder="Repita o PIN"
+                          type="password"
+                          value={pinRecoveryForm.confirmPin}
+                        />
+                      </label>
+                    </div>
+
+                    <div className="barber-settings-hint">
+                      <BarberIcon name="clock" />
+                      <span>Use apenas numeros. O novo PIN precisa ter pelo menos 4 digitos.</span>
+                    </div>
+
+                    <div className="barber-settings-actions">
+                      <BarberButton disabled={pinRecoverySubmitting} type="submit" variant="primary">
+                        <BarberIcon name="check" />
+                        <span>{pinRecoverySubmitting ? 'Salvando PIN...' : 'Salvar novo PIN'}</span>
+                      </BarberButton>
+                      <BarberButton
+                        onClick={() => resetPinRecoveryFlow(pinRecoveryForm.email)}
+                        type="button"
+                        variant="ghost"
+                      >
+                        <BarberIcon name="close" />
+                        <span>Cancelar</span>
+                      </BarberButton>
+                    </div>
+                  </form>
+                )}
+              </div>
+            ) : null}
+
+            {!pinRecoveryOpen ? (
+              <div className="barber-settings-meta">
+                <div className="barber-settings-meta-item">
+                  <span>E-mail padrao</span>
+                  <strong>{settingsData.security?.recovery_email || user?.email || '-'}</strong>
+                </div>
+                <div className="barber-settings-meta-item">
+                  <span>Ultima revisao da area</span>
+                  <strong>{settingsData.company?.created_at ? fullDate(settingsData.company.created_at) : 'Nao informado'}</strong>
+                </div>
+              </div>
+            ) : null}
+          </BarberCard>
+        </section>
+      </>
+    )
+  }
+
   function renderActiveView() {
     if (loading) {
       return (
@@ -3978,6 +4444,17 @@ function Barber() {
       )
     }
 
+    if (lockedViews[currentView]) {
+      return (
+        <BarberCard>
+          <BarberEmptyState
+            description={lockedViews[currentView]}
+            title="Recurso bloqueado pelo plano"
+          />
+        </BarberCard>
+      )
+    }
+
     if (!canManageCash && currentView === 'cashier') {
       return (
         <BarberCard>
@@ -4017,6 +4494,8 @@ function Barber() {
         return renderTeam()
       case 'reports':
         return renderReports()
+      case 'settings':
+        return renderSettings()
       default:
         return renderDashboard()
     }
@@ -4028,10 +4507,13 @@ function Barber() {
         activeLabel={meta.label}
         activeView={currentView}
         isAdmin={isAdmin}
+        lockedViews={lockedViews}
         modulesCount={modules.length}
+        onLockedFeature={handleLockedFeature}
         onLogout={handleLogout}
         onNavigate={navigateView}
         onSwitchModule={() => navigate('/select-module')}
+        planLabel={planLabel}
         title={meta.title}
         user={user}
       >
@@ -4041,16 +4523,33 @@ function Barber() {
               <span className="barber-overline">{isAdmin ? 'Modo gestor' : 'Modo colaborador'}</span>
               <h1>{currentView === 'dashboard' ? 'BarberGestor' : meta.label}</h1>
               <p>{meta.description}</p>
+              <div className="barber-plan-summary">
+                <span>Plano atual</span>
+                <strong>{planLabel}</strong>
+              </div>
             </div>
 
             <div className="barber-page-actions">
               {currentView === 'team' && isAdmin && (
-                <BarberButton onClick={openCollaboratorCreateModal} type="button" variant="primary">
-                  <BarberIcon name="plus" />
-                  <span>Adicionar colaborador</span>
-                </BarberButton>
+                <LockedFeature
+                  inline
+                  locked={!canUseCollaboratorsFeature}
+                  message={getLockedFeatureMessage('collaborators')}
+                  onLockedClick={handleLockedFeature}
+                >
+                  <div className="barber-inline-lock-target">
+                    <BarberButton onClick={openCollaboratorCreateModal} type="button" variant="primary">
+                      <BarberIcon name="plus" />
+                      <span>Adicionar colaborador</span>
+                    </BarberButton>
+                  </div>
+                </LockedFeature>
               )}
-              <BarberButton onClick={() => loadData()} type="button" variant="ghost">
+              <BarberButton
+                onClick={() => (currentView === 'settings' ? loadSettings() : loadData())}
+                type="button"
+                variant="ghost"
+              >
                 <BarberIcon name="refresh" />
                 <span>Atualizar dados</span>
               </BarberButton>
@@ -4210,35 +4709,41 @@ function Barber() {
               </div>
               <div className="barber-form-block barber-form-block-full">
                 <label>Permissoes</label>
-                <div className="barber-permission-list">
-                  <label className="barber-permission-item">
-                    <input
-                      checked={collaboratorForm.canViewOwnDashboard}
-                      name="canViewOwnDashboard"
-                      onChange={updateCollaboratorForm}
-                      type="checkbox"
-                    />
-                    <span>Pode acessar dashboard proprio</span>
-                  </label>
-                  <label className="barber-permission-item">
-                    <input
-                      checked={collaboratorForm.canViewOwnReports}
-                      name="canViewOwnReports"
-                      onChange={updateCollaboratorForm}
-                      type="checkbox"
-                    />
-                    <span>Pode visualizar relatorio pessoal</span>
-                  </label>
-                  <label className="barber-permission-item">
-                    <input
-                      checked={collaboratorForm.canLaunchSales}
-                      name="canLaunchSales"
-                      onChange={updateCollaboratorForm}
-                      type="checkbox"
-                    />
-                    <span>Pode lancar vendas pelo celular</span>
-                  </label>
-                </div>
+                <LockedFeature
+                  locked={!canUseExtraPermissionsFeature}
+                  message={getLockedFeatureMessage('extra_permissions')}
+                  onLockedClick={handleLockedFeature}
+                >
+                  <div className="barber-permission-list">
+                    <label className="barber-permission-item">
+                      <input
+                        checked={collaboratorForm.canViewOwnDashboard}
+                        name="canViewOwnDashboard"
+                        onChange={updateCollaboratorForm}
+                        type="checkbox"
+                      />
+                      <span>Pode acessar dashboard proprio</span>
+                    </label>
+                    <label className="barber-permission-item">
+                      <input
+                        checked={collaboratorForm.canViewOwnReports}
+                        name="canViewOwnReports"
+                        onChange={updateCollaboratorForm}
+                        type="checkbox"
+                      />
+                      <span>Pode visualizar relatorio pessoal</span>
+                    </label>
+                    <label className="barber-permission-item">
+                      <input
+                        checked={collaboratorForm.canLaunchSales}
+                        name="canLaunchSales"
+                        onChange={updateCollaboratorForm}
+                        type="checkbox"
+                      />
+                      <span>Pode lancar vendas pelo celular</span>
+                    </label>
+                  </div>
+                </LockedFeature>
               </div>
             </div>
             <div className="barber-modal-actions">

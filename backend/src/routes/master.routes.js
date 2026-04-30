@@ -22,7 +22,11 @@ router.post('/companies', masterController.createCompany);
 router.get('/companies/:id', masterController.getCompany);
 router.put('/companies/:id', masterController.updateCompany);
 router.patch('/companies/:id/status', masterController.updateCompanyStatus);
+router.post('/companies/:id/plan', masterController.updateCompanyPlan);
+router.post('/companies/:id/access/manual', masterController.createManualCompanyAccess);
 router.delete('/companies/:id', masterController.deleteCompany);
+router.post('/clients/:clientId/plan', masterController.updateCompanyPlan);
+router.post('/clients/:clientId/access/manual', masterController.createManualCompanyAccess);
 
 router.get('/modules', masterController.listModules);
 router.post('/modules', masterController.createModule);
@@ -45,6 +49,7 @@ router.put('/subscriptions/:id', masterController.updateSubscription);
 router.patch('/subscriptions/:id/status', masterController.updateSubscriptionStatus);
 
 router.get('/activations', masterController.listActivations);
+router.get('/activations/:id/link', masterController.getActivationLink);
 router.patch('/activations/:id/resend', masterController.resendActivation);
 router.patch('/activations/:id/cancel', masterController.cancelActivation);
 

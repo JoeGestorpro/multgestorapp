@@ -2,6 +2,15 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const pool = require('../config/database');
 const emailService = require('./email/email.service');
+const {
+  normalizePlanType,
+  getPlanLimits
+} = require('./company-plan.service');
+const {
+  isValidEmail,
+  isValidPassword,
+  isNonEmptyString
+} = require('../utils/validators');
 
 function createError(message, statusCode) {
   const error = new Error(message);
@@ -28,6 +37,10 @@ function normalizeStatus(status, allowed, fallback) {
   return allowed.includes(value) ? value : fallback;
 }
 
+function normalizePlanStatus(status) {
+  return normalizeStatus(status, ['active', 'expired'], 'active');
+}
+
 function getPagination(query = {}) {
   const page = Math.max(Number(query.page || 1), 1);
   const limit = Math.min(Math.max(Number(query.limit || 10), 1), 100);
@@ -39,6 +52,453 @@ function getPagination(query = {}) {
 async function tableExists(tableName) {
   const result = await pool.query('SELECT to_regclass($1) AS table_name', [`public.${tableName}`]);
   return Boolean(result.rows[0].table_name);
+}
+
+async function columnExists(tableName, columnName) {
+  const result = await pool.query(
+    `SELECT 1
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = $1
+       AND column_name = $2
+     LIMIT 1`,
+    [tableName, columnName]
+  );
+
+  return result.rowCount > 0;
+}
+
+async function getCompaniesQueryConfig() {
+  const [
+    hasOwnerUserId,
+    hasModuleSlug,
+    hasPlanType,
+    hasPlanStatus,
+    hasTrialEndsAt,
+    hasMaxCollaborators
+  ] = await Promise.all([
+    columnExists('companies', 'owner_user_id'),
+    columnExists('companies', 'module_slug'),
+    columnExists('companies', 'plan_type'),
+    columnExists('companies', 'plan_status'),
+    columnExists('companies', 'trial_ends_at'),
+    columnExists('companies', 'max_collaborators')
+  ]);
+
+  return {
+    hasOwnerUserId,
+    hasModuleSlug,
+    hasPlanType,
+    hasPlanStatus,
+    hasTrialEndsAt,
+    hasMaxCollaborators,
+    joinOwnerUser: hasOwnerUserId,
+    selectOwnerUserId: hasOwnerUserId ? 'companies.owner_user_id' : 'NULL::uuid AS owner_user_id',
+    selectOwnerUserEmail: hasOwnerUserId ? 'owner_user.email AS owner_user_email' : 'NULL::text AS owner_user_email',
+    selectOwnerUserName: hasOwnerUserId ? 'owner_user.name AS owner_user_name' : 'NULL::text AS owner_user_name',
+    selectModuleSlug: hasModuleSlug ? 'companies.module_slug' : 'NULL::text AS module_slug',
+    selectPlanType: hasPlanType ? 'companies.plan_type' : "'trial'::text AS plan_type",
+    selectPlanStatus: hasPlanStatus ? 'companies.plan_status' : "'active'::text AS plan_status",
+    selectTrialEndsAt: hasTrialEndsAt ? 'companies.trial_ends_at' : 'NULL::timestamp AS trial_ends_at',
+    selectMaxCollaborators: hasMaxCollaborators ? 'companies.max_collaborators' : 'NULL::integer AS max_collaborators'
+  };
+}
+
+async function getManualAccessSchemaConfig() {
+  const [
+    hasOwnerUserIdOnCompanies,
+    hasOwnerIdOnUsers,
+    hasEmailVerifiedOnUsers,
+    hasStatusOnUsers,
+    hasUpdatedAtOnUsers,
+    hasUsedOnFirstAccessTokens
+  ] = await Promise.all([
+    columnExists('companies', 'owner_user_id'),
+    columnExists('users', 'owner_id'),
+    columnExists('users', 'email_verified'),
+    columnExists('users', 'status'),
+    columnExists('users', 'updated_at'),
+    columnExists('first_access_tokens', 'used')
+  ]);
+
+  return {
+    hasOwnerUserIdOnCompanies,
+    hasOwnerIdOnUsers,
+    hasEmailVerifiedOnUsers,
+    hasStatusOnUsers,
+    hasUpdatedAtOnUsers,
+    hasUsedOnFirstAccessTokens
+  };
+}
+
+async function getSubscriptionsSchemaConfig() {
+  const [
+    hasUpdatedAt,
+    hasModuleId,
+    hasModuleKey,
+    hasPlanId,
+    hasPlanName,
+    hasPrice,
+    hasBillingCycle,
+    hasGateway,
+    hasNextDueDate,
+    hasStartedAt,
+    hasCurrentPeriodStart,
+    hasCanceledAt
+  ] = await Promise.all([
+    columnExists('subscriptions', 'updated_at'),
+    columnExists('subscriptions', 'module_id'),
+    columnExists('subscriptions', 'module_key'),
+    columnExists('subscriptions', 'plan_id'),
+    columnExists('subscriptions', 'plan_name'),
+    columnExists('subscriptions', 'price'),
+    columnExists('subscriptions', 'billing_cycle'),
+    columnExists('subscriptions', 'gateway'),
+    columnExists('subscriptions', 'next_due_date'),
+    columnExists('subscriptions', 'started_at'),
+    columnExists('subscriptions', 'current_period_start'),
+    columnExists('subscriptions', 'canceled_at')
+  ]);
+
+  return {
+    hasUpdatedAt,
+    hasModuleId,
+    hasModuleKey,
+    hasPlanId,
+    hasPlanName,
+    hasPrice,
+    hasBillingCycle,
+    hasGateway,
+    hasNextDueDate,
+    hasStartedAt,
+    hasCurrentPeriodStart,
+    hasCanceledAt
+  };
+}
+
+function getPlanDisplayName(planType) {
+  const normalizedPlanType = normalizePlanType(planType);
+  const labels = {
+    trial: 'Teste gratis',
+    free: 'Gratuito',
+    essencial: 'Essencial',
+    profissional: 'Profissional',
+    premium: 'Premium'
+  };
+
+  return labels[normalizedPlanType] || 'Plano';
+}
+
+function addDays(date, days) {
+  const value = new Date(date);
+  value.setDate(value.getDate() + days);
+  return value;
+}
+
+async function getCompanyPlanContext(companyId) {
+  const company = await getCompany(companyId);
+  const activeModuleResult = await pool.query(
+    `SELECT
+       company_modules.id,
+       company_modules.module_id,
+       modules.name AS module_name,
+       modules.slug AS module_slug
+     FROM company_modules
+     INNER JOIN modules ON modules.id = company_modules.module_id
+     WHERE company_modules.company_id = $1
+       AND company_modules.status = 'active'
+     ORDER BY company_modules.updated_at DESC NULLS LAST, company_modules.activated_at DESC NULLS LAST, company_modules.created_at DESC
+     LIMIT 1`,
+    [companyId]
+  );
+
+  return {
+    company,
+    activeModule: activeModuleResult.rows[0] || null
+  };
+}
+
+async function upsertCompanySubscription(client, company, activeModule, planType, options = {}) {
+  const schemaConfig = await getSubscriptionsSchemaConfig();
+  const now = options.currentPeriodStart ? new Date(options.currentPeriodStart) : new Date();
+  const durationDays = Number(options.durationDays || options.duration_days || 30);
+  const nextDueDate = options.nextDueDate || options.next_due_date
+    ? new Date(options.nextDueDate || options.next_due_date)
+    : (['trial', 'free'].includes(planType) ? null : addDays(now, durationDays));
+  const planName = getPlanDisplayName(planType);
+  const planSource = String(options.source || 'manual').trim().toLowerCase() || 'manual';
+  const subscriptionStatus = ['trial', 'free'].includes(planType) ? 'pending' : 'active';
+
+  await client.query(
+    `UPDATE subscriptions
+     SET status = 'canceled'
+         ${schemaConfig.hasCanceledAt ? ', canceled_at = NOW()' : ''}
+         ${schemaConfig.hasUpdatedAt ? ', updated_at = NOW()' : ''}
+     WHERE company_id = $1
+       AND status = 'active'
+       ${schemaConfig.hasModuleId ? 'AND ($2::uuid IS NULL OR module_id IS NULL OR module_id <> $2)' : ''}`,
+    schemaConfig.hasModuleId ? [company.id, activeModule?.module_id || null] : [company.id]
+  );
+
+  const existingSubscriptionResult = await client.query(
+    `SELECT id
+     FROM subscriptions
+     WHERE company_id = $1
+       ${schemaConfig.hasModuleId ? 'AND ($2::uuid IS NULL OR module_id = $2)' : ''}
+     ORDER BY
+       CASE WHEN status = 'active' THEN 0 ELSE 1 END,
+       ${schemaConfig.hasUpdatedAt ? 'COALESCE(updated_at, created_at)' : 'created_at'} DESC,
+       created_at DESC
+     LIMIT 1`,
+    schemaConfig.hasModuleId ? [company.id, activeModule?.module_id || null] : [company.id]
+  );
+
+  const moduleKey = activeModule?.module_slug || company.module_slug || null;
+
+  if (existingSubscriptionResult.rowCount > 0) {
+    const fields = ['status = $1'];
+    const values = [subscriptionStatus];
+
+    if (schemaConfig.hasModuleId) {
+      fields.push(`module_id = $${values.length + 1}`);
+      values.push(activeModule?.module_id || null);
+    }
+
+    if (schemaConfig.hasModuleKey) {
+      fields.push(`module_key = $${values.length + 1}`);
+      values.push(moduleKey);
+    }
+
+    if (schemaConfig.hasPlanName) {
+      fields.push(`plan_name = $${values.length + 1}`);
+      values.push(planName);
+    }
+
+    if (schemaConfig.hasPrice) {
+      fields.push(`price = $${values.length + 1}`);
+      values.push(0);
+    }
+
+    if (schemaConfig.hasBillingCycle) {
+      fields.push(`billing_cycle = $${values.length + 1}`);
+      values.push('monthly');
+    }
+
+    if (schemaConfig.hasGateway) {
+      fields.push(`gateway = $${values.length + 1}`);
+      values.push(planSource);
+    }
+
+    if (schemaConfig.hasNextDueDate) {
+      fields.push(`next_due_date = $${values.length + 1}`);
+      values.push(nextDueDate);
+    }
+
+    if (schemaConfig.hasCurrentPeriodStart) {
+      fields.push(`current_period_start = $${values.length + 1}`);
+      values.push(now);
+    }
+
+    if (schemaConfig.hasStartedAt) {
+      fields.push(`started_at = COALESCE(started_at, $${values.length + 1})`);
+      values.push(now);
+    }
+
+    if (schemaConfig.hasCanceledAt) {
+      fields.push('canceled_at = NULL');
+    }
+
+    if (schemaConfig.hasUpdatedAt) {
+      fields.push('updated_at = NOW()');
+    }
+
+    values.push(existingSubscriptionResult.rows[0].id);
+    const updatedSubscription = await client.query(
+      `UPDATE subscriptions
+       SET ${fields.join(', ')}
+       WHERE id = $${values.length}
+       RETURNING *`,
+      values
+    );
+
+    return updatedSubscription.rows[0];
+  }
+
+  const insertColumns = ['company_id', 'status'];
+  const insertValues = ['$1', '$2'];
+  const values = [company.id, subscriptionStatus];
+
+  if (schemaConfig.hasModuleId) {
+    insertColumns.push('module_id');
+    insertValues.push(`$${values.length + 1}`);
+    values.push(activeModule?.module_id || null);
+  }
+
+  if (schemaConfig.hasModuleKey) {
+    insertColumns.push('module_key');
+    insertValues.push(`$${values.length + 1}`);
+    values.push(moduleKey);
+  }
+
+  if (schemaConfig.hasPlanName) {
+    insertColumns.push('plan_name');
+    insertValues.push(`$${values.length + 1}`);
+    values.push(planName);
+  }
+
+  if (schemaConfig.hasPrice) {
+    insertColumns.push('price');
+    insertValues.push(`$${values.length + 1}`);
+    values.push(0);
+  }
+
+    if (schemaConfig.hasBillingCycle) {
+      insertColumns.push('billing_cycle');
+      insertValues.push(`$${values.length + 1}`);
+      values.push('monthly');
+    }
+
+  if (schemaConfig.hasGateway) {
+    insertColumns.push('gateway');
+    insertValues.push(`$${values.length + 1}`);
+    values.push(planSource);
+  }
+
+  if (schemaConfig.hasNextDueDate) {
+    insertColumns.push('next_due_date');
+    insertValues.push(`$${values.length + 1}`);
+    values.push(nextDueDate);
+  }
+
+  if (schemaConfig.hasStartedAt) {
+    insertColumns.push('started_at');
+    insertValues.push(`$${values.length + 1}`);
+    values.push(now);
+  }
+
+  if (schemaConfig.hasCurrentPeriodStart) {
+    insertColumns.push('current_period_start');
+    insertValues.push(`$${values.length + 1}`);
+    values.push(now);
+  }
+
+  if (schemaConfig.hasUpdatedAt) {
+    insertColumns.push('updated_at');
+    insertValues.push('NOW()');
+  }
+
+  const createdSubscription = await client.query(
+    `INSERT INTO subscriptions (${insertColumns.join(', ')})
+     VALUES (${insertValues.join(', ')})
+     RETURNING *`,
+    values
+  );
+
+  return createdSubscription.rows[0];
+}
+
+async function applyCompanyPlan(companyId, inputPlanType, options = {}, reqUser) {
+  const planType = normalizePlanType(inputPlanType);
+
+  if (!['trial', 'free', 'essencial', 'profissional', 'premium'].includes(planType)) {
+    throw createError('Plano invalido. Escolha entre free, trial, essencial, profissional ou premium.', 400);
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const { company, activeModule } = await getCompanyPlanContext(companyId);
+    const companyQueryConfig = await getCompaniesQueryConfig();
+
+    if (!activeModule && !['trial', 'free'].includes(planType)) {
+      throw createError('Ative um modulo para este cliente antes de salvar o plano.', 400);
+    }
+
+    const limits = getPlanLimits(planType);
+    const durationDays = Number(options.durationDays || options.duration_days || (planType === 'trial' ? 7 : 30));
+    const currentPeriodStart = options.currentPeriodStart || options.current_period_start
+      ? new Date(options.currentPeriodStart || options.current_period_start)
+      : new Date();
+    const nextTrialEndsAt = planType === 'trial'
+      ? addDays(currentPeriodStart, durationDays)
+      : null;
+    const nextPlanStatus = planType === 'trial' ? 'trial' : (planType === 'free' ? 'free' : 'active');
+    const nextCompanyStatus = planType === 'trial'
+      ? 'pending'
+      : (planType === 'free' ? 'inactive' : 'active');
+
+    const companyFields = ['status = $1', 'updated_at = NOW()'];
+    const companyValues = [nextCompanyStatus];
+
+    if (companyQueryConfig.hasPlanType) {
+      companyFields.push(`plan_type = $${companyValues.length + 1}`);
+      companyValues.push(planType);
+    }
+
+    if (companyQueryConfig.hasPlanStatus) {
+      companyFields.push(`plan_status = $${companyValues.length + 1}`);
+      companyValues.push(nextPlanStatus);
+    }
+
+    if (companyQueryConfig.hasTrialEndsAt) {
+      companyFields.push(`trial_ends_at = $${companyValues.length + 1}`);
+      companyValues.push(nextTrialEndsAt);
+    }
+
+    if (companyQueryConfig.hasMaxCollaborators) {
+      companyFields.push(`max_collaborators = $${companyValues.length + 1}`);
+      companyValues.push(limits.max_collaborators);
+    }
+
+    companyValues.push(companyId);
+
+    const companyUpdateResult = await client.query(
+      `UPDATE companies
+       SET ${companyFields.join(', ')}
+       WHERE id = $${companyValues.length}
+         AND COALESCE(is_deleted, false) = false
+       RETURNING id`,
+      companyValues
+    );
+
+    if (companyUpdateResult.rowCount === 0) {
+      throw createError('Cliente nao encontrado', 404);
+    }
+
+    const companyForSubscription = {
+      ...company,
+      status: nextCompanyStatus,
+      plan_type: planType,
+      plan_status: nextPlanStatus,
+      trial_ends_at: nextTrialEndsAt,
+      max_collaborators: limits.max_collaborators
+    };
+
+    const subscription = await upsertCompanySubscription(client, companyForSubscription, activeModule, planType, {
+      source: options.source || 'manual',
+      durationDays,
+      currentPeriodStart,
+      nextDueDate: options.nextDueDate || options.next_due_date || null
+    });
+
+    await client.query('COMMIT');
+
+    const updatedCompany = await getCompany(companyId);
+
+    return {
+      company: updatedCompany,
+      subscription,
+      plan_type: planType,
+      limits
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function audit(action, reqUser, entityType, entityId, metadata = {}) {
@@ -161,25 +621,50 @@ async function getCompaniesByNiche() {
 async function listCompanies(query = {}) {
   const hasPagination = query.page !== undefined || query.limit !== undefined || query.q || query.status;
   const { page, limit, offset } = getPagination(query);
-  const where = ['COALESCE(is_deleted, false) = false'];
+  const queryConfig = await getCompaniesQueryConfig();
+  const where = ['COALESCE(companies.is_deleted, false) = false'];
   const values = [];
 
   if (query.status) {
     values.push(query.status);
-    where.push(`status = $${values.length}`);
+    where.push(`companies.status = $${values.length}`);
   }
 
   if (query.q) {
     values.push(`%${String(query.q).trim()}%`);
-    where.push(`(name ILIKE $${values.length} OR email ILIKE $${values.length} OR document ILIKE $${values.length} OR COALESCE(niche, niche_type) ILIKE $${values.length})`);
+    where.push(`(
+      companies.name ILIKE $${values.length}
+      OR companies.email ILIKE $${values.length}
+      OR companies.document ILIKE $${values.length}
+      OR COALESCE(companies.niche, companies.niche_type) ILIKE $${values.length}
+    )`);
   }
 
   const whereSql = `WHERE ${where.join(' AND ')}`;
 
   if (!hasPagination) {
     const result = await pool.query(
-      `SELECT id, name, document, email, phone, COALESCE(niche, niche_type) AS niche, niche_type, status, owner_user_id, created_at, updated_at
+      `SELECT
+         companies.id,
+         companies.name,
+         companies.document,
+         companies.email,
+         companies.phone,
+         COALESCE(companies.niche, companies.niche_type) AS niche,
+         companies.niche_type,
+         ${queryConfig.selectModuleSlug},
+         ${queryConfig.selectPlanType},
+         ${queryConfig.selectPlanStatus},
+         ${queryConfig.selectTrialEndsAt},
+         ${queryConfig.selectMaxCollaborators},
+         companies.status,
+         ${queryConfig.selectOwnerUserId},
+         ${queryConfig.selectOwnerUserEmail},
+         ${queryConfig.selectOwnerUserName},
+         companies.created_at,
+         companies.updated_at
        FROM companies
+       ${queryConfig.joinOwnerUser ? 'LEFT JOIN users AS owner_user ON owner_user.id = companies.owner_user_id' : ''}
        ${whereSql}
        ORDER BY name ASC`,
       values
@@ -189,8 +674,27 @@ async function listCompanies(query = {}) {
 
   const countResult = await pool.query(`SELECT COUNT(*)::int AS total FROM companies ${whereSql}`, values);
   const result = await pool.query(
-    `SELECT id, name, document, email, phone, COALESCE(niche, niche_type) AS niche, niche_type, status, owner_user_id, created_at, updated_at
+    `SELECT
+       companies.id,
+       companies.name,
+       companies.document,
+       companies.email,
+       companies.phone,
+       COALESCE(companies.niche, companies.niche_type) AS niche,
+       companies.niche_type,
+       ${queryConfig.selectModuleSlug},
+       ${queryConfig.selectPlanType},
+       ${queryConfig.selectPlanStatus},
+       ${queryConfig.selectTrialEndsAt},
+       ${queryConfig.selectMaxCollaborators},
+       companies.status,
+       ${queryConfig.selectOwnerUserId},
+       ${queryConfig.selectOwnerUserEmail},
+       ${queryConfig.selectOwnerUserName},
+       companies.created_at,
+       companies.updated_at
      FROM companies
+     ${queryConfig.joinOwnerUser ? 'LEFT JOIN users AS owner_user ON owner_user.id = companies.owner_user_id' : ''}
      ${whereSql}
      ORDER BY created_at DESC
      LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
@@ -209,10 +713,30 @@ async function listCompanies(query = {}) {
 }
 
 async function getCompany(id) {
+  const queryConfig = await getCompaniesQueryConfig();
   const result = await pool.query(
-    `SELECT id, name, document, email, phone, COALESCE(niche, niche_type) AS niche, niche_type, status, owner_user_id, created_at, updated_at
+    `SELECT
+       companies.id,
+       companies.name,
+       companies.document,
+       companies.email,
+       companies.phone,
+       COALESCE(companies.niche, companies.niche_type) AS niche,
+       companies.niche_type,
+       ${queryConfig.selectModuleSlug},
+       ${queryConfig.selectPlanType},
+       ${queryConfig.selectPlanStatus},
+       ${queryConfig.selectTrialEndsAt},
+       ${queryConfig.selectMaxCollaborators},
+       companies.status,
+       ${queryConfig.selectOwnerUserId},
+       ${queryConfig.selectOwnerUserEmail},
+       ${queryConfig.selectOwnerUserName},
+       companies.created_at,
+       companies.updated_at
      FROM companies
-     WHERE id = $1 AND COALESCE(is_deleted, false) = false
+     ${queryConfig.joinOwnerUser ? 'LEFT JOIN users AS owner_user ON owner_user.id = companies.owner_user_id' : ''}
+     WHERE companies.id = $1 AND COALESCE(companies.is_deleted, false) = false
      LIMIT 1`,
     [id]
   );
@@ -231,17 +755,54 @@ async function createCompany(data, reqUser) {
   const phone = String(data.phone || '').trim() || null;
   const niche = String(data.niche || data.niche_type || '').trim() || null;
   const status = normalizeStatus(data.status, ['active', 'inactive', 'suspended', 'pending'], 'pending');
+  const planType = 'trial';
+  const planStatus = 'active';
+  const maxCollaborators = null;
 
-  if (!name) {
+  if (!isNonEmptyString(name)) {
     throw createError('Nome da empresa e obrigatorio', 400);
+  }
+
+  if (email && !isValidEmail(email)) {
+    throw createError('Informe um e-mail valido para a empresa.', 400);
   }
 
   try {
     const result = await pool.query(
-      `INSERT INTO companies (name, document, email, phone, niche, niche_type, status, owner_user_id, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $5, $6, $7, NOW())
-       RETURNING id, name, document, email, phone, niche, niche_type, status, owner_user_id, created_at, updated_at`,
-      [name, document, email || null, phone, niche, status, data.owner_user_id || null]
+      `INSERT INTO companies (
+         name,
+         document,
+         email,
+         phone,
+         niche,
+         niche_type,
+         status,
+         owner_user_id,
+         plan_type,
+         plan_status,
+         trial_ends_at,
+         max_collaborators,
+         updated_at
+       )
+       VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8, $9, NOW() + INTERVAL '7 days', $10, NOW())
+       RETURNING
+         id,
+         name,
+         document,
+         email,
+         phone,
+         niche,
+         niche_type,
+         module_slug,
+         plan_type,
+         plan_status,
+         trial_ends_at,
+         max_collaborators,
+         status,
+         owner_user_id,
+         created_at,
+         updated_at`,
+      [name, document, email || null, phone, niche, status, data.owner_user_id || null, planType, planStatus, maxCollaborators]
     );
 
     await audit('company_created', reqUser, 'company', result.rows[0].id, { name });
@@ -299,7 +860,7 @@ async function updateCompany(id, data, reqUser) {
       `UPDATE companies
        SET ${fields.join(', ')}, updated_at = NOW()
        WHERE id = $${values.length} AND COALESCE(is_deleted, false) = false
-       RETURNING id, name, document, email, phone, niche, niche_type, status, owner_user_id, created_at, updated_at`,
+       RETURNING id`,
       values
     );
 
@@ -308,7 +869,7 @@ async function updateCompany(id, data, reqUser) {
     }
 
     await audit('company_updated', reqUser, 'company', id, data);
-    return result.rows[0];
+    return getCompany(id);
   } catch (error) {
     if (error.code === '23505') {
       throw createError('Email da empresa ja cadastrado', 409);
@@ -344,6 +905,17 @@ async function updateCompanyStatus(id, status, reqUser) {
   const company = await updateCompany(id, { status: nextStatus }, reqUser);
   await audit('company_status_changed', reqUser, 'company', id, { status: nextStatus });
   return company;
+}
+
+async function updateCompanyPlan(id, data, reqUser) {
+  const appliedPlan = await applyCompanyPlan(id, data.plan_type || data.planType, data, reqUser);
+  await audit('company_plan_updated', reqUser, 'company', id, {
+    planType: appliedPlan.plan_type,
+    maxCollaborators: appliedPlan.limits.max_collaborators,
+    subscriptionId: appliedPlan.subscription?.id || null
+  });
+
+  return appliedPlan;
 }
 
 async function listModules() {
@@ -484,7 +1056,10 @@ async function activateModuleForCompany(data, reqUser) {
     throw createError('Empresa e modulo sao obrigatorios', 400);
   }
 
-  const moduleResult = await pool.query('SELECT id FROM modules WHERE id = $1 AND is_active = true LIMIT 1', [moduleId]);
+  const moduleResult = await pool.query(
+    'SELECT id, slug FROM modules WHERE id = $1 AND is_active = true LIMIT 1',
+    [moduleId]
+  );
   if (moduleResult.rowCount === 0) {
     throw createError('Modulo ativo nao encontrado', 404);
   }
@@ -495,6 +1070,20 @@ async function activateModuleForCompany(data, reqUser) {
   );
   if (companyResult.rowCount === 0) {
     throw createError('Empresa nao encontrada', 404);
+  }
+
+  const activeModuleResult = await pool.query(
+    `SELECT company_modules.id
+     FROM company_modules
+     WHERE company_id = $1
+       AND status = 'active'
+       AND module_id <> $2
+     LIMIT 1`,
+    [companyId, moduleId]
+  );
+
+  if (activeModuleResult.rowCount > 0) {
+    throw createError('Este cliente ja possui um modulo ativo. Inative o modulo atual antes de ativar outro.', 409);
   }
 
   const existing = await pool.query(
@@ -523,6 +1112,14 @@ async function activateModuleForCompany(data, reqUser) {
       [companyId, moduleId, reqUser?.id || null]
     );
   }
+
+  await pool.query(
+    `UPDATE companies
+     SET module_slug = $1,
+         updated_at = NOW()
+     WHERE id = $2`,
+    [moduleResult.rows[0].slug, companyId]
+  );
 
   await audit('company_module_activated', reqUser, 'company_module', result.rows[0].id, { companyId, moduleId });
   return result.rows[0];
@@ -561,8 +1158,28 @@ async function deactivateModuleForCompany(data, reqUser) {
     throw createError('Vinculo de modulo nao encontrado', 404);
   }
 
-  await audit('company_module_deactivated', reqUser, 'company_module', result.rows[0].id);
-  return result.rows[0];
+  const updatedCompanyModule = result.rows[0];
+  const activeModuleResult = await pool.query(
+    `SELECT modules.slug
+     FROM company_modules
+     INNER JOIN modules ON modules.id = company_modules.module_id
+     WHERE company_modules.company_id = $1
+       AND company_modules.status = 'active'
+     ORDER BY company_modules.updated_at DESC
+     LIMIT 1`,
+    [updatedCompanyModule.company_id]
+  );
+
+  await pool.query(
+    `UPDATE companies
+     SET module_slug = $1,
+         updated_at = NOW()
+     WHERE id = $2`,
+    [activeModuleResult.rows[0]?.slug || null, updatedCompanyModule.company_id]
+  );
+
+  await audit('company_module_deactivated', reqUser, 'company_module', updatedCompanyModule.id);
+  return updatedCompanyModule;
 }
 
 async function listCompanyModules(query = {}) {
@@ -667,20 +1284,49 @@ async function getSubscription(id) {
 
 async function createSubscription(data, reqUser) {
   const companyId = data.company_id || data.companyId;
+  const moduleId = data.module_id || data.moduleId || null;
+  const moduleKey = String(data.module_key || data.moduleKey || '').trim() || null;
+  const planId = data.plan_id || data.planId || null;
   const planName = String(data.plan_name || data.planName || '').trim();
   const price = Number(data.price || 0);
   const status = normalizeStatus(data.status, ['active', 'pending', 'late', 'canceled', 'refunded', 'suspended'], 'pending');
   const billingCycle = data.billing_cycle || data.billingCycle || 'monthly';
+  const gateway = String(data.gateway || '').trim() || null;
 
   if (!companyId || !planName) {
     throw createError('Empresa e plano sao obrigatorios', 400);
   }
 
   const result = await pool.query(
-    `INSERT INTO subscriptions (company_id, plan_name, price, status, billing_cycle, next_due_date, started_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, NOW()), NOW())
+    `INSERT INTO subscriptions (
+       company_id,
+       module_id,
+       module_key,
+       plan_id,
+       plan_name,
+       price,
+       status,
+       billing_cycle,
+       gateway,
+       next_due_date,
+       started_at,
+       updated_at
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, NOW()), NOW())
      RETURNING *`,
-    [companyId, planName, price, status, billingCycle, data.next_due_date || data.nextDueDate || null, data.started_at || data.startedAt || null]
+    [
+      companyId,
+      moduleId,
+      moduleKey,
+      planId,
+      planName,
+      price,
+      status,
+      billingCycle,
+      gateway,
+      data.next_due_date || data.nextDueDate || null,
+      data.started_at || data.startedAt || null
+    ]
   );
 
   await audit('subscription_created', reqUser, 'subscription', result.rows[0].id, { companyId, planName });
@@ -692,10 +1338,14 @@ async function updateSubscription(id, data, reqUser) {
   const values = [];
   const map = {
     company_id: data.company_id || data.companyId,
+    module_id: data.module_id || data.moduleId,
+    module_key: data.module_key || data.moduleKey,
+    plan_id: data.plan_id || data.planId,
     plan_name: data.plan_name || data.planName,
     price: data.price,
     status: data.status,
     billing_cycle: data.billing_cycle || data.billingCycle,
+    gateway: data.gateway,
     next_due_date: data.next_due_date || data.nextDueDate,
     canceled_at: data.canceled_at || data.canceledAt
   };
@@ -819,6 +1469,32 @@ async function resendActivation(id, reqUser) {
   return true;
 }
 
+async function getActivationLink(id, reqUser) {
+  const result = await pool.query(
+    `SELECT
+       first_access_tokens.id,
+       first_access_tokens.token
+     FROM first_access_tokens
+     WHERE first_access_tokens.id = $1
+       AND first_access_tokens.used_at IS NULL
+       AND first_access_tokens.expires_at > NOW()
+     LIMIT 1`,
+    [id]
+  );
+
+  if (result.rowCount === 0) {
+    throw createError('Nao existe ativacao pendente para este cliente.', 404);
+  }
+
+  const activationUrl = emailService.buildFrontendLink('/set-password', result.rows[0].token);
+
+  await audit('first_access_link_requested', reqUser, 'first_access_token', id);
+
+  return {
+    activation_url: activationUrl
+  };
+}
+
 async function cancelActivation(id, reqUser) {
   const result = await pool.query(
     `UPDATE first_access_tokens
@@ -938,10 +1614,14 @@ async function generateFirstAccess(data, reqUser) {
   const role = data.role || data.profile || 'admin';
   const expiresInHours = Number(data.expiresInHours || data.expires_in_hours || 24);
   const generatedBy = data.generatedBy || data.generated_by || reqUser?.id || null;
-  const allowedRoles = ['admin', 'collaborator'];
+  const allowedRoles = ['owner', 'admin', 'collaborator'];
 
   if (!companyId || !name || !email) {
     throw createError('Empresa, nome e email sao obrigatorios', 400);
+  }
+
+  if (!isValidEmail(email)) {
+    throw createError('Informe um e-mail valido para o primeiro acesso.', 400);
   }
 
   if (!allowedRoles.includes(role)) {
@@ -1029,6 +1709,231 @@ async function generateFirstAccess(data, reqUser) {
   }
 }
 
+async function createManualCompanyAccess(companyId, data, reqUser) {
+  const resolvedCompanyId = companyId || data.company_id || data.companyId;
+  const email = normalizeEmail(data.email);
+  const password = String(data.password ?? '');
+  const confirmPassword = String(data.confirmPassword ?? data.confirm_password ?? '');
+  const markEmailVerified = true;
+  const role = 'owner';
+
+  // REGRA MULTI-TENANT: sempre usar company_id para isolar empresas.
+  if (!resolvedCompanyId) {
+    throw createError('Cliente obrigatorio', 400);
+  }
+
+  if (!email) {
+    throw createError('Email obrigatorio', 400);
+  }
+
+  if (!isValidEmail(email)) {
+    throw createError('Informe um e-mail valido para o acesso manual.', 400);
+  }
+
+  if (!isValidPassword(password, 6)) {
+    throw createError('A senha deve ter pelo menos 6 caracteres.', 400);
+  }
+
+  if (password !== confirmPassword) {
+    throw createError('A confirmacao da senha nao confere.', 400);
+  }
+
+  const schemaConfig = await getManualAccessSchemaConfig();
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const companyResult = await client.query(
+      `SELECT id, name
+       FROM companies
+       WHERE id = $1
+         AND COALESCE(is_deleted, false) = false
+       LIMIT 1`,
+      [resolvedCompanyId]
+    );
+
+    if (companyResult.rowCount === 0) {
+      throw createError('Cliente nao encontrado', 404);
+    }
+
+    const moduleAccessResult = await client.query(
+      `SELECT
+         company_modules.id,
+         company_modules.company_id,
+         company_modules.module_id,
+         modules.slug
+       FROM company_modules
+       INNER JOIN modules ON modules.id = company_modules.module_id
+       WHERE company_modules.company_id = $1
+         AND company_modules.status = 'active'
+         AND modules.is_active = true
+       LIMIT 1`,
+      [resolvedCompanyId]
+    );
+
+    if (moduleAccessResult.rowCount === 0) {
+      throw createError('Ative o modulo para este cliente antes de criar o acesso manual', 409);
+    }
+
+    const existingUserResult = await client.query(
+      `SELECT id, email, role, company_id
+       FROM users
+       WHERE email = $1
+       LIMIT 1
+       FOR UPDATE`,
+      [email]
+    );
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    let user;
+
+    if (existingUserResult.rowCount > 0) {
+      const existingUser = existingUserResult.rows[0];
+
+      if (existingUser.company_id) {
+        throw createError('Este email ja possui acesso cadastrado.', 400);
+      }
+
+      const updateFields = [
+        'password_hash = $1',
+        'role = $2',
+        'company_id = $3',
+        'is_active = true'
+      ];
+      const updateValues = [passwordHash, role, resolvedCompanyId];
+
+      if (schemaConfig.hasOwnerIdOnUsers) {
+        updateValues.push(resolvedCompanyId);
+        updateFields.push(`owner_id = $${updateValues.length}`);
+      }
+
+      if (schemaConfig.hasEmailVerifiedOnUsers) {
+        updateValues.push(markEmailVerified);
+        updateFields.push(`email_verified = $${updateValues.length}`);
+      }
+
+      if (schemaConfig.hasStatusOnUsers) {
+        updateValues.push('active');
+        updateFields.push(`status = $${updateValues.length}`);
+      }
+
+      if (schemaConfig.hasUpdatedAtOnUsers) {
+        updateFields.push('updated_at = NOW()');
+      }
+
+      updateValues.push(existingUser.id);
+      const updatedUserResult = await client.query(
+        `UPDATE users
+         SET ${updateFields.join(', ')}
+         WHERE id = $${updateValues.length}
+         RETURNING id, name, email, role, company_id`,
+        updateValues
+      );
+
+      user = updatedUserResult.rows[0];
+    } else {
+      const insertColumns = [
+        'name',
+        'email',
+        'password_hash',
+        'role',
+        'company_id',
+        'is_active'
+      ];
+      const insertPlaceholders = ['$1', '$2', '$3', '$4', '$5', 'true'];
+      const insertValues = [companyResult.rows[0].name, email, passwordHash, role, resolvedCompanyId];
+
+      if (schemaConfig.hasOwnerIdOnUsers) {
+        insertColumns.push('owner_id');
+        insertValues.push(resolvedCompanyId);
+        insertPlaceholders.push(`$${insertValues.length}`);
+      }
+
+      if (schemaConfig.hasEmailVerifiedOnUsers) {
+        insertColumns.push('email_verified');
+        insertValues.push(markEmailVerified);
+        insertPlaceholders.push(`$${insertValues.length}`);
+      }
+
+      if (schemaConfig.hasStatusOnUsers) {
+        insertColumns.push('status');
+        insertValues.push('active');
+        insertPlaceholders.push(`$${insertValues.length}`);
+      }
+
+      if (schemaConfig.hasUpdatedAtOnUsers) {
+        insertColumns.push('updated_at');
+        insertPlaceholders.push('NOW()');
+      }
+
+      const insertedUserResult = await client.query(
+        `INSERT INTO users (
+           ${insertColumns.join(', ')}
+         )
+         VALUES (${insertPlaceholders.join(', ')})
+         RETURNING id, name, email, role, company_id`,
+        insertValues
+      );
+
+      user = insertedUserResult.rows[0];
+    }
+
+    if (schemaConfig.hasOwnerUserIdOnCompanies) {
+      await client.query(
+        `UPDATE companies
+         SET owner_user_id = $1,
+             updated_at = NOW()
+         WHERE id = $2`,
+        [user.id, resolvedCompanyId]
+      );
+    }
+
+    await client.query(
+      `UPDATE first_access_tokens
+       SET used_at = NOW()${schemaConfig.hasUsedOnFirstAccessTokens ? ', used = true' : ''}
+       WHERE user_id = $1
+         AND used_at IS NULL`,
+      [user.id]
+    );
+
+    await client.query(
+      `INSERT INTO auth_audit_logs (user_id, email, action, details)
+       VALUES ($1, $2, 'master_manual_access_created', $3)`,
+      [
+        reqUser?.id || null,
+        email,
+        JSON.stringify({
+          target_user_id: user.id,
+          company_id: resolvedCompanyId,
+          module_slug: moduleAccessResult.rows[0].slug,
+          role
+        })
+      ]
+    );
+
+    await client.query('COMMIT');
+    await audit('manual_company_access_created', reqUser, 'user', user.id, {
+      companyId: resolvedCompanyId,
+      moduleSlug: moduleAccessResult.rows[0].slug,
+      email,
+      role
+    });
+
+    return user;
+  } catch (error) {
+    await client.query('ROLLBACK');
+
+    if (error.code === '23505') {
+      throw createError('Este email ja possui acesso cadastrado.', 400);
+    }
+
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   getDashboardData,
   listCompanies,
@@ -1037,6 +1942,8 @@ module.exports = {
   updateCompany,
   deleteCompany,
   updateCompanyStatus,
+  applyCompanyPlan,
+  updateCompanyPlan,
   listModules,
   getModule,
   createModule,
@@ -1052,10 +1959,12 @@ module.exports = {
   updateSubscription,
   updateSubscriptionStatus,
   listActivations,
+  getActivationLink,
   resendActivation,
   cancelActivation,
   getSettings,
   updateSettings,
   listAuditLogs,
-  generateFirstAccess
+  generateFirstAccess,
+  createManualCompanyAccess
 };

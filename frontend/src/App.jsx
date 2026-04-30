@@ -13,6 +13,7 @@ import BarberDashboard from './pages/barber/BarberDashboard'
 import BarberLogin from './pages/barber/BarberLogin'
 import FinanceDashboard from './pages/master/FinanceDashboard'
 import MasterLogin from './pages/master/MasterLogin'
+import LandingPage from './pages/public/LandingPage'
 import ModuleSelect from './pages/ModuleSelect'
 import Modules from './pages/Modules'
 import NoModules from './pages/NoModules'
@@ -24,14 +25,13 @@ import Subscriptions from './pages/Subscriptions'
 import Terra from './pages/Terra'
 import BarberPrivateRoute from './routes/BarberPrivateRoute'
 import BookingPrivateRoute from './routes/BookingPrivateRoute'
-import HomeRedirect from './routes/HomeRedirect'
 import MasterPrivateRoute from './routes/MasterPrivateRoute'
 import ModuleRoute from './routes/ModuleRoute'
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<HomeRedirect />} />
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Navigate to="/barber/login" replace />} />
       <Route path="/barber/login" element={<BarberLogin />} />
       <Route path="/master/login" element={<MasterLogin />} />
@@ -194,6 +194,14 @@ function App() {
       />
       <Route
         path="/barber/relatorios"
+        element={
+          <BarberPrivateRoute>
+            <BarberDashboard />
+          </BarberPrivateRoute>
+        }
+      />
+      <Route
+        path="/barber/configuracoes"
         element={
           <BarberPrivateRoute>
             <BarberDashboard />

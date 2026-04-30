@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
 const emailService = require('./email/email.service');
+const { getCompanyPlanSnapshot } = require('./company-plan.service');
+const { normalizeFeaturePlanType } = require('../utils/planFeatures');
 
 const BARBER_ADMIN_ROLES = ['admin', 'owner', 'collaborator'];
 const BOOKING_CUSTOMER_ROLES = ['client', 'booking_customer'];
@@ -16,6 +18,42 @@ function createError(message, statusCode) {
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
+}
+
+function logAuthDebug(label, details = {}) {
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
+
+  console.log(`[AUTH DEBUG] ${label}`, details);
+}
+
+async function columnExists(tableName, columnName) {
+  const result = await pool.query(
+    `SELECT 1
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = $1
+       AND column_name = $2
+     LIMIT 1`,
+    [tableName, columnName]
+  );
+
+  return result.rowCount > 0;
+}
+
+async function getCompanyPlanQueryConfig() {
+  const [hasPlanType, hasPlanStatus, hasTrialEndsAt] = await Promise.all([
+    columnExists('companies', 'plan_type'),
+    columnExists('companies', 'plan_status'),
+    columnExists('companies', 'trial_ends_at')
+  ]);
+
+  return {
+    selectPlanType: hasPlanType ? 'companies.plan_type' : "'trial'::text AS plan_type",
+    selectPlanStatus: hasPlanStatus ? 'companies.plan_status' : "'active'::text AS plan_status",
+    selectTrialEndsAt: hasTrialEndsAt ? 'companies.trial_ends_at' : 'NULL::timestamp AS trial_ends_at'
+  };
 }
 
 function getPositiveIntEnv(name, fallback) {
@@ -68,6 +106,7 @@ function signToken(user, authScope = inferAuthScope(user.role)) {
 
 function sanitizeUser(row) {
   const authScope = row.auth_scope || inferAuthScope(row.role);
+  const normalizedPlanType = normalizeFeaturePlanType(row.plan_type);
 
   return {
     id: row.id,
@@ -80,6 +119,14 @@ function sanitizeUser(row) {
     company_name: row.company_name,
     company_public_booking_slug: row.company_public_booking_slug || null,
     niche_type: row.niche_type,
+    plan_type: normalizedPlanType,
+    plan_status: row.plan_status || 'active',
+    trial_ends_at: row.trial_ends_at || null,
+    current_period_end: row.current_period_end || row.next_due_date || null,
+    next_due_date: row.next_due_date || null,
+    max_collaborators: row.max_collaborators ?? null,
+    plan_source: row.plan_source || row.source || null,
+    plan_is_active: row.plan_is_active ?? null,
     is_active: row.is_active,
     email_verified: row.email_verified !== false,
     status: row.status || 'active',
@@ -88,6 +135,30 @@ function sanitizeUser(row) {
     can_view_own_dashboard: row.can_view_own_dashboard !== false,
     can_view_own_reports: row.can_view_own_reports !== false,
     created_at: row.created_at
+  };
+}
+
+async function resolveUserPlan(row) {
+  if (!row?.company_id) {
+    return row;
+  }
+
+  const companyPlan = await getCompanyPlanSnapshot(row.company_id);
+
+  if (!companyPlan) {
+    return row;
+  }
+
+  return {
+    ...row,
+    plan_type: companyPlan.plan_type || row.plan_type,
+    plan_status: companyPlan.plan_status || row.plan_status,
+    trial_ends_at: companyPlan.trial_ends_at || row.trial_ends_at || null,
+    current_period_end: companyPlan.current_period_end || companyPlan.next_due_date || null,
+    next_due_date: companyPlan.next_due_date || null,
+    max_collaborators: companyPlan.max_collaborators ?? row.max_collaborators ?? null,
+    plan_source: companyPlan.source || row.plan_source || null,
+    plan_is_active: companyPlan.is_active
   };
 }
 
@@ -149,6 +220,7 @@ async function getCompanyModules(companyId) {
 }
 
 async function findUserWithCompanyByEmail(email) {
+  const queryConfig = await getCompanyPlanQueryConfig();
   const result = await pool.query(
     `SELECT
        users.id,
@@ -168,6 +240,9 @@ async function findUserWithCompanyByEmail(email) {
        users.created_at,
        companies.name AS company_name,
        companies.niche_type,
+       ${queryConfig.selectPlanType},
+       ${queryConfig.selectPlanStatus},
+       ${queryConfig.selectTrialEndsAt},
        companies.public_booking_slug AS company_public_booking_slug
      FROM users
      LEFT JOIN companies ON companies.id = users.company_id
@@ -177,10 +252,22 @@ async function findUserWithCompanyByEmail(email) {
   );
 
   if (result.rowCount === 0) {
+    logAuthDebug('login_lookup', {
+      email,
+      userFound: false
+    });
     throw createError('Credenciais invalidas', 401);
   }
 
-  return result.rows[0];
+  logAuthDebug('login_lookup', {
+    email,
+    userFound: true,
+    hasPasswordHash: Boolean(result.rows[0].password_hash),
+    role: result.rows[0].role,
+    companyId: result.rows[0].company_id || null
+  });
+
+  return resolveUserPlan(result.rows[0]);
 }
 
 async function findBookingCustomerByEmail(email, companySlug = null) {
@@ -372,7 +459,18 @@ async function login(data, options = {}) {
     requireVerifiedEmail: authScope === 'booking_customer'
   });
 
+  logAuthDebug('login_password_check', {
+    email,
+    userFound: true,
+    hasPasswordHash: Boolean(user.password_hash)
+  });
+
   const passwordMatches = await bcrypt.compare(password, user.password_hash);
+
+  logAuthDebug('login_password_result', {
+    email,
+    passwordMatches
+  });
 
   if (!passwordMatches) {
     throw createError('Credenciais invalidas', 401);
@@ -473,6 +571,7 @@ async function getAuthenticatedUser(userId, options = {}) {
     };
   }
 
+  const queryConfig = await getCompanyPlanQueryConfig();
   const result = await pool.query(
     `SELECT
        users.id,
@@ -491,6 +590,9 @@ async function getAuthenticatedUser(userId, options = {}) {
        users.created_at,
        companies.name AS company_name,
        companies.niche_type,
+       ${queryConfig.selectPlanType},
+       ${queryConfig.selectPlanStatus},
+       ${queryConfig.selectTrialEndsAt},
        companies.public_booking_slug AS company_public_booking_slug
      FROM users
      LEFT JOIN companies ON companies.id = users.company_id
@@ -503,7 +605,7 @@ async function getAuthenticatedUser(userId, options = {}) {
     throw createError('Usuario nao encontrado', 404);
   }
 
-  const user = result.rows[0];
+  const user = await resolveUserPlan(result.rows[0]);
   const resolvedScope = authScope || inferAuthScope(user.role);
 
   assertScopeCompatibility(user, resolvedScope);
@@ -747,6 +849,11 @@ async function setFirstAccessPassword(data) {
       [access.user_id, JSON.stringify({ token_id: access.id })]
     );
 
+    logAuthDebug('first_access_password_set', {
+      userId: access.user_id,
+      tokenId: access.id
+    });
+
     await client.query('COMMIT');
 
     return true;
@@ -907,6 +1014,11 @@ async function resetPassword(data) {
        VALUES ($1, 'password_reset_completed', $2)`,
       [resetToken.user_id, JSON.stringify({ token_id: resetToken.id })]
     );
+
+    logAuthDebug('password_reset_completed', {
+      userId: resetToken.user_id,
+      tokenId: resetToken.id
+    });
 
     await client.query('COMMIT');
 

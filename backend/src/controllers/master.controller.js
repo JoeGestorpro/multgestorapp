@@ -56,6 +56,12 @@ const updateCompanyStatus = wrap(async (req, res) => {
   res.json({ success: true, data: company });
 }, 'Erro ao alterar status da empresa');
 
+const updateCompanyPlan = wrap(async (req, res) => {
+  const companyId = req.params.clientId || req.params.id;
+  const company = await masterService.updateCompanyPlan(companyId, req.body, req.user);
+  res.json({ success: true, data: company });
+}, 'Erro ao alterar plano da empresa');
+
 const listModules = wrap(async (req, res) => {
   const modules = await masterService.listModules();
   res.json({ success: true, data: modules });
@@ -136,6 +142,11 @@ const listActivations = wrap(async (req, res) => {
   res.json({ success: true, data: activations });
 }, 'Erro ao listar ativacoes');
 
+const getActivationLink = wrap(async (req, res) => {
+  const activation = await masterService.getActivationLink(req.params.id, req.user);
+  res.json({ success: true, data: activation });
+}, 'Erro ao carregar link de ativacao');
+
 const resendActivation = wrap(async (req, res) => {
   await masterService.resendActivation(req.params.id, req.user);
   res.json({ success: true, message: 'Ativacao reenviada com sucesso' });
@@ -165,6 +176,16 @@ const generateFirstAccess = wrap(async (req, res) => {
   const result = await masterService.generateFirstAccess(req.body, req.user);
   res.status(201).json({ success: true, data: result });
 }, 'Erro ao gerar primeiro acesso');
+
+const createManualCompanyAccess = wrap(async (req, res) => {
+  const companyId = req.params.clientId || req.params.id;
+  const user = await masterService.createManualCompanyAccess(companyId, req.body, req.user);
+  res.status(201).json({
+    success: true,
+    message: 'Acesso manual criado com sucesso.',
+    user
+  });
+}, 'Erro ao criar acesso manual');
 
 const getFinanceOverview = wrap(async (req, res) => {
   const overview = await masterFinanceService.getFinanceOverview();
@@ -209,6 +230,7 @@ module.exports = {
   updateCompany,
   deleteCompany,
   updateCompanyStatus,
+  updateCompanyPlan,
   listModules,
   getModule,
   createModule,
@@ -225,12 +247,14 @@ module.exports = {
   updateSubscription,
   updateSubscriptionStatus,
   listActivations,
+  getActivationLink,
   resendActivation,
   cancelActivation,
   getSettings,
   updateSettings,
   listAuditLogs,
   generateFirstAccess,
+  createManualCompanyAccess,
   getFinanceOverview,
   getFinanceMrr,
   getFinanceRevenueByModule,

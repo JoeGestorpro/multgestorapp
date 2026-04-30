@@ -7,7 +7,7 @@ function FieldTitle({ label, hint, critical = false }) {
   )
 }
 
-function ModuleIdentityForm({ form, formErrors, onChange, slugConflict }) {
+function ModuleIdentityForm({ form, formErrors, onChange, slugConflict, readOnly = false, showStatus = true }) {
   return (
     <section className="master-module-config-block">
       <div className="master-module-config-header">
@@ -21,9 +21,9 @@ function ModuleIdentityForm({ form, formErrors, onChange, slugConflict }) {
       <div className="master-module-config-grid">
         <div className="master-module-field master-module-field-full">
           <label htmlFor="name">
-            <FieldTitle critical hint="Nome exibido no painel e usado como base para gerar o slug." label="Nome do modulo" />
+            <FieldTitle critical hint="Nome canonico definido pelo sistema para identificar o modulo no catalogo." label="Nome do modulo" />
           </label>
-          <input id="name" name="name" type="text" value={form.name} onChange={onChange} placeholder="BarberGestor" />
+          <input id="name" name="name" type="text" value={form.name} onChange={onChange} placeholder="BarberGestor" readOnly={readOnly} />
           {formErrors.name && <small>{formErrors.name}</small>}
         </div>
 
@@ -31,7 +31,7 @@ function ModuleIdentityForm({ form, formErrors, onChange, slugConflict }) {
           <label htmlFor="slug">
             <FieldTitle critical hint="Identificador unico usado no roteamento funcional do sistema." label="Slug" />
           </label>
-          <input id="slug" name="slug" type="text" value={form.slug} onChange={onChange} placeholder="barbergestor" />
+          <input id="slug" name="slug" type="text" value={form.slug} onChange={onChange} placeholder="barbergestor" readOnly={readOnly} />
           {formErrors.slug && <small>{formErrors.slug}</small>}
           {!formErrors.slug && slugConflict && <small>Este slug ja esta em uso.</small>}
         </div>
@@ -40,7 +40,7 @@ function ModuleIdentityForm({ form, formErrors, onChange, slugConflict }) {
           <label htmlFor="version">
             <FieldTitle hint="Versao logica do modulo para controle de evolucao." label="Versao" />
           </label>
-          <input id="version" name="version" type="text" value={form.version} onChange={onChange} placeholder="v1" />
+          <input id="version" name="version" type="text" value={form.version} onChange={onChange} placeholder="v1" readOnly={readOnly} />
         </div>
 
         <div className="master-module-field master-module-field-full">
@@ -53,17 +53,20 @@ function ModuleIdentityForm({ form, formErrors, onChange, slugConflict }) {
             rows="4"
             value={form.description}
             onChange={onChange}
+            readOnly={readOnly}
             placeholder="Escopo funcional, responsabilidade e limites deste modulo."
           />
         </div>
 
-        <div className="master-module-field">
-          <label className="master-module-toggle">
-            <FieldTitle hint="Controla disponibilidade do modulo sem remover sua configuracao." label="Status" />
-            <input checked={form.status} name="status" type="checkbox" onChange={onChange} />
-            <strong>{form.status ? 'Ativo' : 'Inativo'}</strong>
-          </label>
-        </div>
+        {showStatus && (
+          <div className="master-module-field">
+            <label className="master-module-toggle">
+              <FieldTitle hint="Controla disponibilidade do modulo sem remover sua configuracao." label="Status" />
+              <input checked={form.status} name="status" type="checkbox" onChange={onChange} disabled={readOnly} />
+              <strong>{form.status ? 'Ativo' : 'Inativo'}</strong>
+            </label>
+          </div>
+        )}
       </div>
     </section>
   )

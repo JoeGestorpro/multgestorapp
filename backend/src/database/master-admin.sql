@@ -7,10 +7,21 @@ ALTER TABLE companies ADD COLUMN IF NOT EXISTS niche TEXT;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS owner_user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS module_slug TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan_type TEXT NOT NULL DEFAULT 'trial';
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan_status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS max_collaborators INTEGER;
 
 UPDATE companies SET niche = niche_type WHERE niche IS NULL AND niche_type IS NOT NULL;
 UPDATE companies SET is_deleted = false WHERE is_deleted IS NULL;
 UPDATE companies SET updated_at = created_at WHERE updated_at IS NULL;
+UPDATE companies SET plan_type = 'trial' WHERE plan_type IS NULL OR trim(plan_type) = '';
+UPDATE companies SET plan_status = 'active' WHERE plan_status IS NULL OR trim(plan_status) = '';
+UPDATE companies
+SET trial_ends_at = COALESCE(created_at, NOW()) + INTERVAL '7 days'
+WHERE plan_type = 'trial'
+  AND trial_ends_at IS NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_companies_email_not_deleted
   ON companies (LOWER(email))

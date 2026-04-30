@@ -3,7 +3,14 @@ const barberService = require('../services/barber.service');
 
 function sendError(res, error, fallbackMessage) {
   const statusCode = error.statusCode || 500;
-  const message = error.message || fallbackMessage || 'Erro interno no servidor';
+
+  if (error.responseBody && typeof error.responseBody === 'object') {
+    return res.status(statusCode).json(error.responseBody);
+  }
+
+  const message = statusCode >= 500
+    ? (fallbackMessage || 'Erro interno no servidor')
+    : (error.message || fallbackMessage || 'Erro interno no servidor');
 
   return res.status(statusCode).json({
     success: false,
@@ -43,6 +50,56 @@ async function barberMe(req, res) {
   } catch (error) {
     console.error('Erro ao carregar perfil barber:', error);
     return sendError(res, error, 'Erro ao carregar perfil');
+  }
+}
+
+async function getSettings(req, res) {
+  try {
+    const settings = await barberService.getSettings(req.user.company_id, req.user);
+
+    return res.json({
+      success: true,
+      data: settings
+    });
+  } catch (error) {
+    console.error('Erro ao carregar configuracoes barber:', error);
+    return sendError(res, error, 'Erro ao carregar configuracoes');
+  }
+}
+
+async function getCompanyPlan(req, res) {
+  try {
+    const companyPlan = await barberService.getCompanyPlanProfile(req.user.company_id);
+
+    return res.json({
+      success: true,
+      data: companyPlan
+    });
+  } catch (error) {
+    console.error('Erro ao carregar plano da empresa barber:', error);
+    return sendError(res, error, 'Erro ao carregar plano da empresa');
+  }
+}
+
+async function forgotPin(req, res) {
+  try {
+    const result = await barberService.forgotPin(req.user.company_id, req.user, req.body);
+
+    return res.json(result);
+  } catch (error) {
+    console.error('Erro ao iniciar recuperacao de PIN barber:', error);
+    return sendError(res, error, 'Erro ao iniciar recuperacao de PIN');
+  }
+}
+
+async function resetPin(req, res) {
+  try {
+    const result = await barberService.resetPin(req.user.company_id, req.user, req.body);
+
+    return res.json(result);
+  } catch (error) {
+    console.error('Erro ao redefinir PIN barber:', error);
+    return sendError(res, error, 'Erro ao redefinir PIN');
   }
 }
 
@@ -884,6 +941,10 @@ async function deleteSale(req, res) {
 module.exports = {
   collaboratorLogin,
   barberMe,
+  getSettings,
+  getCompanyPlan,
+  forgotPin,
+  resetPin,
   myDashboard,
   mySales,
   myReport,
