@@ -377,7 +377,9 @@ function validateEmailConfiguration() {
     resendApiKeyExists,
     emailFrom,
     emailFromIsValid,
-    appUrlExists: Boolean(String(process.env.APP_URL || '').trim()),
+    appUrlExists: Boolean(
+      String(process.env.APP_BASE_URL || process.env.FRONTEND_URL || process.env.APP_URL || '').trim()
+    ),
     apiUrlExists: Boolean(String(process.env.API_URL || '').trim())
   };
 }

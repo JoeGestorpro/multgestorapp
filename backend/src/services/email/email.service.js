@@ -6,20 +6,26 @@ const {
   pinResetCodeEmail
 } = require('../../templates/email/auth.templates');
 
-function getFrontendUrl() {
-  const appUrl = String(process.env.FRONTEND_URL || process.env.APP_URL || '')
+function getAppBaseUrl() {
+  const appUrl = String(
+    process.env.APP_BASE_URL ||
+    process.env.FRONTEND_URL ||
+    process.env.APP_URL ||
+    'http://localhost:5173'
+  )
     .trim()
     .replace(/\/+$/, '');
 
   if (!appUrl) {
-    throw new Error('FRONTEND_URL nao configurada para gerar links de email');
+    throw new Error('APP_BASE_URL nao configurada para gerar links de email');
   }
 
   return appUrl;
 }
 
 function buildFrontendLink(path, token) {
-  return `${getFrontendUrl()}${path}?token=${encodeURIComponent(token)}`;
+  const normalizedPath = String(path || '').startsWith('/') ? String(path) : `/${String(path || '')}`;
+  return `${getAppBaseUrl()}${normalizedPath}?token=${encodeURIComponent(token)}`;
 }
 
 async function sendMail(message) {
@@ -61,7 +67,7 @@ async function sendPasswordResetEmail({ to, name, token, expiresAt }) {
 }
 
 async function sendClientEmailVerificationEmail({ to, name, token, expiresAt }) {
-  const confirmUrl = `${getFrontendUrl()}/confirmar-email?token=${encodeURIComponent(token)}`;
+  const confirmUrl = buildFrontendLink('/confirmar-email', token);
   const template = clientEmailVerificationEmail({
     name,
     link: confirmUrl,
@@ -93,6 +99,7 @@ async function sendBarberPinResetEmail({ to, name, companyName, code, expiresAt 
 }
 
 module.exports = {
+  getAppBaseUrl,
   buildFrontendLink,
   sendFirstAccessEmail,
   sendPasswordResetEmail,

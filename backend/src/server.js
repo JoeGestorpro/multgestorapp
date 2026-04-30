@@ -13,17 +13,23 @@ const clientRoutes = require('./routes/client.routes');
 const publicAuthRoutes = require('./routes/public-auth.routes');
 const publicBookingRoutes = require('./routes/public-booking.routes');
 const webhooksRoutes = require('./routes/webhooks.routes');
+const { getAppBaseUrl } = require('./services/email/email.service');
 
 const app = express();
 const PORT = 5000;
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 function validateRuntimeUrls() {
-  const appUrl = String(process.env.FRONTEND_URL || process.env.APP_URL || '').trim();
+  const appUrl = String(
+    process.env.APP_BASE_URL ||
+    process.env.FRONTEND_URL ||
+    process.env.APP_URL ||
+    ''
+  ).trim();
   const apiUrl = String(process.env.BACKEND_URL || process.env.API_URL || '').trim();
 
   if (!appUrl) {
-    console.warn('[config] FRONTEND_URL nao configurada. Links de email nao serao gerados corretamente.');
+    console.warn('[config] APP_BASE_URL nao configurada. Links de email nao serao gerados corretamente.');
   }
 
   if (!apiUrl) {
@@ -205,6 +211,11 @@ app.listen(PORT, () => {
   if (typeof pool.getDatabaseTargetSummary === 'function') {
     const target = pool.getDatabaseTargetSummary();
     console.log(`[database] alvo do backend: ${target.label}`);
+  }
+  try {
+    console.log(`[config] APP_BASE_URL em uso: ${getAppBaseUrl()}`);
+  } catch (error) {
+    console.warn('[config] Falha ao resolver APP_BASE_URL:', error.message);
   }
   console.log(`Servidor rodando na porta ${PORT}`);
 });
