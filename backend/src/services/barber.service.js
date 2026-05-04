@@ -4,6 +4,7 @@ const path = require('path');
 const pool = require('../config/database');
 const supabase = require('../config/supabase');
 const emailService = require('./email/email.service');
+const clientBookingService = require('./client-booking.service');
 const {
   getPlanLimits,
   getCompanyPlanSnapshot
@@ -22,7 +23,7 @@ const COMMISSION_TYPES = ['percentage', 'fixed'];
 const SERVICE_TYPES = ['service', 'product', 'combo'];
 const ADVANCE_STATUS = ['pending', 'approved', 'rejected', 'liquidated'];
 const CASH_STATUS = ['open', 'pre_closed', 'closed'];
-const APPOINTMENT_STATUS = ['scheduled', 'confirmed', 'completed', 'canceled', 'no_show'];
+const APPOINTMENT_STATUS = ['scheduled', 'confirmed', 'arrived', 'in_progress', 'completed', 'canceled', 'no_show'];
 const COLLABORATOR_AVATAR_MAX_SIZE_BYTES = 2 * 1024 * 1024;
 const COLLABORATOR_AVATAR_MIME_TYPES = {
   'image/jpeg': 'jpg',
@@ -67,6 +68,10 @@ function normalizePin(value) {
   return String(value || '').replace(/\D/g, '');
 }
 
+function shouldLogBarberDebug() {
+  return String(process.env.NODE_ENV || '').trim().toLowerCase() !== 'production';
+}
+
 function getDefaultCollaboratorPermissionState() {
   return {
     canLaunchSales: false,
@@ -107,12 +112,12 @@ function getPublicAssetUrl(relativePath) {
   return `/${String(relativePath || '').replace(/\\/g, '/').replace(/^\/+/, '')}`;
 }
 
-function buildCollaboratorAvatarDirectory(ownerId, collaboratorId) {
-  return path.join(UPLOADS_ROOT, 'barber-collaborators', String(ownerId), String(collaboratorId));
+function buildCollaboratorAvatarDirectory(companyId, collaboratorId) {
+  return path.join(UPLOADS_ROOT, 'barber-collaborators', String(companyId), String(collaboratorId));
 }
 
-function getCollaboratorAvatarRelativePath(ownerId, collaboratorId, extension) {
-  return path.posix.join('barber-collaborators', String(ownerId), String(collaboratorId), `avatar.${extension}`);
+function getCollaboratorAvatarRelativePath(companyId, collaboratorId, extension) {
+  return path.posix.join('barber-collaborators', String(companyId), String(collaboratorId), `avatar.${extension}`);
 }
 
 function parseImageDataUrl(dataUrl) {
@@ -179,8 +184,14 @@ function ensureCompany(companyId) {
   }
 }
 
+function ensureCollaboratorCompanyContext(companyId) {
+  if (!companyId) {
+    throw createError('Empresa nao encontrada no usuario autenticado.', 403);
+  }
+}
+
 function ensureAdmin(user, message = 'Apenas admin pode alterar o catalogo de servicos') {
-  if (!['admin', 'owner', 'master_admin'].includes(user?.role)) {
+  if (!['admin', 'owner', 'master_admin', 'tenant_owner', 'tenant_admin'].includes(user?.role)) {
     throw createError(message, 403);
   }
 }
@@ -197,6 +208,39 @@ async function columnExists(tableName, columnName) {
   );
 
   return result.rowCount > 0;
+}
+
+async function getAppointmentColumnSupport() {
+  const [hasSource, hasCanceledReason] = await Promise.all([
+    columnExists('barber_appointments', 'source'),
+    columnExists('barber_appointments', 'canceled_reason')
+  ]);
+
+  return {
+    hasSource,
+    hasCanceledReason
+  };
+}
+
+async function ensureWorkingHoursSchema(client = pool) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS barber_working_hours (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      collaborator_id UUID NULL REFERENCES barber_collaborators(id) ON DELETE CASCADE,
+      weekday INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+      opens_at TIME NOT NULL,
+      closes_at TIME NOT NULL,
+      is_closed BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+      CONSTRAINT uq_barber_working_hours_comp_coll_day UNIQUE (company_id, collaborator_id, weekday)
+    )
+  `);
+
+  await client.query('CREATE INDEX IF NOT EXISTS idx_barber_working_hours_company ON barber_working_hours(company_id)');
+  await client.query('CREATE INDEX IF NOT EXISTS idx_barber_working_hours_company_weekday ON barber_working_hours(company_id, weekday)');
+  await client.query('CREATE INDEX IF NOT EXISTS idx_barber_working_hours_collaborator ON barber_working_hours(collaborator_id)');
 }
 
 async function ensurePinRecoverySchema() {
@@ -240,7 +284,7 @@ async function getSettings(companyId, user) {
   ensureCompany(companyId);
   ensureAdmin(user, 'Apenas admin pode acessar as configuracoes');
 
-  const [companyResult, planSnapshot] = await Promise.all([
+  const [companyResult, bookingSettings, planSnapshot] = await Promise.all([
     pool.query(
       `SELECT id, name, email, phone, public_booking_slug, created_at
        FROM companies
@@ -248,6 +292,7 @@ async function getSettings(companyId, user) {
        LIMIT 1`,
       [companyId]
     ),
+    clientBookingService.getBookingSettings(companyId),
     getCompanyPlanSnapshot(companyId)
   ]);
 
@@ -271,8 +316,64 @@ async function getSettings(companyId, user) {
       pin_configured: null,
       expires_in_minutes: PIN_RESET_EXPIRATION_MINUTES
     },
+    agenda: {
+      timezone: bookingSettings.timezone || BUSINESS_TIMEZONE,
+      slot_interval_minutes: Number(bookingSettings.slot_interval_minutes || 30),
+      online_min_advance_enabled: bookingSettings.online_min_advance_enabled === true,
+      online_min_advance_value: Math.max(0, Number(bookingSettings.online_min_advance_value || 0)),
+      minimum_notice_minutes: Number(bookingSettings.minimum_notice_minutes || 0),
+      cancellation_limit_hours: Number(bookingSettings.cancellation_limit_hours || 0),
+      allow_customer_select_collaborator: bookingSettings.allow_customer_select_collaborator !== false,
+      allow_any_collaborator: bookingSettings.allow_any_collaborator !== false,
+      confirmation_message: String(bookingSettings.confirmation_message || '').trim() || ''
+    },
     plan: planSnapshot
   };
+}
+
+async function updateSettings(companyId, user, data = {}) {
+  ensureCompany(companyId);
+  ensureAdmin(user, 'Apenas admin pode atualizar as configuracoes');
+
+  const onlineMinAdvanceEnabled = data.online_min_advance_enabled === true;
+  const rawAdvanceValue = data.online_min_advance_value;
+  const parsedAdvanceValue = rawAdvanceValue === undefined || rawAdvanceValue === null || rawAdvanceValue === ''
+    ? 0
+    : Number(rawAdvanceValue);
+
+  if (!Number.isFinite(parsedAdvanceValue) || parsedAdvanceValue < 0) {
+    throw createError('Informe uma antecedencia minima valida para a agenda online.', 400);
+  }
+
+  if (onlineMinAdvanceEnabled) {
+    const allowedValues = new Set([1, 2, 4, 8, 12, 24]);
+
+    if (!allowedValues.has(parsedAdvanceValue)) {
+      throw createError('A antecedencia minima online deve ser informada em horas validas.', 400);
+    }
+  }
+
+  const normalizedAdvanceValue = onlineMinAdvanceEnabled ? parsedAdvanceValue : 0;
+  const minimumNoticeMinutes = onlineMinAdvanceEnabled ? normalizedAdvanceValue * 60 : 0;
+
+  await pool.query(
+    `INSERT INTO barber_booking_settings (
+       company_id,
+       online_min_advance_enabled,
+       online_min_advance_value,
+       minimum_notice_minutes,
+       updated_at
+     )
+     VALUES ($1, $2, $3, $4, NOW())
+     ON CONFLICT (company_id) DO UPDATE
+       SET online_min_advance_enabled = EXCLUDED.online_min_advance_enabled,
+           online_min_advance_value = EXCLUDED.online_min_advance_value,
+           minimum_notice_minutes = EXCLUDED.minimum_notice_minutes,
+           updated_at = NOW()`,
+    [companyId, onlineMinAdvanceEnabled, normalizedAdvanceValue, minimumNoticeMinutes]
+  );
+
+  return getSettings(companyId, user);
 }
 
 async function getCompanyPlanProfile(companyId) {
@@ -497,7 +598,11 @@ function requireCollaboratorPermission(user, permission, message) {
 }
 
 function isAdmin(user) {
-  return ['admin', 'master_admin'].includes(user?.role);
+  return ['admin', 'owner', 'master_admin', 'tenant_owner', 'tenant_admin'].includes(user?.role);
+}
+
+function isSaleActiveSql(alias = 'barber_sales') {
+  return `COALESCE(${alias}.status, 'active') = 'active'`;
 }
 
 function normalizePaymentMethod(value) {
@@ -546,6 +651,20 @@ function normalizeDateInput(value, fallback = null) {
   return normalized;
 }
 
+function normalizeTimeInput(value, fallback = null) {
+  const normalized = String(value || '').trim();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (!/^\d{2}:\d{2}(:\d{2})?$/.test(normalized)) {
+    throw createError('Horario invalido. Use o formato HH:MM', 400);
+  }
+
+  return normalized.length === 5 ? `${normalized}:00` : normalized;
+}
+
 function getMonthRange(dateInput = getBusinessDateString()) {
   const [year, month] = normalizeDateInput(dateInput).split('-').map(Number);
   const start = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-01`;
@@ -567,6 +686,41 @@ function getWeekRange(dateInput = getBusinessDateString()) {
   const end = `${String(endDate.getUTCFullYear()).padStart(4, '0')}-${String(endDate.getUTCMonth() + 1).padStart(2, '0')}-${String(endDate.getUTCDate()).padStart(2, '0')}`;
 
   return { start, end };
+}
+
+function addDateDays(dateInput, days) {
+  const [year, month, day] = normalizeDateInput(dateInput).split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + Number(days || 0));
+
+  return `${String(date.getUTCFullYear()).padStart(4, '0')}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+function buildBusinessTimestampRange(startDate, endDate) {
+  const start = normalizeDateInput(startDate);
+  const endExclusive = addDateDays(normalizeDateInput(endDate), 1);
+
+  return {
+    startAt: `${start}T00:00:00.000-04:00`,
+    endAt: `${endExclusive}T00:00:00.000-04:00`
+  };
+}
+
+function normalizeCashDateFromSale(sale) {
+  const saleDate = sale?.sale_date_local
+    || sale?.sale_date
+    || sale?.created_at
+    || sale?.createdAt;
+
+  const cashDate = saleDate instanceof Date
+    ? saleDate.toISOString().slice(0, 10)
+    : String(saleDate || '').slice(0, 10);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cashDate)) {
+    throw createError('Data da venda invalida para recalcular o caixa diario.', 400);
+  }
+
+  return cashDate;
 }
 
 function normalizeServicePayload(data = {}) {
@@ -754,14 +908,16 @@ function validateCollaboratorPayload(payload, options = {}) {
 }
 
 function normalizeAppointmentPayload(data = {}) {
+  const startsAtValue = String(data.starts_at || data.startsAt || '').trim();
+  const startsAt = startsAtValue ? new Date(startsAtValue) : null;
+
   return {
     serviceId: data.service_id || data.serviceId || null,
     collaboratorId: data.collaborator_id || data.collaboratorId || null,
     customerName: String(data.customer_name || data.customerName || '').trim(),
     customerPhone: String(data.customer_phone || data.customerPhone || '').trim(),
     customerEmail: normalizeEmail(data.customer_email || data.customerEmail) || null,
-    appointmentDate: normalizeDateInput(data.appointment_date || data.appointmentDate, null),
-    appointmentTime: String(data.appointment_time || data.appointmentTime || '').trim(),
+    startsAt,
     status: String(data.status || 'scheduled').trim().toLowerCase() || 'scheduled',
     notes: String(data.notes || '').trim() || null
   };
@@ -784,12 +940,8 @@ function validateAppointmentPayload(payload, options = {}) {
     throw createError('Telefone do cliente e obrigatorio', 400);
   }
 
-  if (!payload.appointmentDate) {
-    throw createError('Data do agendamento e obrigatoria', 400);
-  }
-
-  if (!/^\d{2}:\d{2}(:\d{2})?$/.test(payload.appointmentTime)) {
-    throw createError('Horario do agendamento invalido. Use HH:MM', 400);
+  if (!(payload.startsAt instanceof Date) || Number.isNaN(payload.startsAt.getTime())) {
+    throw createError('Data e horario do agendamento sao obrigatorios', 400);
   }
 
   if (!options.allowCustomStatus && payload.status !== 'scheduled') {
@@ -852,7 +1004,6 @@ async function getCollaboratorRecord(companyId, collaboratorId, client = pool) {
   const result = await client.query(
     `SELECT
        barber_collaborators.id,
-       barber_collaborators.owner_id,
        barber_collaborators.company_id,
        barber_collaborators.user_id,
        barber_collaborators.nickname,
@@ -892,7 +1043,6 @@ async function ensureServiceExists(companyId, serviceId, client = pool) {
   const result = await client.query(
     `SELECT
        id,
-       owner_id,
        company_id,
        name,
        description,
@@ -935,7 +1085,6 @@ async function ensureBookableCollaborator(companyId, collaboratorId, client = po
   const result = await client.query(
     `SELECT
        barber_collaborators.id,
-       barber_collaborators.owner_id,
        barber_collaborators.company_id,
        barber_collaborators.user_id,
        barber_collaborators.nickname,
@@ -1068,7 +1217,6 @@ async function ensureSupplierExists(companyId, supplierId, client = pool) {
 
 const PRODUCT_BASE_SELECT = `
   barber_products.id,
-  barber_products.owner_id,
   barber_products.company_id,
   barber_products.supplier_id,
   barber_products.name,
@@ -1112,7 +1260,6 @@ async function getCashSessionRow(companyId, cashDate, client = pool) {
   const result = await client.query(
     `SELECT
        id,
-       owner_id,
        company_id,
        cash_date,
        status,
@@ -1152,7 +1299,6 @@ async function ensureCashSession(companyId, cashDate, userId, client = pool, opt
 
   await client.query(
     `INSERT INTO barber_cash_sessions (
-       owner_id,
        company_id,
        cash_date,
        status,
@@ -1162,8 +1308,8 @@ async function ensureCashSession(companyId, cashDate, userId, client = pool, opt
        notes,
        updated_at
      )
-     VALUES ($1, $1, $2::date, 'open', NOW(), $3, $4, $5, NOW())
-     ON CONFLICT (owner_id, cash_date) DO NOTHING`,
+     VALUES ($1, $2::date, 'open', NOW(), $3, $4, $5, NOW())
+     ON CONFLICT (company_id, cash_date) DO NOTHING`,
     [companyId, normalizedDate, openingBalance, userId || null, notes]
   );
 
@@ -1196,7 +1342,8 @@ async function recalculateCashSession(companyId, cashDate, client = pool) {
        COUNT(*)::integer AS total_sales
      FROM barber_sales
      WHERE barber_sales.company_id = $1
-       AND barber_sales.sale_date_local = $2::date`,
+       AND barber_sales.sale_date_local = $2::date
+       AND ${isSaleActiveSql('barber_sales')}`,
     [companyId, normalizedDate]
   );
 
@@ -1208,7 +1355,8 @@ async function recalculateCashSession(companyId, cashDate, client = pool) {
        ON barber_sales.id = barber_sale_items.sale_id
       AND barber_sales.company_id = barber_sale_items.company_id
      WHERE barber_sales.company_id = $1
-       AND barber_sales.sale_date_local = $2::date`,
+       AND barber_sales.sale_date_local = $2::date
+       AND ${isSaleActiveSql('barber_sales')}`,
     [companyId, normalizedDate]
   );
 
@@ -1241,7 +1389,6 @@ async function recalculateCashSession(companyId, cashDate, client = pool) {
       AND cash_date = $2::date
     RETURNING
       id,
-      owner_id,
       company_id,
        cash_date,
        status,
@@ -1515,10 +1662,11 @@ async function updateServiceStatus(companyId, user, serviceId, data = {}) {
   return result.rows[0];
 }
 
-async function deleteService(companyId, user, serviceId) {
+async function deleteService(companyId, user, serviceId, data = {}) {
   ensureCompany(companyId);
   ensureAdmin(user);
   await ensureServiceExists(companyId, serviceId);
+  await validateApprovalCredential(user.id, data);
 
   const result = await pool.query(
     `UPDATE barber_services
@@ -1569,7 +1717,6 @@ async function listSuppliers(companyId, user, filters = {}) {
   const result = await pool.query(
     `SELECT
        id,
-       owner_id,
        company_id,
        name,
        company_name,
@@ -1605,7 +1752,6 @@ async function createSupplier(companyId, user, data) {
 
   const result = await pool.query(
     `INSERT INTO barber_suppliers (
-       owner_id,
        company_id,
        name,
        company_name,
@@ -1617,8 +1763,8 @@ async function createSupplier(companyId, user, data) {
        is_deleted,
        updated_at
      )
-     VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, false, NOW())
-    RETURNING id, owner_id, company_id, name, company_name, phone, email, document, notes, is_active, is_deleted, created_at, updated_at`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, false, NOW())
+    RETURNING id, company_id, name, company_name, phone, email, document, notes, is_active, is_deleted, created_at, updated_at`,
     [
       companyId,
       payload.name,
@@ -1655,7 +1801,7 @@ async function updateSupplier(companyId, user, supplierId, data) {
      WHERE id = $1
       AND company_id = $2
       AND COALESCE(is_deleted, false) = false
-    RETURNING id, owner_id, company_id, name, company_name, phone, email, document, notes, is_active, is_deleted, created_at, updated_at`,
+    RETURNING id, company_id, name, company_name, phone, email, document, notes, is_active, is_deleted, created_at, updated_at`,
     [
       supplierId,
       companyId,
@@ -1692,7 +1838,7 @@ async function updateSupplierStatus(companyId, user, supplierId, data = {}) {
      WHERE id = $1
       AND company_id = $2
       AND COALESCE(is_deleted, false) = false
-    RETURNING id, owner_id, company_id, name, company_name, phone, email, document, notes, is_active, is_deleted, created_at, updated_at`,
+    RETURNING id, company_id, name, company_name, phone, email, document, notes, is_active, is_deleted, created_at, updated_at`,
     [supplierId, companyId, isActive]
   );
 
@@ -1826,7 +1972,6 @@ async function createProduct(companyId, user, data) {
 
   const result = await pool.query(
     `INSERT INTO barber_products (
-       owner_id,
        company_id,
        supplier_id,
        name,
@@ -1845,7 +1990,7 @@ async function createProduct(companyId, user, data) {
        is_deleted,
        updated_at
      )
-     VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false, NOW())
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false, NOW())
      RETURNING ${PRODUCT_BASE_SELECT}`,
     [
       companyId,
@@ -1986,6 +2131,7 @@ async function deleteProduct(companyId, user, productId) {
 }
 
 async function listCollaborators(companyId, user) {
+  ensureCollaboratorCompanyContext(companyId);
   ensureCompany(companyId);
   ensureAdmin(user, 'Apenas admin pode listar colaboradores');
 
@@ -2061,6 +2207,7 @@ async function listCollaboratorFinancialSummary(companyId, user, query = {}) {
         AND barber_sales.company_id = barber_sale_items.company_id
        WHERE barber_sales.company_id = $1
          AND barber_sales.sale_date_local BETWEEN $2::date AND $3::date
+         AND ${isSaleActiveSql('barber_sales')}
        GROUP BY barber_sale_items.sale_id
      ),
      sale_agg AS (
@@ -2081,6 +2228,7 @@ async function listCollaboratorFinancialSummary(companyId, user, query = {}) {
        LEFT JOIN sale_item_agg ON sale_item_agg.sale_id = barber_sales.id
        WHERE barber_sales.company_id = $1
          AND barber_sales.sale_date_local BETWEEN $2::date AND $3::date
+         AND ${isSaleActiveSql('barber_sales')}
        GROUP BY barber_sales.collaborator_id
      ),
      advance_agg AS (
@@ -2123,12 +2271,14 @@ async function listCollaboratorFinancialSummary(companyId, user, query = {}) {
 }
 
 async function getCollaboratorById(companyId, user, collaboratorId) {
+  ensureCollaboratorCompanyContext(companyId);
   ensureCompany(companyId);
   ensureAdmin(user, 'Apenas admin pode visualizar colaboradores');
   return getCollaboratorRecord(companyId, collaboratorId);
 }
 
 async function createCollaborator(companyId, user, data) {
+  ensureCollaboratorCompanyContext(companyId);
   ensureCompany(companyId);
   ensureAdmin(user, 'Apenas admin pode cadastrar colaboradores');
 
@@ -2179,7 +2329,6 @@ async function createCollaborator(companyId, user, data) {
 
     const userResult = await client.query(
       `INSERT INTO users (
-         owner_id,
          company_id,
          name,
          email,
@@ -2192,10 +2341,9 @@ async function createCollaborator(companyId, user, data) {
          can_view_own_reports,
          updated_at
        )
-       VALUES ($1, $1, $2, $3, $4, $5, 'collaborator', $6, $7, $8, $9, NOW())
+       VALUES ($1, $2, $3, $4, $5, 'collaborator', $6, $7, $8, $9, NOW())
        RETURNING
          id,
-         owner_id,
          company_id,
          name,
          email,
@@ -2222,7 +2370,6 @@ async function createCollaborator(companyId, user, data) {
 
     const collaboratorResult = await client.query(
       `INSERT INTO barber_collaborators (
-         owner_id,
          company_id,
          user_id,
          nickname,
@@ -2234,10 +2381,9 @@ async function createCollaborator(companyId, user, data) {
          is_deleted,
          updated_at
        )
-      VALUES ($1, $1, $2, $3, $4, $5, $6, NULL, $7, false, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, NULL, $7, false, NOW())
       RETURNING
         id,
-        owner_id,
         company_id,
          user_id,
          nickname,
@@ -2259,9 +2405,7 @@ async function createCollaborator(companyId, user, data) {
       ]
     );
 
-    await client.query('COMMIT');
-
-    return {
+    const collaborator = {
       ...collaboratorResult.rows[0],
       name: userResult.rows[0].name,
       email: userResult.rows[0].email,
@@ -2273,6 +2417,10 @@ async function createCollaborator(companyId, user, data) {
       avatar_url: collaboratorResult.rows[0].avatar_url,
       user_is_active: userResult.rows[0].is_active
     };
+
+    await client.query('COMMIT');
+
+    return collaborator;
   } catch (error) {
     await client.query('ROLLBACK');
 
@@ -2287,6 +2435,7 @@ async function createCollaborator(companyId, user, data) {
 }
 
 async function updateCollaborator(companyId, user, collaboratorId, data) {
+  ensureCollaboratorCompanyContext(companyId);
   ensureCompany(companyId);
   ensureAdmin(user, 'Apenas admin pode editar colaboradores');
 
@@ -2351,7 +2500,6 @@ async function updateCollaborator(companyId, user, collaboratorId, data) {
          AND company_id = $2
        RETURNING
          id,
-         owner_id,
          company_id,
          name,
          email,
@@ -2379,7 +2527,6 @@ async function updateCollaborator(companyId, user, collaboratorId, data) {
         AND COALESCE(is_deleted, false) = false
       RETURNING
         id,
-        owner_id,
         company_id,
         user_id,
          nickname,
@@ -2430,6 +2577,7 @@ async function updateCollaborator(companyId, user, collaboratorId, data) {
 }
 
 async function updateCollaboratorStatus(companyId, user, collaboratorId, data = {}) {
+  ensureCollaboratorCompanyContext(companyId);
   ensureCompany(companyId);
   ensureAdmin(user, 'Apenas admin pode alterar status de colaborador');
 
@@ -2465,7 +2613,6 @@ async function updateCollaboratorStatus(companyId, user, collaboratorId, data = 
         AND COALESCE(is_deleted, false) = false
       RETURNING
         id,
-        owner_id,
         company_id,
         user_id,
          nickname,
@@ -2491,6 +2638,7 @@ async function updateCollaboratorStatus(companyId, user, collaboratorId, data = 
 }
 
 async function updateCollaboratorPermissions(companyId, user, collaboratorId, data = {}) {
+  ensureCollaboratorCompanyContext(companyId);
   ensureCompany(companyId);
   ensureAdmin(user, 'Apenas admin pode alterar permissoes de colaborador');
 
@@ -2512,12 +2660,11 @@ async function updateCollaboratorPermissions(companyId, user, collaboratorId, da
          can_view_own_dashboard = $4,
          can_view_own_reports = $5,
          updated_at = NOW()
-     WHERE id = $1
-       AND company_id = $2
-     RETURNING
-       id,
-       owner_id,
-       company_id,
+    WHERE id = $1
+      AND company_id = $2
+    RETURNING
+      id,
+      company_id,
        name,
        email,
        phone,
@@ -2540,6 +2687,7 @@ async function updateCollaboratorPermissions(companyId, user, collaboratorId, da
 }
 
 async function saveCollaboratorAvatar(companyId, user, collaboratorId, file) {
+  ensureCollaboratorCompanyContext(companyId);
   ensureCompany(companyId);
   ensureAdmin(user, 'Apenas admin pode alterar a foto do colaborador');
 
@@ -2621,7 +2769,6 @@ async function saveCollaboratorAvatar(companyId, user, collaboratorId, file) {
        AND COALESCE(is_deleted, false) = false
     RETURNING
       id,
-      owner_id,
       company_id,
        user_id,
        nickname,
@@ -2643,6 +2790,7 @@ async function saveCollaboratorAvatar(companyId, user, collaboratorId, file) {
 }
 
 async function removeCollaboratorAvatar(companyId, user, collaboratorId) {
+  ensureCollaboratorCompanyContext(companyId);
   ensureCompany(companyId);
   ensureAdmin(user, 'Apenas admin pode remover a foto do colaborador');
 
@@ -2685,7 +2833,6 @@ async function removeCollaboratorAvatar(companyId, user, collaboratorId) {
        AND COALESCE(is_deleted, false) = false
     RETURNING
       id,
-      owner_id,
       company_id,
        user_id,
        nickname,
@@ -2707,6 +2854,7 @@ async function removeCollaboratorAvatar(companyId, user, collaboratorId) {
 }
 
 async function deleteCollaborator(companyId, user, collaboratorId) {
+  ensureCollaboratorCompanyContext(companyId);
   ensureCompany(companyId);
   ensureAdmin(user, 'Apenas admin pode excluir colaborador');
 
@@ -2811,6 +2959,7 @@ async function getCashDailyDetails(companyId, cashDate, client = pool, options =
       ) sale_item ON true
       WHERE barber_sales.company_id = $1
         AND barber_sales.sale_date_local = $2::date
+        AND ${isSaleActiveSql('barber_sales')}
       ORDER BY barber_sales.created_at DESC`,
       [companyId, normalizedDate]
     ),
@@ -2832,6 +2981,7 @@ async function getCashDailyDetails(companyId, cashDate, client = pool, options =
        ) sale_commissions ON sale_commissions.sale_id = barber_sales.id
        WHERE barber_sales.company_id = $1
          AND barber_sales.sale_date_local = $2::date
+         AND ${isSaleActiveSql('barber_sales')}
        GROUP BY barber_collaborators.id, barber_collaborators.nickname
        ORDER BY gross_total DESC, collaborator_name ASC`,
       [companyId, normalizedDate]
@@ -2847,6 +2997,7 @@ async function getCashDailyDetails(companyId, cashDate, client = pool, options =
         AND barber_sales.company_id = barber_sale_items.company_id
        WHERE barber_sales.company_id = $1
          AND barber_sales.sale_date_local = $2::date
+         AND ${isSaleActiveSql('barber_sales')}
        GROUP BY barber_sale_items.description
        ORDER BY gross_total DESC, service_name ASC`,
       [companyId, normalizedDate]
@@ -2971,7 +3122,6 @@ async function listCashHistory(companyId, user, query = {}) {
   const result = await pool.query(
     `SELECT
        id,
-       owner_id,
        company_id,
        cash_date,
        status,
@@ -3011,7 +3161,6 @@ async function getCashRangeSummary(companyId, user, range) {
   const sessionsResult = await pool.query(
     `SELECT
        id,
-       owner_id,
        company_id,
        cash_date,
        status,
@@ -3087,6 +3236,7 @@ async function getCashRangeSummary(companyId, user, range) {
        ) sale_commissions ON sale_commissions.sale_id = barber_sales.id
        WHERE barber_sales.company_id = $1
          AND barber_sales.sale_date_local BETWEEN $2::date AND $3::date
+         AND ${isSaleActiveSql('barber_sales')}
        GROUP BY barber_collaborators.id, barber_collaborators.nickname
        ORDER BY gross_total DESC, collaborator_name ASC`,
       [companyId, range.start, range.end]
@@ -3102,6 +3252,7 @@ async function getCashRangeSummary(companyId, user, range) {
         AND barber_sales.company_id = barber_sale_items.company_id
        WHERE barber_sales.company_id = $1
          AND barber_sales.sale_date_local BETWEEN $2::date AND $3::date
+         AND ${isSaleActiveSql('barber_sales')}
        GROUP BY barber_sale_items.description
        ORDER BY gross_total DESC, service_name ASC`,
       [companyId, range.start, range.end]
@@ -3296,7 +3447,8 @@ async function getDashboard(companyId, user) {
        ON barber_sales.id = barber_sale_items.sale_id
       AND barber_sales.company_id = barber_sale_items.company_id
      WHERE barber_sales.company_id = $1
-       AND barber_sales.sale_date_local = $2::date`,
+       AND barber_sales.sale_date_local = $2::date
+       AND ${isSaleActiveSql('barber_sales')}`,
     [companyId, getBusinessDateString()]
   );
 
@@ -3312,6 +3464,7 @@ async function getDashboard(companyId, user) {
        ON barber_collaborators.id = barber_sales.collaborator_id
       AND barber_collaborators.company_id = barber_sales.company_id
      WHERE barber_sales.company_id = $1
+       AND ${isSaleActiveSql('barber_sales')}
      ORDER BY barber_sales.created_at DESC
      LIMIT 10`,
     [companyId]
@@ -3339,6 +3492,7 @@ async function getDashboard(companyId, user) {
        ) sale_commissions ON sale_commissions.sale_id = barber_sales.id
        WHERE barber_sales.company_id = $1
          AND barber_sales.sale_date_local = $2::date
+         AND ${isSaleActiveSql('barber_sales')}
        GROUP BY barber_sales.collaborator_id
      ) sale_totals ON sale_totals.collaborator_id = barber_collaborators.id
      LEFT JOIN (
@@ -3370,6 +3524,31 @@ async function getDashboard(companyId, user) {
   };
 }
 
+async function getPersonalCommissionSummary(companyId, collaboratorId, startDate, endDate) {
+  const result = await pool.query(
+    `SELECT
+       COALESCE(SUM(barber_sale_items.commission_amount), 0)::numeric AS commission,
+       COUNT(DISTINCT barber_sales.id)::integer AS sales
+     FROM barber_sales
+     LEFT JOIN barber_sale_items
+       ON barber_sale_items.sale_id = barber_sales.id
+      AND barber_sale_items.company_id = barber_sales.company_id
+     WHERE barber_sales.company_id = $1
+       AND barber_sales.collaborator_id = $2
+       AND COALESCE(barber_sales.sale_date_local, barber_sales.created_at::date) BETWEEN $3::date AND $4::date
+       AND ${isSaleActiveSql('barber_sales')}`,
+    [companyId, collaboratorId, startDate, endDate]
+  );
+
+  const sales = Number(result.rows[0]?.sales || 0);
+
+  return {
+    commission: toNumber(result.rows[0]?.commission),
+    appointments: sales,
+    sales
+  };
+}
+
 async function getMyDashboard(companyId, user) {
   ensureCompany(companyId);
   ensureCollaboratorRole(user);
@@ -3380,17 +3559,6 @@ async function getMyDashboard(companyId, user) {
   const weekRange = getWeekRange(today);
   const monthRange = getMonthRange(today);
 
-  const summaryResult = await pool.query(
-    `SELECT
-       COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_sales,
-       COALESCE(SUM(CASE WHEN barber_sales.sale_date_local = $3::date THEN barber_sales.total_amount ELSE 0 END), 0)::numeric AS today_sales,
-       COUNT(CASE WHEN barber_sales.sale_date_local = $3::date THEN 1 END) AS today_attendances
-     FROM barber_sales
-     WHERE barber_sales.company_id = $1
-       AND barber_sales.collaborator_id = $2`,
-    [companyId, collaborator.id, today]
-  );
-
   const commissionsResult = await pool.query(
     `SELECT COALESCE(SUM(barber_sale_items.commission_amount), 0)::numeric AS total_commission
      FROM barber_sale_items
@@ -3398,7 +3566,8 @@ async function getMyDashboard(companyId, user) {
        ON barber_sales.id = barber_sale_items.sale_id
       AND barber_sales.company_id = barber_sale_items.company_id
      WHERE barber_sales.company_id = $1
-       AND barber_sales.collaborator_id = $2`,
+       AND barber_sales.collaborator_id = $2
+       AND ${isSaleActiveSql('barber_sales')}`,
     [companyId, collaborator.id]
   );
 
@@ -3411,37 +3580,19 @@ async function getMyDashboard(companyId, user) {
     [companyId, collaborator.id]
   );
 
-  const weekResult = await pool.query(
-    `SELECT COALESCE(SUM(barber_sale_items.commission_amount), 0)::numeric AS week_commission
-     FROM barber_sale_items
-     INNER JOIN barber_sales
-       ON barber_sales.id = barber_sale_items.sale_id
-      AND barber_sales.company_id = barber_sale_items.company_id
-     WHERE barber_sales.company_id = $1
-       AND barber_sales.collaborator_id = $2
-       AND barber_sales.sale_date_local BETWEEN $3::date AND $4::date`,
-    [companyId, collaborator.id, weekRange.start, weekRange.end]
-  );
-
-  const monthResult = await pool.query(
-    `SELECT COALESCE(SUM(barber_sale_items.commission_amount), 0)::numeric AS month_commission
-     FROM barber_sale_items
-     INNER JOIN barber_sales
-       ON barber_sales.id = barber_sale_items.sale_id
-      AND barber_sales.company_id = barber_sale_items.company_id
-     WHERE barber_sales.company_id = $1
-       AND barber_sales.collaborator_id = $2
-       AND barber_sales.sale_date_local BETWEEN $3::date AND $4::date`,
-    [companyId, collaborator.id, monthRange.start, monthRange.end]
-  );
+  const [todaySummary, weekSummary, monthSummary] = await Promise.all([
+    getPersonalCommissionSummary(companyId, collaborator.id, today, today),
+    getPersonalCommissionSummary(companyId, collaborator.id, weekRange.start, weekRange.end),
+    getPersonalCommissionSummary(companyId, collaborator.id, monthRange.start, monthRange.end)
+  ]);
 
   const recentSalesResult = await pool.query(
-    `SELECT
+     `SELECT
        barber_sales.id,
-       barber_sales.payment_method,
-       barber_sales.total_amount,
        barber_sales.created_at,
        barber_sales.sale_date_local,
+       COALESCE(barber_sales.status, 'active') AS status,
+       COALESCE(barber_sales.customer_name, barber_sales.client_name) AS customer_name,
        sale_item.item_summary AS service_name,
        COALESCE(sale_item.total_commission, 0)::numeric AS commission_amount
      FROM barber_sales
@@ -3454,12 +3605,12 @@ async function getMyDashboard(companyId, user) {
      ) sale_item ON true
      WHERE barber_sales.company_id = $1
        AND barber_sales.collaborator_id = $2
+       AND ${isSaleActiveSql('barber_sales')}
      ORDER BY barber_sales.created_at DESC
      LIMIT 8`,
     [companyId, collaborator.id]
   );
 
-  const totalSales = toNumber(summaryResult.rows[0].total_sales);
   const totalCommission = toNumber(commissionsResult.rows[0].total_commission);
   const totalAdvances = toNumber(advancesResult.rows[0].total_advances);
 
@@ -3471,17 +3622,23 @@ async function getMyDashboard(companyId, user) {
       commission_rate: collaborator.commission_rate
     },
     ownMetrics: {
-      totalAttendances: Number(summaryResult.rows[0].today_attendances || 0),
+      totalAttendances: todaySummary.appointments,
       myCommissionTotal: totalCommission,
       myCommissionAccumulated: totalCommission,
       myAdvances: totalAdvances,
       mySettlementBalance: Math.max(0, totalCommission - totalAdvances),
-      todayAttendances: Number(summaryResult.rows[0].today_attendances || 0),
+      todayCommission: todaySummary.commission,
+      todayAttendances: todaySummary.appointments,
       totalCommission,
       netCommission: Math.max(0, totalCommission - totalAdvances),
-      weekCommission: toNumber(weekResult.rows[0].week_commission),
-      monthCommission: toNumber(monthResult.rows[0].month_commission),
-      totalAdvances
+      weekCommission: weekSummary.commission,
+      weekAttendances: weekSummary.appointments,
+      monthCommission: monthSummary.commission,
+      monthAttendances: monthSummary.appointments,
+      totalAdvances,
+      today: todaySummary,
+      week: weekSummary,
+      month: monthSummary
     },
     recentSales: recentSalesResult.rows,
     viewMode: 'collaborator'
@@ -3610,6 +3767,50 @@ async function validateApprovalCredential(userId, data) {
   return true;
 }
 
+async function validateApprovalPin(companyId, user, pinValue) {
+  ensureCompany(companyId);
+  ensureAdmin(user, 'Apenas dono ou admin pode cancelar vendas');
+
+  const pin = normalizePin(pinValue);
+
+  if (!isValidPin(pin, 4)) {
+    throw createError('Informe o PIN admin com pelo menos 4 digitos', 401);
+  }
+
+  const hasPinHash = await columnExists('users', 'pin_hash');
+
+  if (!hasPinHash) {
+    throw createError('PIN admin ainda nao esta configurado no banco', 503);
+  }
+
+  const result = await pool.query(
+    `SELECT pin_hash
+     FROM users
+     WHERE id = $1
+       AND company_id = $2
+       AND role IN ('admin', 'owner', 'master_admin', 'tenant_owner', 'tenant_admin')
+       AND COALESCE(is_active, true) = true
+     LIMIT 1`,
+    [user.id, companyId]
+  );
+
+  if (result.rowCount === 0) {
+    throw createError('Usuario admin nao encontrado para validar PIN', 404);
+  }
+
+  if (!result.rows[0].pin_hash) {
+    throw createError('Configure um PIN admin antes de cancelar vendas', 409);
+  }
+
+  const pinMatches = await bcrypt.compare(pin, result.rows[0].pin_hash);
+
+  if (!pinMatches) {
+    throw createError('PIN admin invalido', 401);
+  }
+
+  return true;
+}
+
 async function updateAdvanceStatus(companyId, userId, advanceId, status, data = {}) {
   ensureCompany(companyId);
 
@@ -3671,7 +3872,8 @@ async function calculateSettlement(companyId, collaboratorId, client = pool) {
       AND sale_commissions.company_id = barber_sales.company_id
      WHERE barber_sales.company_id = $1
        AND barber_sales.collaborator_id = $2
-       AND ($3::timestamp IS NULL OR barber_sales.created_at > $3::timestamp)`,
+       AND ($3::timestamp IS NULL OR barber_sales.created_at > $3::timestamp)
+       AND ${isSaleActiveSql('barber_sales')}`,
     [companyId, collaboratorId, periodStart]
   );
 
@@ -3706,6 +3908,11 @@ async function listSettlements(companyId, collaboratorId, user) {
   const userCollaborator = user?.role === 'collaborator'
     ? await getCollaboratorForUser(companyId, user.id)
     : null;
+
+  if (user?.role === 'collaborator' && collaboratorId && collaboratorId !== userCollaborator?.id) {
+    ensureAdmin(user, 'Apenas admin pode consultar fechamentos de outros colaboradores');
+  }
+
   const effectiveCollaboratorId = userCollaborator?.id || collaboratorId;
 
   const values = [companyId];
@@ -3819,12 +4026,34 @@ async function createSettlement(companyId, user, data) {
 
 async function listAppointments(companyId, user, query = {}) {
   ensureCompany(companyId);
-  ensureCashManager(user, 'Apenas usuarios autorizados podem acessar agendamentos');
+
+  const isCollaborator = user?.role === 'collaborator';
+
+  if (!isCollaborator) {
+    ensureCashManager(user, 'Apenas usuarios autorizados podem acessar agendamentos');
+  }
 
   const slugData = await ensureCompanyPublicBookingSlug(companyId);
   const statusFilter = String(query.status || 'all').trim().toLowerCase();
+  const settings = await clientBookingService.getBookingSettings(companyId);
+  const timezone = settings.timezone || 'America/Cuiaba';
   const values = [companyId];
   const where = ['barber_appointments.company_id = $1'];
+
+  if (isCollaborator) {
+    const collaborator = await getCollaboratorForUser(companyId, user.id);
+    values.push(collaborator.id);
+    where.push(`barber_appointments.collaborator_id = $${values.length}`);
+  } else if (query.collaboratorId || query.collaborator_id) {
+    values.push(query.collaboratorId || query.collaborator_id);
+    where.push(`barber_appointments.collaborator_id = $${values.length}`);
+  }
+
+  if (query.date) {
+    values.push(normalizeDateInput(query.date));
+    values.push(timezone);
+    where.push(`DATE(barber_appointments.starts_at AT TIME ZONE $${values.length}::text) = $${values.length - 1}::date`);
+  }
 
   if (statusFilter !== 'all') {
     if (!APPOINTMENT_STATUS.includes(statusFilter)) {
@@ -3835,91 +4064,127 @@ async function listAppointments(companyId, user, query = {}) {
     where.push(`barber_appointments.status = $${values.length}`);
   }
 
-  const appointmentsResult = await pool.query(
-    `SELECT
-       barber_appointments.id,
-       barber_appointments.owner_id,
-       barber_appointments.company_id,
-       barber_appointments.service_id,
-       barber_appointments.collaborator_id,
-       barber_appointments.customer_name,
-       barber_appointments.customer_phone,
-       barber_appointments.customer_email,
-       barber_appointments.appointment_date,
-       barber_appointments.appointment_time::text AS appointment_time,
-       barber_appointments.status,
-       barber_appointments.notes,
-       barber_appointments.created_at,
-       barber_appointments.updated_at,
-       barber_services.name AS service_name,
-       barber_services.icon AS service_icon,
-       COALESCE(users.name, barber_collaborators.nickname) AS collaborator_name,
-       barber_collaborators.avatar_url AS collaborator_avatar_url
-     FROM barber_appointments
-     INNER JOIN barber_services
-       ON barber_services.id = barber_appointments.service_id
-      AND barber_services.company_id = barber_appointments.company_id
-     INNER JOIN barber_collaborators
-       ON barber_collaborators.id = barber_appointments.collaborator_id
-      AND barber_collaborators.company_id = barber_appointments.company_id
-     LEFT JOIN users ON users.id = barber_collaborators.user_id
-     WHERE ${where.join(' AND ')}
-     ORDER BY barber_appointments.appointment_date ASC, barber_appointments.appointment_time ASC, barber_appointments.created_at DESC`,
-    values
-  );
+  try {
+    const { hasSource, hasCanceledReason } = await getAppointmentColumnSupport();
+    const appointmentsResult = await pool.query(
+      `SELECT
+         barber_appointments.id,
+         barber_appointments.company_id,
+         barber_appointments.service_id,
+         barber_appointments.collaborator_id,
+         barber_appointments.customer_name,
+         barber_appointments.customer_phone,
+         barber_appointments.customer_email,
+         barber_appointments.starts_at,
+         barber_appointments.ends_at,
+         barber_appointments.status,
+         barber_appointments.notes,
+         ${hasSource ? 'barber_appointments.source' : `'admin_manual'::text AS source`},
+         ${hasCanceledReason ? 'barber_appointments.canceled_reason' : 'NULL::text AS canceled_reason'},
+         barber_appointments.created_at,
+         barber_appointments.updated_at,
+         barber_services.name AS service_name,
+         barber_services.icon AS service_icon,
+         COALESCE(users.name, barber_collaborators.nickname) AS collaborator_name,
+         barber_collaborators.avatar_url AS collaborator_avatar_url
+       FROM barber_appointments
+       INNER JOIN barber_services
+         ON barber_services.id = barber_appointments.service_id
+        AND barber_services.company_id = barber_appointments.company_id
+       INNER JOIN barber_collaborators
+         ON barber_collaborators.id = barber_appointments.collaborator_id
+        AND barber_collaborators.company_id = barber_appointments.company_id
+       LEFT JOIN users ON users.id = barber_collaborators.user_id
+       WHERE ${where.join(' AND ')}
+       ORDER BY barber_appointments.starts_at ASC, barber_appointments.created_at DESC`,
+      values
+    );
 
-  const today = getBusinessDateString();
+    const today = getBusinessDateString();
+    const summaryValues = [companyId, today, timezone];
+    const summaryWhere = ['barber_appointments.company_id = $1'];
 
-  const summaryResult = await pool.query(
-    `SELECT
-       COUNT(*) FILTER (
-         WHERE barber_appointments.appointment_date = $2::date
-           AND barber_appointments.status <> 'canceled'
-       )::integer AS today_count,
-       COUNT(*) FILTER (
-         WHERE barber_appointments.appointment_date >= $2::date
-           AND barber_appointments.status IN ('scheduled', 'confirmed')
-       )::integer AS upcoming_count,
-       COUNT(*) FILTER (
-         WHERE barber_appointments.status = 'canceled'
-       )::integer AS canceled_count
-     FROM barber_appointments
-     WHERE barber_appointments.company_id = $1`,
-    [companyId, today]
-  );
+    if (isCollaborator) {
+      const collaboratorId = values[1];
+      summaryValues.push(collaboratorId);
+      summaryWhere.push(`barber_appointments.collaborator_id = $${summaryValues.length}`);
+    } else if (query.collaboratorId || query.collaborator_id) {
+      summaryValues.push(query.collaboratorId || query.collaborator_id);
+      summaryWhere.push(`barber_appointments.collaborator_id = $${summaryValues.length}`);
+    }
 
-  const availableCollaboratorsResult = await pool.query(
-    `SELECT COUNT(*)::integer AS total
-     FROM barber_collaborators
-     WHERE company_id = $1
-       AND is_active = true
-       AND available_for_booking = true
-       AND COALESCE(is_deleted, false) = false`,
-    [companyId]
-  );
+    const summaryResult = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (
+           WHERE DATE(barber_appointments.starts_at AT TIME ZONE $3::text) = $2::date
+             AND barber_appointments.status <> 'canceled'
+         )::integer AS today_count,
+         COUNT(*) FILTER (
+           WHERE DATE(barber_appointments.starts_at AT TIME ZONE $3::text) >= $2::date
+             AND barber_appointments.status IN ('scheduled', 'confirmed')
+         )::integer AS upcoming_count,
+         COUNT(*) FILTER (
+           WHERE barber_appointments.status = 'canceled'
+         )::integer AS canceled_count
+       FROM barber_appointments
+       WHERE ${summaryWhere.join(' AND ')}`,
+      summaryValues
+    );
 
-  const activeServicesResult = await pool.query(
-    `SELECT COUNT(*)::integer AS total
-     FROM barber_services
-     WHERE company_id = $1
-       AND is_active = true
-       AND COALESCE(is_deleted, false) = false`,
-    [companyId]
-  );
+    const availableCollaboratorsResult = await pool.query(
+      `SELECT COUNT(*)::integer AS total
+       FROM barber_collaborators
+       WHERE company_id = $1
+         AND is_active = true
+         AND available_for_booking = true
+         AND COALESCE(is_deleted, false) = false`,
+      [companyId]
+    );
 
-  return {
-    company_name: slugData.companyName,
-    public_booking_slug: slugData.publicBookingSlug,
-    public_booking_path: `/agendar/${slugData.publicBookingSlug}`,
-    summary: {
-      appointments_today: Number(summaryResult.rows[0]?.today_count || 0),
-      upcoming_slots: Number(summaryResult.rows[0]?.upcoming_count || 0),
-      canceled_appointments: Number(summaryResult.rows[0]?.canceled_count || 0),
-      available_collaborators: Number(availableCollaboratorsResult.rows[0]?.total || 0),
-      bookable_services: Number(activeServicesResult.rows[0]?.total || 0)
-    },
-    appointments: appointmentsResult.rows
-  };
+    const activeServicesResult = await pool.query(
+      `SELECT COUNT(*)::integer AS total
+       FROM barber_services
+       WHERE company_id = $1
+         AND is_active = true
+         AND COALESCE(is_deleted, false) = false`,
+      [companyId]
+    );
+
+    return {
+      company_name: slugData.companyName,
+      public_booking_slug: slugData.publicBookingSlug,
+      public_booking_path: `/agendar/${slugData.publicBookingSlug}`,
+      summary: {
+        appointments_today: Number(summaryResult.rows[0]?.today_count || 0),
+        upcoming_slots: Number(summaryResult.rows[0]?.upcoming_count || 0),
+        canceled_appointments: Number(summaryResult.rows[0]?.canceled_count || 0),
+        available_collaborators: Number(availableCollaboratorsResult.rows[0]?.total || 0),
+        bookable_services: Number(activeServicesResult.rows[0]?.total || 0)
+      },
+      appointments: appointmentsResult.rows
+    };
+  } catch (error) {
+    // REGRA GLOBAL: falha de schema da agenda nao deve derrubar outras areas do Barber.
+    console.error('[BARBER APPOINTMENTS] erro ao listar agenda:', error);
+
+    if (error.code === '42703') {
+      return {
+        company_name: slugData.companyName,
+        public_booking_slug: slugData.publicBookingSlug,
+        public_booking_path: `/agendar/${slugData.publicBookingSlug}`,
+        summary: {
+          appointments_today: 0,
+          upcoming_slots: 0,
+          canceled_appointments: 0,
+          available_collaborators: 0,
+          bookable_services: 0
+        },
+        appointments: []
+      };
+    }
+
+    throw error;
+  }
 }
 
 async function createAppointment(companyId, user, data) {
@@ -3934,51 +4199,101 @@ async function createAppointment(companyId, user, data) {
   try {
     await client.query('BEGIN');
 
-    await ensureBookableService(companyId, payload.serviceId, client);
-    await ensureBookableCollaborator(companyId, payload.collaboratorId, client);
+    const settings = await clientBookingService.getBookingSettings(companyId, client);
+    const { hasSource } = await getAppointmentColumnSupport();
+    const slot = await clientBookingService.validateBookableSlot({
+      companyId,
+      collaboratorId: payload.collaboratorId,
+      serviceId: payload.serviceId,
+      startsAt: payload.startsAt,
+      settings,
+      client,
+      user
+    });
+
+    if (shouldLogBarberDebug()) {
+      console.log('[BARBER APPOINTMENT CREATE]', {
+        company_id: companyId,
+        collaborator_id: payload.collaboratorId,
+        service_id: payload.serviceId,
+        starts_at: slot.startsAt.toISOString(),
+        ends_at: slot.endsAt.toISOString(),
+        source: 'admin_manual'
+      });
+    }
+
+    const insertColumns = [
+      'company_id',
+      'service_id',
+      'collaborator_id',
+      'customer_name',
+      'customer_phone',
+      'customer_email',
+      'starts_at',
+      'ends_at',
+      'status',
+      'notes'
+    ];
+    const insertValues = [
+      companyId,
+      payload.serviceId,
+      payload.collaboratorId,
+      payload.customerName,
+      payload.customerPhone,
+      payload.customerEmail,
+      slot.startsAt.toISOString(),
+      slot.endsAt.toISOString(),
+      'scheduled',
+      payload.notes
+    ];
+
+    if (hasSource) {
+      insertColumns.push('source');
+      insertValues.push('admin_manual');
+    }
+
+    insertColumns.push('updated_at');
+
+    let valueIndex = 0;
+    const valuesSql = insertColumns
+      .map((columnName) => {
+        if (columnName === 'updated_at') {
+          return 'NOW()';
+        }
+
+        valueIndex += 1;
+
+        switch (columnName) {
+          case 'starts_at':
+          case 'ends_at':
+            return `$${valueIndex}::timestamptz`;
+          default:
+            return `$${valueIndex}`;
+        }
+      })
+      .join(', ');
 
     const result = await client.query(
-      `INSERT INTO barber_appointments (
-         owner_id,
-         company_id,
-         service_id,
-         collaborator_id,
-         customer_name,
-         customer_phone,
-         customer_email,
-         appointment_date,
-         appointment_time,
-         status,
-         notes,
-         updated_at
+       `INSERT INTO barber_appointments (
+         ${insertColumns.join(',\n         ')}
        )
-      VALUES ($1, $1, $2, $3, $4, $5, $6, $7::date, $8::time, 'scheduled', $9, NOW())
+      VALUES (${valuesSql})
       RETURNING
         id,
-        owner_id,
         company_id,
          service_id,
          collaborator_id,
          customer_name,
          customer_phone,
          customer_email,
-         appointment_date,
-         appointment_time::text AS appointment_time,
+         starts_at,
+         ends_at,
          status,
          notes,
+         ${hasSource ? 'source' : `'admin_manual'::text AS source`},
          created_at,
          updated_at`,
-      [
-        companyId,
-        payload.serviceId,
-        payload.collaboratorId,
-        payload.customerName,
-        payload.customerPhone,
-        payload.customerEmail,
-        payload.appointmentDate,
-        payload.appointmentTime,
-        payload.notes
-      ]
+      insertValues
     );
 
     await client.query('COMMIT');
@@ -3993,17 +4308,35 @@ async function createAppointment(companyId, user, data) {
 
 async function updateAppointment(companyId, user, appointmentId, data = {}) {
   ensureCompany(companyId);
-  ensureCashManager(user, 'Apenas usuarios autorizados podem atualizar agendamentos');
+
+  const isCollaborator = user?.role === 'collaborator';
+
+  if (!isCollaborator) {
+    ensureCashManager(user, 'Apenas usuarios autorizados podem atualizar agendamentos');
+  }
 
   const status = String(data.status || '').trim().toLowerCase();
   const notes = data.notes === undefined ? undefined : String(data.notes || '').trim() || null;
+  const canceledReason = data.canceled_reason === undefined && data.canceledReason === undefined
+    ? undefined
+    : String(data.canceled_reason || data.canceledReason || '').trim() || null;
+  const { hasSource, hasCanceledReason } = await getAppointmentColumnSupport();
 
-  if (!status && notes === undefined) {
+  if (!status && notes === undefined && canceledReason === undefined) {
     throw createError('Nenhuma alteracao enviada para o agendamento', 400);
   }
 
   if (status && !APPOINTMENT_STATUS.includes(status)) {
     throw createError('Status do agendamento invalido', 400);
+  }
+
+  let collaborator = null;
+  if (isCollaborator) {
+    collaborator = await getCollaboratorForUser(companyId, user.id);
+
+    if (status && !['confirmed', 'arrived', 'in_progress', 'completed'].includes(status)) {
+      throw createError('Colaborador pode apenas atualizar o proprio status operacional', 403);
+    }
   }
 
   const values = [appointmentId, companyId];
@@ -4019,24 +4352,38 @@ async function updateAppointment(companyId, user, appointmentId, data = {}) {
     sets.push(`notes = $${values.length}`);
   }
 
+  if (canceledReason !== undefined && hasCanceledReason) {
+    values.push(canceledReason);
+    sets.push(`canceled_reason = $${values.length}`);
+  }
+
+  const collaboratorWhere = collaborator
+    ? (() => {
+        values.push(collaborator.id);
+        return `AND collaborator_id = $${values.length}`;
+      })()
+    : '';
+
   const result = await pool.query(
     `UPDATE barber_appointments
      SET ${sets.join(', ')}
      WHERE id = $1
        AND company_id = $2
+       ${collaboratorWhere}
     RETURNING
       id,
-      owner_id,
       company_id,
        service_id,
        collaborator_id,
        customer_name,
        customer_phone,
        customer_email,
-       appointment_date,
-       appointment_time::text AS appointment_time,
+       starts_at,
+       ends_at,
        status,
        notes,
+       ${hasSource ? 'source' : `'admin_manual'::text AS source`},
+       ${hasCanceledReason ? 'canceled_reason' : 'NULL::text AS canceled_reason'},
        created_at,
        updated_at`,
     values
@@ -4052,8 +4399,162 @@ async function updateAppointment(companyId, user, appointmentId, data = {}) {
 async function cancelAppointment(companyId, user, appointmentId, data = {}) {
   return updateAppointment(companyId, user, appointmentId, {
     ...data,
-    status: 'canceled'
+    status: 'canceled',
+    canceled_reason: data.reason || null
   });
+}
+
+async function rescheduleAppointment(companyId, user, appointmentId, data = {}) {
+  ensureCompany(companyId);
+  ensureCashManager(user);
+
+  const startsAt = data.startsAt || data.starts_at;
+
+  const appointmentResult = await pool.query(
+    `SELECT barber_appointments.service_id, barber_appointments.collaborator_id
+     FROM barber_appointments
+     WHERE barber_appointments.id = $1
+       AND barber_appointments.company_id = $2
+     LIMIT 1`,
+    [appointmentId, companyId]
+  );
+
+  if (appointmentResult.rowCount === 0) {
+    throw createError('Agendamento nao encontrado', 404);
+  }
+
+  const settings = await clientBookingService.getBookingSettings(companyId);
+  const slot = await clientBookingService.validateBookableSlot({
+    companyId,
+    collaboratorId: appointmentResult.rows[0].collaborator_id,
+    serviceId: appointmentResult.rows[0].service_id,
+    startsAt,
+    settings,
+    appointmentIdToIgnore: appointmentId
+  });
+
+  const result = await pool.query(
+    `UPDATE barber_appointments
+     SET starts_at = $3::timestamptz,
+         ends_at = $4::timestamptz,
+         updated_at = NOW()
+     WHERE id = $1
+       AND company_id = $2
+     RETURNING *`,
+    [appointmentId, companyId, slot.startsAt.toISOString(), slot.endsAt.toISOString()]
+  );
+
+  if (result.rowCount === 0) {
+    throw createError('Agendamento nao encontrado', 404);
+  }
+
+  return result.rows[0];
+}
+
+async function deleteAppointment(companyId, user, appointmentId) {
+  ensureCompany(companyId);
+  ensureAdmin(user);
+
+  const result = await pool.query(
+    'DELETE FROM barber_appointments WHERE id = $1 AND company_id = $2',
+    [appointmentId, companyId]
+  );
+
+  if (result.rowCount === 0) {
+    throw createError('Agendamento nao encontrado', 404);
+  }
+
+  return true;
+}
+
+async function listScheduleBlocks(companyId, user, query = {}) {
+  ensureCompany(companyId);
+  const result = await pool.query(
+    `SELECT * FROM barber_booking_blocks
+     WHERE company_id = $1
+     ORDER BY starts_at DESC`,
+    [companyId]
+  );
+  return result.rows;
+}
+
+async function createScheduleBlock(companyId, user, data) {
+  ensureCompany(companyId);
+  ensureCashManager(user);
+
+  const result = await pool.query(
+    `INSERT INTO barber_booking_blocks (company_id, collaborator_id, starts_at, ends_at, reason)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`,
+    [companyId, data.collaboratorId || null, data.startsAt, data.endsAt, data.reason]
+  );
+
+  return result.rows[0];
+}
+
+async function deleteScheduleBlock(companyId, user, blockId) {
+  ensureCompany(companyId);
+  ensureCashManager(user);
+
+  const result = await pool.query(
+    'DELETE FROM barber_booking_blocks WHERE id = $1 AND company_id = $2',
+    [blockId, companyId]
+  );
+
+  if (result.rowCount === 0) {
+    throw createError('Bloqueio nao encontrado', 404);
+  }
+
+  return true;
+}
+
+async function listWorkingHours(companyId, user) {
+  ensureCompany(companyId);
+
+  try {
+    await ensureWorkingHoursSchema();
+
+    const result = await pool.query(
+      `SELECT *
+       FROM barber_working_hours
+       WHERE company_id = $1
+       ORDER BY weekday ASC, collaborator_id ASC NULLS FIRST`,
+      [companyId]
+    );
+
+    return result.rows;
+  } catch (error) {
+    console.error('[BARBER WORKING HOURS] erro ao listar horarios:', error);
+
+    if (error.code === '42P01') {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+async function updateWorkingHours(companyId, user, data) {
+  ensureCompany(companyId);
+  ensureAdmin(user);
+
+  await ensureWorkingHoursSchema();
+
+  const { weekday, opensAt, closesAt, isClosed, collaboratorId } = data;
+
+  const result = await pool.query(
+    `INSERT INTO barber_working_hours (company_id, collaborator_id, weekday, opens_at, closes_at, is_closed, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW())
+     ON CONFLICT (company_id, collaborator_id, weekday)
+     DO UPDATE SET opens_at = EXCLUDED.opens_at,
+                   closes_at = EXCLUDED.closes_at,
+                   is_closed = EXCLUDED.is_closed,
+                   updated_at = NOW()
+     RETURNING *`,
+    [companyId, collaboratorId || null, weekday, opensAt, closesAt, isClosed]
+  );
+
+  return result.rows[0];
 }
 
 async function getPublicBooking(slug) {
@@ -4132,36 +4633,54 @@ async function createPublicBookingAppointment(slug, data) {
   try {
     await client.query('BEGIN');
 
+    const settings = await clientBookingService.getBookingSettings(bookingData.company.id, client);
     await ensureBookableService(bookingData.company.id, payload.serviceId, client);
     await ensureBookableCollaborator(bookingData.company.id, payload.collaboratorId, client);
+    const slot = await clientBookingService.validateBookableSlot({
+      companyId: bookingData.company.id,
+      collaboratorId: payload.collaboratorId,
+      serviceId: payload.serviceId,
+      startsAt: payload.startsAt,
+      settings,
+      client
+    });
+
+    if (shouldLogBarberDebug()) {
+      console.log('[BARBER PUBLIC APPOINTMENT CREATE]', {
+        company_id: bookingData.company.id,
+        collaborator_id: payload.collaboratorId,
+        service_id: payload.serviceId,
+        starts_at: slot.startsAt.toISOString(),
+        ends_at: slot.endsAt.toISOString(),
+        source: 'public_link'
+      });
+    }
 
     const result = await client.query(
       `INSERT INTO barber_appointments (
-         owner_id,
          company_id,
          service_id,
          collaborator_id,
          customer_name,
          customer_phone,
          customer_email,
-         appointment_date,
-         appointment_time,
+         starts_at,
+         ends_at,
          status,
          notes,
          updated_at
        )
-      VALUES ($1, $1, $2, $3, $4, $5, $6, $7::date, $8::time, 'scheduled', $9, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz, $8::timestamptz, 'scheduled', $9, NOW())
       RETURNING
         id,
-        owner_id,
         company_id,
          service_id,
          collaborator_id,
          customer_name,
          customer_phone,
          customer_email,
-         appointment_date,
-         appointment_time::text AS appointment_time,
+         starts_at,
+         ends_at,
          status,
          notes,
          created_at,
@@ -4173,8 +4692,8 @@ async function createPublicBookingAppointment(slug, data) {
         payload.customerName,
         payload.customerPhone,
         payload.customerEmail,
-        payload.appointmentDate,
-        payload.appointmentTime,
+        slot.startsAt.toISOString(),
+        slot.endsAt.toISOString(),
         payload.notes
       ]
     );
@@ -4189,12 +4708,29 @@ async function createPublicBookingAppointment(slug, data) {
   }
 }
 
-async function listSales(companyId, user) {
+async function listSales(companyId, user, query = {}) {
   ensureCompany(companyId);
   const collaborator = user?.role === 'collaborator'
     ? await getCollaboratorForUser(companyId, user.id)
     : null;
-  const values = collaborator ? [companyId, collaborator.id] : [companyId];
+  const requestedCollaboratorId = query.collaborator_id || query.collaboratorId || null;
+  const collaboratorId = collaborator?.id || requestedCollaboratorId || null;
+  const includeCanceled = String(query.status || '').trim().toLowerCase() === 'all'
+    || String(query.include_canceled || query.includeCanceled || '').trim().toLowerCase() === 'true';
+  const status = String(query.status || '').trim().toLowerCase();
+  const { start, end } = buildReportPeriod(query.period, query.startDate || query.start_date, query.endDate || query.end_date);
+  const values = [companyId, start, end, collaboratorId];
+  const filters = [
+    'barber_sales.company_id = $1',
+    'barber_sales.sale_date_local BETWEEN $2::date AND $3::date',
+    '($4::uuid IS NULL OR barber_sales.collaborator_id = $4::uuid)'
+  ];
+
+  if (status === 'canceled') {
+    filters.push("COALESCE(barber_sales.status, 'active') = 'canceled'");
+  } else if (!includeCanceled) {
+    filters.push(isSaleActiveSql('barber_sales'));
+  }
 
   const result = await pool.query(
     `SELECT
@@ -4203,28 +4739,38 @@ async function listSales(companyId, user) {
        barber_sales.collaborator_id,
        barber_collaborators.nickname AS collaborator_name,
        barber_sales.payment_method,
+       barber_sales.subtotal,
+       barber_sales.discount,
        barber_sales.total_amount,
+       barber_sales.commission_amount,
        barber_sales.amount_received,
        barber_sales.change_amount,
+       COALESCE(barber_sales.customer_name, barber_sales.client_name) AS customer_name,
+       barber_sales.customer_phone,
        barber_sales.client_name,
+       barber_sales.status,
+       barber_sales.canceled_at,
+       barber_sales.canceled_reason,
        barber_sales.notes,
        barber_sales.created_by,
        barber_sales.created_at,
+       barber_sales.updated_at,
        barber_sales.sale_date_local,
-       sale_item.item_summary AS service_name
+       sale_item.item_summary AS service_name,
+       sale_item.total_commission AS item_commission_amount
      FROM barber_sales
      LEFT JOIN barber_collaborators
        ON barber_collaborators.id = barber_sales.collaborator_id
       AND barber_collaborators.company_id = barber_sales.company_id
      LEFT JOIN LATERAL (
        SELECT
-         STRING_AGG(description, ' + ' ORDER BY created_at ASC) AS item_summary
+         STRING_AGG(description, ' + ' ORDER BY created_at ASC) AS item_summary,
+         COALESCE(SUM(commission_amount), 0)::numeric AS total_commission
        FROM barber_sale_items
        WHERE barber_sale_items.sale_id = barber_sales.id
          AND barber_sale_items.company_id = barber_sales.company_id
      ) sale_item ON true
-     WHERE barber_sales.company_id = $1
-       ${collaborator ? 'AND barber_sales.collaborator_id = $2' : ''}
+     WHERE ${filters.join(' AND ')}
      ORDER BY barber_sales.created_at DESC
      LIMIT 50`,
     values
@@ -4233,24 +4779,195 @@ async function listSales(companyId, user) {
   return result.rows;
 }
 
+async function getSalesSummary(companyId, user, query = {}) {
+  ensureCompany(companyId);
+
+  const collaborator = user?.role === 'collaborator'
+    ? await getCollaboratorForUser(companyId, user.id)
+    : null;
+  const collaboratorId = collaborator?.id || query.collaborator_id || query.collaboratorId || null;
+  const period = String(query.period || 'today').trim() || 'today';
+  const { start, end } = buildReportPeriod(period, query.startDate || query.start_date, query.endDate || query.end_date);
+  const { startAt, endAt } = buildBusinessTimestampRange(start, end);
+  const today = getBusinessDateString();
+  const weekRange = getWeekRange();
+  const monthRange = getMonthRange();
+  const dayTimestampRange = buildBusinessTimestampRange(today, today);
+  const weekTimestampRange = buildBusinessTimestampRange(weekRange.start, weekRange.end);
+  const monthTimestampRange = buildBusinessTimestampRange(monthRange.start, monthRange.end);
+  const periodValues = [companyId, startAt, endAt, collaboratorId];
+
+  console.log('[getSalesSummary params]', {
+    companyId,
+    period,
+    startDate: startAt,
+    endDate: endAt,
+    collaboratorId
+  });
+
+  const baseWhere = `
+    barber_sales.company_id = $1
+    AND ($2::timestamptz IS NULL OR barber_sales.created_at >= $2::timestamptz)
+    AND ($3::timestamptz IS NULL OR barber_sales.created_at < $3::timestamptz)
+    AND ($4::uuid IS NULL OR barber_sales.collaborator_id = $4::uuid)
+    AND ${isSaleActiveSql('barber_sales')}
+  `;
+
+  const [totalsResult, paymentResult, collaboratorResult, dayResult, weekResult, monthResult] = await Promise.all([
+    pool.query(
+      `SELECT
+         COUNT(barber_sales.id)::integer AS total_sales,
+         COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_amount,
+         COALESCE(SUM(barber_sales.commission_amount), 0)::numeric AS sale_commission_amount,
+         COALESCE(SUM(item_commissions.total_commission), 0)::numeric AS item_commission_amount,
+         COALESCE(SUM(barber_sales.discount), 0)::numeric AS total_discount
+       FROM barber_sales
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(commission_amount), 0)::numeric AS total_commission
+         FROM barber_sale_items
+         WHERE barber_sale_items.sale_id = barber_sales.id
+           AND barber_sale_items.company_id = barber_sales.company_id
+       ) item_commissions ON true
+       WHERE ${baseWhere}`,
+      periodValues
+    ),
+    pool.query(
+      `SELECT barber_sales.payment_method,
+              COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_amount,
+              COUNT(barber_sales.id)::integer AS total_sales
+       FROM barber_sales
+       WHERE ${baseWhere}
+       GROUP BY barber_sales.payment_method
+       ORDER BY total_amount DESC`,
+      periodValues
+    ),
+    pool.query(
+      `SELECT barber_sales.collaborator_id,
+              COALESCE(users.name, barber_collaborators.nickname, 'Sem colaborador') AS collaborator_name,
+              COUNT(barber_sales.id)::integer AS total_sales,
+              COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_amount,
+              COALESCE(SUM(item_commissions.total_commission), 0)::numeric AS total_commission
+       FROM barber_sales
+       LEFT JOIN barber_collaborators
+         ON barber_collaborators.id = barber_sales.collaborator_id
+        AND barber_collaborators.company_id = barber_sales.company_id
+       LEFT JOIN users ON users.id = barber_collaborators.user_id
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(commission_amount), 0)::numeric AS total_commission
+         FROM barber_sale_items
+         WHERE barber_sale_items.sale_id = barber_sales.id
+           AND barber_sale_items.company_id = barber_sales.company_id
+       ) item_commissions ON true
+       WHERE ${baseWhere}
+       GROUP BY barber_sales.collaborator_id, users.name, barber_collaborators.nickname
+       ORDER BY total_amount DESC`,
+      periodValues
+    ),
+    pool.query(
+      `SELECT
+         COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_amount,
+         COUNT(barber_sales.id)::integer AS total_sales
+       FROM barber_sales
+       WHERE barber_sales.company_id = $1
+         AND ($2::timestamptz IS NULL OR barber_sales.created_at >= $2::timestamptz)
+         AND ($3::timestamptz IS NULL OR barber_sales.created_at < $3::timestamptz)
+         AND ($4::uuid IS NULL OR barber_sales.collaborator_id = $4::uuid)
+         AND ${isSaleActiveSql('barber_sales')}`,
+      [companyId, dayTimestampRange.startAt, dayTimestampRange.endAt, collaboratorId]
+    ),
+    pool.query(
+      `SELECT
+         COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_amount,
+         COUNT(barber_sales.id)::integer AS total_sales
+       FROM barber_sales
+       WHERE barber_sales.company_id = $1
+         AND ($2::timestamptz IS NULL OR barber_sales.created_at >= $2::timestamptz)
+         AND ($3::timestamptz IS NULL OR barber_sales.created_at < $3::timestamptz)
+         AND ($4::uuid IS NULL OR barber_sales.collaborator_id = $4::uuid)
+         AND ${isSaleActiveSql('barber_sales')}`,
+      [companyId, weekTimestampRange.startAt, weekTimestampRange.endAt, collaboratorId]
+    ),
+    pool.query(
+      `SELECT
+         COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_amount,
+         COUNT(barber_sales.id)::integer AS total_sales
+       FROM barber_sales
+       WHERE barber_sales.company_id = $1
+         AND ($2::timestamptz IS NULL OR barber_sales.created_at >= $2::timestamptz)
+         AND ($3::timestamptz IS NULL OR barber_sales.created_at < $3::timestamptz)
+         AND ($4::uuid IS NULL OR barber_sales.collaborator_id = $4::uuid)
+         AND ${isSaleActiveSql('barber_sales')}`,
+      [companyId, monthTimestampRange.startAt, monthTimestampRange.endAt, collaboratorId]
+    )
+  ]);
+
+  const totals = totalsResult.rows[0] || {};
+
+  return {
+    period: {
+      start,
+      end,
+      filter: period
+    },
+    total_sales: Number(totals.total_sales || 0),
+    total_amount: toNumber(totals.total_amount),
+    total_commission: toNumber(totals.item_commission_amount || totals.sale_commission_amount),
+    total_discount: toNumber(totals.total_discount),
+    total_by_payment_method: paymentResult.rows,
+    total_by_collaborator: collaboratorResult.rows,
+    totals_day: dayResult.rows[0],
+    totals_week: weekResult.rows[0],
+    totals_month: monthResult.rows[0]
+  };
+}
+
 async function getMySales(companyId, user) {
   ensureCompany(companyId);
   ensureCollaboratorRole(user);
   requireCollaboratorPermission(user, 'can_view_own_reports', 'Seu acesso ao historico pessoal esta desativado');
-  return listSales(companyId, user);
+
+  const collaborator = await getCollaboratorForUser(companyId, user.id);
+
+  const result = await pool.query(
+    `SELECT
+       barber_sales.id,
+       barber_sales.created_at,
+       barber_sales.sale_date_local,
+       COALESCE(barber_sales.status, 'active') AS status,
+       COALESCE(barber_sales.customer_name, barber_sales.client_name) AS customer_name,
+       sale_item.item_summary AS service_name,
+       COALESCE(sale_item.total_commission, 0)::numeric AS commission_amount
+     FROM barber_sales
+     LEFT JOIN LATERAL (
+       SELECT
+         STRING_AGG(description, ' + ' ORDER BY created_at ASC) AS item_summary,
+         COALESCE(SUM(commission_amount), 0)::numeric AS total_commission
+       FROM barber_sale_items
+       WHERE barber_sale_items.sale_id = barber_sales.id
+         AND barber_sale_items.company_id = barber_sales.company_id
+     ) sale_item ON true
+     WHERE barber_sales.company_id = $1
+       AND barber_sales.collaborator_id = $2
+       AND ${isSaleActiveSql('barber_sales')}
+     ORDER BY barber_sales.created_at DESC
+     LIMIT 50`,
+    [companyId, collaborator.id]
+  );
+
+  return result.rows;
 }
 
-async function deleteSale(companyId, user, saleId, data = {}) {
+async function cancelSale(companyId, user, saleId, data = {}) {
   ensureCompany(companyId);
-  ensureAdmin(user, 'Apenas admin pode excluir vendas');
+  ensureAdmin(user, 'Apenas admin pode cancelar vendas');
 
   const reason = String(data.reason || '').trim();
 
   if (!reason) {
-    throw createError('Motivo da exclusao e obrigatorio', 400);
+    throw createError('Motivo do cancelamento e obrigatorio', 400);
   }
 
-  await validateApprovalCredential(user.id, data);
+  await validateApprovalPin(companyId, user, data.pin);
 
   const client = await pool.connect();
 
@@ -4258,7 +4975,7 @@ async function deleteSale(companyId, user, saleId, data = {}) {
     await client.query('BEGIN');
 
     const saleResult = await client.query(
-      `SELECT id, company_id, collaborator_id, payment_method, total_amount, amount_received, change_amount, client_name, notes, created_by, created_at, sale_date_local
+      `SELECT id, company_id, collaborator_id, payment_method, total_amount, amount_received, change_amount, client_name, customer_name, customer_phone, notes, created_by, created_at, sale_date_local, status
        FROM barber_sales
        WHERE id = $1 AND company_id = $2
        LIMIT 1`,
@@ -4270,7 +4987,13 @@ async function deleteSale(companyId, user, saleId, data = {}) {
     }
 
     const sale = saleResult.rows[0];
-    const saleCashSession = await getCashSessionRow(companyId, sale.sale_date_local, client);
+    const cashDate = normalizeCashDateFromSale(sale);
+
+    if (sale.status === 'canceled') {
+      throw createError('Venda ja esta cancelada', 409);
+    }
+
+    const saleCashSession = await getCashSessionRow(companyId, cashDate, client);
 
     if (saleCashSession) {
       ensureCashSessionEditable(saleCashSession);
@@ -4284,16 +5007,24 @@ async function deleteSale(companyId, user, saleId, data = {}) {
       [saleId, companyId]
     );
 
-    await client.query(
-      'DELETE FROM barber_sale_items WHERE sale_id = $1 AND company_id = $2',
-      [saleId, companyId]
+    const canceledResult = await client.query(
+      `UPDATE barber_sales
+       SET status = 'canceled',
+           canceled_by = $3,
+           canceled_at = NOW(),
+           canceled_reason = $4,
+           updated_at = NOW()
+       WHERE id = $1
+         AND company_id = $2
+       RETURNING id, company_id, collaborator_id, payment_method, subtotal, discount, total_amount, commission_amount, amount_received, change_amount, customer_name, customer_phone, client_name, status, canceled_by, canceled_at, canceled_reason, notes, created_by, created_at, updated_at, sale_date_local`,
+      [saleId, companyId, user.id, reason]
     );
-    await client.query('DELETE FROM barber_sales WHERE id = $1 AND company_id = $2', [saleId, companyId]);
-    await upsertAndRecalculateCashSession(companyId, sale.sale_date_local, user.id, client);
+
+    await upsertAndRecalculateCashSession(companyId, cashDate, user.id, client);
 
     await client.query(
       `INSERT INTO barber_audit_logs (company_id, user_id, action, entity_type, entity_id, details)
-       VALUES ($1, $2, 'delete_sale', 'barber_sale', $3, $4)`,
+       VALUES ($1, $2, 'cancel_sale', 'barber_sale', $3, $4)`,
       [
         companyId,
         user.id,
@@ -4308,13 +5039,20 @@ async function deleteSale(companyId, user, saleId, data = {}) {
 
     await client.query('COMMIT');
 
-    return true;
+    return {
+      ...canceledResult.rows[0],
+      items: itemsResult.rows
+    };
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
   } finally {
     client.release();
   }
+}
+
+async function deleteSale(companyId, user, saleId, data = {}) {
+  return cancelSale(companyId, user, saleId, data);
 }
 
 function calculateCommission(item, service, collaborator = null) {
@@ -4349,11 +5087,15 @@ async function createSale(companyId, user, data) {
 
   const collaboratorId = userCollaborator?.id || data.collaborator_id || data.collaboratorId || null;
   const paymentMethod = normalizePaymentMethod(data.payment_method || data.paymentMethod);
-  const clientName = String(data.client_name || data.clientName || '').trim() || null;
+  const clientName = String(data.client_name || data.clientName || data.customer_name || data.customerName || '').trim() || null;
+  const customerPhone = String(data.customer_phone || data.customerPhone || '').trim() || null;
+  const customerId = data.customer_id || data.customerId || null;
+  const appointmentId = data.appointment_id || data.appointmentId || null;
   const requestedChangeAmount = toNumber(data.change_amount || data.changeAmount);
   const amountReceived = toNumber(data.amount_received || data.amountReceived);
   const saleDateLocal = normalizeDateInput(data.sale_date_local || data.saleDateLocal, getBusinessDateString());
   const notes = String(data.notes || '').trim() || null;
+  const discount = Math.max(0, toNumber(data.discount));
   const items = Array.isArray(data.items) ? data.items : [];
 
   if (!PAYMENT_METHODS.includes(paymentMethod)) {
@@ -4397,6 +5139,36 @@ async function createSale(companyId, user, data) {
       }
 
       collaboratorRecord = collaborator.rows[0];
+    }
+
+    if (customerId) {
+      const customer = await client.query(
+        `SELECT id
+         FROM booking_customers
+         WHERE id = $1
+           AND company_id = $2
+         LIMIT 1`,
+        [customerId, companyId]
+      );
+
+      if (customer.rowCount === 0) {
+        throw createError('Cliente nao encontrado para esta empresa', 404);
+      }
+    }
+
+    if (appointmentId) {
+      const appointment = await client.query(
+        `SELECT id
+         FROM barber_appointments
+         WHERE id = $1
+           AND company_id = $2
+         LIMIT 1`,
+        [appointmentId, companyId]
+      );
+
+      if (appointment.rowCount === 0) {
+        throw createError('Agendamento nao encontrado para esta empresa', 404);
+      }
     }
 
     const serviceIds = items
@@ -4490,7 +5262,9 @@ async function createSale(companyId, user, data) {
       return preparedItem;
     });
 
-    const totalAmount = preparedItems.reduce((sum, item) => sum + item.total_price, 0);
+    const subtotal = preparedItems.reduce((sum, item) => sum + item.total_price, 0);
+    const totalAmount = Math.max(0, subtotal - discount);
+    const totalCommission = preparedItems.reduce((sum, item) => sum + item.commission_amount, 0);
     let changeAmount = requestedChangeAmount;
 
     if (paymentMethod === 'dinheiro') {
@@ -4507,26 +5281,42 @@ async function createSale(companyId, user, data) {
       `INSERT INTO barber_sales (
          company_id,
          collaborator_id,
+         customer_id,
+         customer_name,
+         customer_phone,
          payment_method,
+         subtotal,
+         discount,
          total_amount,
+         commission_amount,
          amount_received,
          change_amount,
          sale_date_local,
          client_name,
-       notes,
-        created_by
+         appointment_id,
+         status,
+         notes,
+         created_by,
+         updated_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING id, company_id, collaborator_id, payment_method, total_amount, amount_received, change_amount, sale_date_local, client_name, notes, created_by, created_at`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'active', $16, $17, NOW())
+       RETURNING id, company_id, collaborator_id, customer_id, customer_name, customer_phone, payment_method, subtotal, discount, total_amount, commission_amount, amount_received, change_amount, sale_date_local, client_name, appointment_id, status, notes, created_by, created_at, updated_at`,
       [
         companyId,
         collaboratorId,
+        customerId,
+        clientName,
+        customerPhone,
         paymentMethod,
+        subtotal,
+        discount,
         totalAmount,
+        totalCommission,
         paymentMethod === 'dinheiro' ? amountReceived : totalAmount,
         changeAmount,
         saleDateLocal,
         clientName,
+        appointmentId,
         notes,
         user.id
       ]
@@ -4549,14 +5339,16 @@ async function createSale(companyId, user, data) {
            item_name_snapshot,
            commission_type_snapshot,
            commission_rate_snapshot,
+           commission_type,
+           commission_rate,
            quantity,
            unit_price,
            total_price,
            commission_amount,
            shop_net_amount
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-         RETURNING id, sale_id, item_type, item_id, company_id, collaborator_id, service_id, product_id, description, item_name_snapshot, commission_type_snapshot, commission_rate_snapshot, quantity, unit_price, total_price, commission_amount, shop_net_amount, created_at`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $10, $11, $12, $13, $14, $15, $16)
+         RETURNING id, sale_id, item_type, item_id, company_id, collaborator_id, service_id, product_id, description, item_name_snapshot, commission_type_snapshot, commission_rate_snapshot, commission_type, commission_rate, quantity, unit_price, total_price, commission_amount, shop_net_amount, created_at`,
         [
           sale.id,
           item.item_type,
@@ -4602,7 +5394,6 @@ async function getBarberMe(companyId, user) {
   const result = await pool.query(
     `SELECT
        users.id,
-       users.owner_id,
        users.name,
        users.email,
        users.phone,
@@ -4645,14 +5436,17 @@ async function getMyReport(companyId, user, query = {}) {
 
   const collaborator = await getCollaboratorForUser(companyId, user.id);
   const { start, end } = buildReportPeriod(query.period, query.startDate || query.start_date, query.endDate || query.end_date);
+  const todayDate = getBusinessDateString();
+  const weekRange = getWeekRange(todayDate);
+  const monthRange = getMonthRange(todayDate);
 
   const salesResult = await pool.query(
     `SELECT
        barber_sales.id,
-       barber_sales.payment_method,
-       barber_sales.total_amount,
        barber_sales.created_at,
        barber_sales.sale_date_local,
+       COALESCE(barber_sales.status, 'active') AS status,
+       COALESCE(barber_sales.customer_name, barber_sales.client_name) AS customer_name,
        sale_item.item_summary AS service_name,
        sale_item.total_commission AS commission_amount
      FROM barber_sales
@@ -4666,18 +5460,17 @@ async function getMyReport(companyId, user, query = {}) {
      ) sale_item ON true
      WHERE barber_sales.company_id = $1
        AND barber_sales.collaborator_id = $2
-       AND barber_sales.sale_date_local BETWEEN $3::date AND $4::date
+       AND COALESCE(barber_sales.sale_date_local, barber_sales.created_at::date) BETWEEN $3::date AND $4::date
+       AND ${isSaleActiveSql('barber_sales')}
      ORDER BY barber_sales.created_at DESC`,
     [companyId, collaborator.id, start, end]
   );
 
   const totals = salesResult.rows.reduce((accumulator, sale) => {
-    accumulator.totalSales += toNumber(sale.total_amount);
     accumulator.totalCommission += toNumber(sale.commission_amount);
     accumulator.attendances += 1;
     return accumulator;
   }, {
-    totalSales: 0,
     totalCommission: 0,
     attendances: 0
   });
@@ -4693,6 +5486,11 @@ async function getMyReport(companyId, user, query = {}) {
   );
 
   const totalAdvances = toNumber(advancesResult.rows[0].total_advances);
+  const [today, week, month] = await Promise.all([
+    getPersonalCommissionSummary(companyId, collaborator.id, todayDate, todayDate),
+    getPersonalCommissionSummary(companyId, collaborator.id, weekRange.start, weekRange.end),
+    getPersonalCommissionSummary(companyId, collaborator.id, monthRange.start, monthRange.end)
+  ]);
 
   return {
     collaborator: {
@@ -4707,12 +5505,15 @@ async function getMyReport(companyId, user, query = {}) {
       filter: query.period || 'today'
     },
     totals: {
-      totalSales: totals.totalSales,
       totalCommission: totals.totalCommission,
       totalAdvances,
       netCommission: Math.max(0, totals.totalCommission - totalAdvances),
       attendances: totals.attendances
     },
+    today,
+    week,
+    month,
+    recentSales: salesResult.rows.slice(0, 8),
     sales: salesResult.rows
   };
 }
@@ -4834,6 +5635,7 @@ async function updateCustomerStatus(companyId, customerId, data = {}) {
 
 module.exports = {
   getSettings,
+  updateSettings,
   getCompanyPlanProfile,
   forgotPin,
   resetPin,
@@ -4885,14 +5687,23 @@ module.exports = {
   createAppointment,
   updateAppointment,
   cancelAppointment,
+  rescheduleAppointment,
+  deleteAppointment,
+  listScheduleBlocks,
+  createScheduleBlock,
+  deleteScheduleBlock,
+  listWorkingHours,
+  updateWorkingHours,
   listCustomers,
   getCustomerById,
   updateCustomerStatus,
   getPublicBooking,
   createPublicBookingAppointment,
   listSales,
+  getSalesSummary,
   getMySales,
   createSale,
+  cancelSale,
   deleteSale,
   getBarberMe,
   getMyReport

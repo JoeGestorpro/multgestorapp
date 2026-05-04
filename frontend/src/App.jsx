@@ -8,7 +8,10 @@ import FirstAccess from './pages/FirstAccess'
 import ForgotPassword from './pages/ForgotPassword'
 import BookingArea from './pages/booking/BookingArea'
 import BookingLogin from './pages/booking/BookingLogin'
+import BookingProfile from './pages/booking/BookingProfile'
 import BookingRegister from './pages/booking/BookingRegister'
+import BookingSuccess from './pages/booking/BookingSuccess'
+import BookingPage from './pages/barber/BookingPage'
 import BarberDashboard from './pages/barber/BarberDashboard'
 import BarberLogin from './pages/barber/BarberLogin'
 import FinanceDashboard from './pages/master/FinanceDashboard'
@@ -17,7 +20,6 @@ import LandingPage from './pages/public/LandingPage'
 import ModuleSelect from './pages/ModuleSelect'
 import Modules from './pages/Modules'
 import NoModules from './pages/NoModules'
-import PublicBooking from './pages/PublicBooking'
 import Register from './pages/Register'
 import ResetPassword from './pages/ResetPassword'
 import Settings from './pages/Settings'
@@ -42,15 +44,24 @@ function App() {
       <Route path="/set-password" element={<FirstAccess />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/agendar/:slug" element={<PublicBooking />} />
+      <Route path="/agendar/:slug" element={<BookingPage />} />
       <Route path="/agendar/:slug/login" element={<BookingLogin />} />
       <Route path="/agendar/:slug/cadastro" element={<BookingRegister />} />
+      <Route path="/agendar/:slug/confirmado" element={<BookingSuccess />} />
       <Route path="/confirmar-email" element={<ConfirmEmail />} />
       <Route
         path="/agendar/:slug/minha-conta"
         element={
           <BookingPrivateRoute>
             <BookingArea />
+          </BookingPrivateRoute>
+        }
+      />
+      <Route
+        path="/agendar/:slug/perfil"
+        element={
+          <BookingPrivateRoute>
+            <BookingProfile />
           </BookingPrivateRoute>
         }
       />
@@ -138,6 +149,14 @@ function App() {
       />
       <Route
         path="/barber/agenda"
+        element={
+          <BarberPrivateRoute>
+            <BarberDashboard />
+          </BarberPrivateRoute>
+        }
+      />
+      <Route
+        path="/barber/minha-agenda"
         element={
           <BarberPrivateRoute>
             <BarberDashboard />

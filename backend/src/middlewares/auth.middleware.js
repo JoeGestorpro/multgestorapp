@@ -51,6 +51,7 @@ function requireAuth(req, res, next) {
       id: payload.id || payload.user_id || payload.customer_id,
       user_id: payload.user_id || payload.id || null,
       customer_id: payload.customer_id || payload.id || null,
+      company_id: payload.company_id || null,
       auth_scope: inferAuthScope(payload)
     };
 

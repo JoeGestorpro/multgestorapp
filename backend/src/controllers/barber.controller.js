@@ -1,5 +1,6 @@
 const authService = require('../services/auth.service');
 const barberService = require('../services/barber.service');
+const clientBookingService = require('../services/client-booking.service');
 
 function sendError(res, error, fallbackMessage) {
   const statusCode = error.statusCode || 500;
@@ -64,6 +65,20 @@ async function getSettings(req, res) {
   } catch (error) {
     console.error('Erro ao carregar configuracoes barber:', error);
     return sendError(res, error, 'Erro ao carregar configuracoes');
+  }
+}
+
+async function updateSettings(req, res) {
+  try {
+    const settings = await barberService.updateSettings(req.user.company_id, req.user, req.body);
+
+    return res.json({
+      success: true,
+      data: settings
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar configuracoes barber:', error);
+    return sendError(res, error, 'Erro ao atualizar configuracoes');
   }
 }
 
@@ -343,11 +358,11 @@ async function updateService(req, res) {
 
 async function deleteService(req, res) {
   try {
-    await barberService.deleteService(req.user.company_id, req.user, req.params.id);
+    await barberService.deleteService(req.user.company_id, req.user, req.params.id, req.body);
 
     return res.json({
       success: true,
-      message: 'Servico excluido com sucesso'
+      message: 'Servico excluido com seguranca'
     });
   } catch (error) {
     console.error('Erro ao excluir servico barber:', error);
@@ -779,7 +794,7 @@ async function createSettlement(req, res) {
 
 async function listSales(req, res) {
   try {
-    const sales = await barberService.listSales(req.user.company_id, req.user);
+    const sales = await barberService.listSales(req.user.company_id, req.user, req.query);
 
     return res.json({
       success: true,
@@ -788,6 +803,20 @@ async function listSales(req, res) {
   } catch (error) {
     console.error('Erro ao listar vendas barber:', error);
     return sendError(res, error, 'Erro ao listar vendas');
+  }
+}
+
+async function getSalesSummary(req, res) {
+  try {
+    const summary = await barberService.getSalesSummary(req.user.company_id, req.user, req.query);
+
+    return res.json({
+      success: true,
+      data: summary
+    });
+  } catch (error) {
+    console.error('Erro ao carregar resumo de vendas barber:', error);
+    return sendError(res, error, 'Erro ao carregar resumo de vendas');
   }
 }
 
@@ -819,7 +848,7 @@ async function createAppointment(req, res) {
   }
 }
 
-async function updateAppointment(req, res) {
+async function updateAppointmentStatus(req, res) {
   try {
     const appointment = await barberService.updateAppointment(req.user.company_id, req.user, req.params.id, req.body);
 
@@ -828,22 +857,106 @@ async function updateAppointment(req, res) {
       data: appointment
     });
   } catch (error) {
-    console.error('Erro ao atualizar agendamento barber:', error);
-    return sendError(res, error, 'Erro ao atualizar agendamento');
+    console.error('Erro ao atualizar status do agendamento barber:', error);
+    return sendError(res, error, 'Erro ao atualizar status do agendamento');
   }
 }
 
-async function cancelAppointment(req, res) {
+async function rescheduleAppointment(req, res) {
   try {
-    const appointment = await barberService.cancelAppointment(req.user.company_id, req.user, req.params.id, req.body);
+    const appointment = await barberService.rescheduleAppointment(req.user.company_id, req.user, req.params.id, req.body);
 
     return res.json({
       success: true,
       data: appointment
     });
   } catch (error) {
-    console.error('Erro ao cancelar agendamento barber:', error);
-    return sendError(res, error, 'Erro ao cancelar agendamento');
+    console.error('Erro ao remarcar agendamento barber:', error);
+    return sendError(res, error, 'Erro ao remarcar agendamento');
+  }
+}
+
+async function deleteAppointment(req, res) {
+  try {
+    await barberService.deleteAppointment(req.user.company_id, req.user, req.params.id);
+
+    return res.json({
+      success: true,
+      message: 'Agendamento excluido com sucesso'
+    });
+  } catch (error) {
+    console.error('Erro ao excluir agendamento barber:', error);
+    return sendError(res, error, 'Erro ao excluir agendamento');
+  }
+}
+
+async function listScheduleBlocks(req, res) {
+  try {
+    const blocks = await barberService.listScheduleBlocks(req.user.company_id, req.user, req.query);
+
+    return res.json({
+      success: true,
+      data: blocks
+    });
+  } catch (error) {
+    console.error('Erro ao listar bloqueios de agenda barber:', error);
+    return sendError(res, error, 'Erro ao listar bloqueios de agenda');
+  }
+}
+
+async function createScheduleBlock(req, res) {
+  try {
+    const block = await barberService.createScheduleBlock(req.user.company_id, req.user, req.body);
+
+    return res.status(201).json({
+      success: true,
+      data: block
+    });
+  } catch (error) {
+    console.error('Erro ao criar bloqueio de agenda barber:', error);
+    return sendError(res, error, 'Erro ao criar bloqueio de agenda');
+  }
+}
+
+async function deleteScheduleBlock(req, res) {
+  try {
+    await barberService.deleteScheduleBlock(req.user.company_id, req.user, req.params.id);
+
+    return res.json({
+      success: true,
+      message: 'Bloqueio excluido com sucesso'
+    });
+  } catch (error) {
+    console.error('Erro ao excluir bloqueio de agenda barber:', error);
+    return sendError(res, error, 'Erro ao excluir bloqueio de agenda');
+  }
+}
+
+async function listWorkingHours(req, res) {
+  try {
+    const hours = await barberService.listWorkingHours(req.user.company_id, req.user);
+
+    return res.json({
+      success: true,
+      data: hours
+    });
+  } catch (error) {
+    console.error('Erro ao listar horários de funcionamento barber:', error);
+    return sendError(res, error, 'Erro ao listar horários de funcionamento');
+  }
+}
+
+async function updateWorkingHours(req, res) {
+  try {
+    const hours = await barberService.updateWorkingHours(req.user.company_id, req.user, req.body);
+
+    return res.json({
+      success: true,
+      data: hours
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar horários de funcionamento barber:', error);
+    return sendError(res, error, 'Erro ao atualizar horários de funcionamento');
   }
 }
 
@@ -891,7 +1004,7 @@ async function updateCustomerStatus(req, res) {
 
 async function getPublicBooking(req, res) {
   try {
-    const booking = await barberService.getPublicBooking(req.params.slug);
+    const booking = await clientBookingService.getPublicBookingInfo(req.params.slug);
 
     return res.json({
       success: true,
@@ -903,11 +1016,33 @@ async function getPublicBooking(req, res) {
   }
 }
 
+async function getPublicAvailableSlots(req, res) {
+  try {
+    const availability = await clientBookingService.getSchedulingAvailability(req.params.slug, req.query);
+
+    return res.json({
+      success: true,
+      data: availability
+    });
+  } catch (error) {
+    console.error('Erro ao consultar agenda publica barber:', error);
+    return sendError(res, error, 'Erro ao consultar disponibilidade');
+  }
+}
+
 async function createPublicBookingAppointment(req, res) {
-  return res.status(403).json({
-    success: false,
-    error: 'Para agendar, faca login ou conclua seu cadastro com confirmacao de e-mail.'
-  });
+  try {
+    const appointment = await clientBookingService.createPublicAppointment(req.params.slug, req.body);
+
+    return res.status(201).json({
+      success: true,
+      data: appointment,
+      message: 'Agendamento criado com sucesso.'
+    });
+  } catch (error) {
+    console.error('Erro ao criar agendamento publico barber:', error);
+    return sendError(res, error, 'Erro ao criar agendamento');
+  }
 }
 
 async function createSale(req, res) {
@@ -926,15 +1061,30 @@ async function createSale(req, res) {
 
 async function deleteSale(req, res) {
   try {
-    await barberService.deleteSale(req.user.company_id, req.user, req.params.id, req.body);
+    await barberService.cancelSale(req.user.company_id, req.user, req.params.id, req.body);
 
     return res.json({
       success: true,
-      message: 'Venda excluida com seguranca'
+      message: 'Venda cancelada com seguranca'
     });
   } catch (error) {
-    console.error('Erro ao excluir venda barber:', error);
-    return sendError(res, error, 'Erro ao excluir venda');
+    console.error('Erro ao cancelar venda barber:', error);
+    return sendError(res, error, 'Erro ao cancelar venda');
+  }
+}
+
+async function cancelSale(req, res) {
+  try {
+    const sale = await barberService.cancelSale(req.user.company_id, req.user, req.params.id, req.body);
+
+    return res.json({
+      success: true,
+      data: sale,
+      message: 'Venda cancelada com seguranca'
+    });
+  } catch (error) {
+    console.error('Erro ao cancelar venda barber:', error);
+    return sendError(res, error, 'Erro ao cancelar venda');
   }
 }
 
@@ -942,6 +1092,7 @@ module.exports = {
   collaboratorLogin,
   barberMe,
   getSettings,
+  updateSettings,
   getCompanyPlan,
   forgotPin,
   resetPin,
@@ -994,14 +1145,23 @@ module.exports = {
   createSettlement,
   listAppointments,
   createAppointment,
-  updateAppointment,
-  cancelAppointment,
+  updateAppointmentStatus,
+  rescheduleAppointment,
+  deleteAppointment,
+  listScheduleBlocks,
+  createScheduleBlock,
+  deleteScheduleBlock,
+  listWorkingHours,
+  updateWorkingHours,
   listCustomers,
   getCustomerById,
   updateCustomerStatus,
   getPublicBooking,
+  getPublicAvailableSlots,
   createPublicBookingAppointment,
   listSales,
+  getSalesSummary,
   createSale,
+  cancelSale,
   deleteSale
 };

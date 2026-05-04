@@ -16,7 +16,7 @@ const webhooksRoutes = require('./routes/webhooks.routes');
 const { getAppBaseUrl } = require('./services/email/email.service');
 
 const app = express();
-const PORT = 5000;
+const PORT = Number(process.env.PORT || 5000);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 function validateRuntimeUrls() {

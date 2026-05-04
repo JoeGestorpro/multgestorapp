@@ -3,8 +3,8 @@ const crypto = require('crypto');
 const pool = require('../config/database');
 const emailService = require('./email/email.service');
 
-const APPOINTMENT_STATUS = ['scheduled', 'confirmed', 'completed', 'canceled', 'no_show'];
-const ACTIVE_APPOINTMENT_STATUSES = ['scheduled', 'confirmed'];
+const APPOINTMENT_STATUS = ['scheduled', 'confirmed', 'arrived', 'in_progress', 'completed', 'canceled', 'no_show'];
+const ACTIVE_APPOINTMENT_STATUSES = ['scheduled', 'confirmed', 'arrived', 'in_progress'];
 const BRAZIL_TIMEZONE = 'America/Cuiaba';
 const TIMEZONE_OFFSETS = {
   'America/Cuiaba': '-04:00',
@@ -49,6 +49,22 @@ function normalizeTimeInput(value) {
   return normalized;
 }
 
+function normalizeStartsAtInput(value) {
+  const normalized = String(value || '').trim();
+
+  if (!normalized) {
+    throw createError('Data e horario do agendamento sao obrigatorios', 400);
+  }
+
+  const parsed = new Date(normalized);
+
+  if (Number.isNaN(parsed.getTime())) {
+    throw createError('Data e horario do agendamento invalidos', 400);
+  }
+
+  return parsed;
+}
+
 function getTimezoneOffset(timezone) {
   return TIMEZONE_OFFSETS[timezone] || TIMEZONE_OFFSETS[BRAZIL_TIMEZONE];
 }
@@ -68,6 +84,25 @@ function formatDateKey(date, timezone = BRAZIL_TIMEZONE) {
     month: '2-digit',
     day: '2-digit'
   }).format(date);
+}
+
+function getLocalDateTimeParts(date, timezone = BRAZIL_TIMEZONE) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(date);
+
+  const value = (type) => parts.find((part) => part.type === type)?.value || '';
+
+  return {
+    date: `${value('year')}-${value('month')}-${value('day')}`,
+    time: `${value('hour')}:${value('minute')}`
+  };
 }
 
 function weekdayFromDate(date, timezone = BRAZIL_TIMEZONE) {
@@ -105,6 +140,20 @@ function maskEmailPreview(email) {
 
   const [local, domain] = normalized.split('@');
   return `${local.slice(0, 2)}***@${domain}`;
+}
+
+async function columnExists(tableName, columnName, client = pool) {
+  const result = await client.query(
+    `SELECT 1
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = $1
+       AND column_name = $2
+     LIMIT 1`,
+    [tableName, columnName]
+  );
+
+  return result.rowCount > 0;
 }
 
 async function writeAuthAudit(action, options = {}, client = pool) {
@@ -164,8 +213,13 @@ async function getBookingSettings(companyId, client = pool) {
        timezone,
        slot_interval_minutes,
        minimum_notice_minutes,
+       online_min_advance_enabled,
+       online_min_advance_value,
        cancellation_limit_hours,
-       weekly_hours
+       weekly_hours,
+       allow_customer_select_collaborator,
+       allow_any_collaborator,
+       confirmation_message
      FROM barber_booking_settings
      WHERE company_id = $1
      LIMIT 1`,
@@ -176,7 +230,26 @@ async function getBookingSettings(companyId, client = pool) {
     throw createError('Configuracoes de agenda nao encontradas', 500);
   }
 
-  return result.rows[0];
+  const settings = result.rows[0];
+  const onlineMinAdvanceEnabled = settings.online_min_advance_enabled === true;
+  const onlineMinAdvanceValue = Math.max(0, Number(settings.online_min_advance_value || 0));
+  const effectiveMinimumNoticeMinutes = onlineMinAdvanceEnabled
+    ? onlineMinAdvanceValue * 60
+    : 0;
+
+  return {
+    ...settings,
+    online_min_advance_enabled: onlineMinAdvanceEnabled,
+    online_min_advance_value: onlineMinAdvanceValue,
+    minimum_notice_minutes: effectiveMinimumNoticeMinutes
+  };
+}
+
+function getOnlineMinimumAdvanceHours(settings = {}) {
+  const enabled = settings.online_min_advance_enabled === true;
+  const value = Math.max(0, Number(settings.online_min_advance_value || 0));
+
+  return enabled ? value : 0;
 }
 
 async function ensureService(companyId, serviceId, client = pool) {
@@ -231,6 +304,27 @@ async function ensureCollaborator(companyId, collaboratorId, client = pool) {
   return collaborator;
 }
 
+async function listBookableCollaborators(companyId, client = pool) {
+  const result = await client.query(
+    `SELECT
+       barber_collaborators.id,
+       COALESCE(users.name, barber_collaborators.nickname) AS name,
+       barber_collaborators.nickname,
+       barber_collaborators.avatar_url,
+       barber_collaborators.available_for_booking
+     FROM barber_collaborators
+     LEFT JOIN users ON users.id = barber_collaborators.user_id
+     WHERE barber_collaborators.company_id = $1
+       AND barber_collaborators.is_active = true
+       AND barber_collaborators.available_for_booking = true
+       AND COALESCE(barber_collaborators.is_deleted, false) = false
+     ORDER BY COALESCE(users.name, barber_collaborators.nickname) ASC`,
+    [companyId]
+  );
+
+  return result.rows;
+}
+
 async function getConflicts(companyId, collaboratorId, startsAt, endsAt, client = pool, appointmentIdToIgnore = null) {
   const appointmentsResult = await client.query(
     `SELECT id
@@ -277,16 +371,17 @@ function getWorkingWindow(date, settings) {
   return { start, end };
 }
 
-async function validateBookableSlot({ companyId, collaboratorId, serviceId, date, time, settings, client, appointmentIdToIgnore = null }) {
-  const normalizedDate = normalizeDateInput(date);
-  const normalizedTime = normalizeTimeInput(time);
+async function validateBookableSlot({ companyId, collaboratorId, serviceId, date, time, startsAt: startsAtInput, settings, client, appointmentIdToIgnore = null, user = null }) {
   const timezone = settings.timezone || BRAZIL_TIMEZONE;
   const service = await ensureService(companyId, serviceId, client);
   await ensureCollaborator(companyId, collaboratorId, client);
 
   const durationMinutes = Number(service.estimated_time_minutes || 30);
-  const startsAt = toUtcDate(normalizedDate, normalizedTime, timezone);
+  const startsAt = startsAtInput
+    ? normalizeStartsAtInput(startsAtInput)
+    : toUtcDate(normalizeDateInput(date), normalizeTimeInput(time), timezone);
   const endsAt = addMinutes(startsAt, durationMinutes);
+  const { date: normalizedDate, time: normalizedTime } = getLocalDateTimeParts(startsAt, timezone);
 
   if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
     throw createError('Nao foi possivel interpretar a data e o horario do agendamento', 400);
@@ -298,8 +393,14 @@ async function validateBookableSlot({ companyId, collaboratorId, serviceId, date
     throw createError('A empresa nao atende neste dia da semana', 400);
   }
 
-  if (startsAt < addMinutes(new Date(), Number(settings.minimum_notice_minutes || 0))) {
-    throw createError('Este horario nao respeita a antecedencia minima para agendamento', 400);
+  const ignoresMinimumNotice = ['admin', 'owner'].includes(String(user?.role || '').trim().toLowerCase());
+  const minimumAdvanceHours = getOnlineMinimumAdvanceHours(settings);
+
+  if (!ignoresMinimumNotice && minimumAdvanceHours > 0 && startsAt < addMinutes(new Date(), minimumAdvanceHours * 60)) {
+    throw createError(
+      `Este horario nao esta disponivel para agendamento online. Escolha um horario com pelo menos ${minimumAdvanceHours} horas de antecedencia.`,
+      400
+    );
   }
 
   if (startsAt < workingWindow.start || endsAt > workingWindow.end) {
@@ -320,8 +421,8 @@ async function validateBookableSlot({ companyId, collaboratorId, serviceId, date
     service,
     startsAt,
     endsAt,
-    appointmentDate: normalizedDate,
-    appointmentTime: normalizedTime
+    startDateKey: normalizedDate,
+    startTimeLabel: normalizedTime
   };
 }
 
@@ -364,6 +465,51 @@ function buildAvailabilitySlots({ date, settings, startsAtFloor, durationMinutes
   }
 
   return slots;
+}
+
+async function getPublicBookingInfo(companySlug) {
+  const company = await getCompanyBySlug(companySlug);
+  const settings = await getBookingSettings(company.id);
+
+  const servicesResult = await pool.query(
+    `SELECT
+       id,
+       name,
+       description,
+       price,
+       service_type,
+       icon,
+       estimated_time_minutes
+     FROM barber_services
+     WHERE company_id = $1
+       AND is_active = true
+       AND COALESCE(is_deleted, false) = false
+     ORDER BY created_at DESC`,
+    [company.id]
+  );
+
+  const collaborators = await listBookableCollaborators(company.id);
+
+  return {
+    company: {
+      id: company.id,
+      name: company.name,
+      slug: company.public_booking_slug
+    },
+    services: servicesResult.rows,
+    collaborators,
+    settings: {
+      timezone: settings.timezone || BRAZIL_TIMEZONE,
+      slot_interval_minutes: Number(settings.slot_interval_minutes || 30),
+      minimum_notice_minutes: Number(settings.minimum_notice_minutes || 0),
+      online_min_advance_enabled: settings.online_min_advance_enabled === true,
+      online_min_advance_value: Number(settings.online_min_advance_value || 0),
+      cancellation_limit_hours: Number(settings.cancellation_limit_hours || 0),
+      allow_customer_select_collaborator: settings.allow_customer_select_collaborator !== false,
+      allow_any_collaborator: settings.allow_any_collaborator !== false,
+      confirmation_message: String(settings.confirmation_message || '').trim() || null
+    }
+  };
 }
 
 function validateEmailConfiguration() {
@@ -892,53 +1038,128 @@ async function getSchedulingAvailability(companySlug, query = {}) {
   const collaboratorId = query.collaboratorId || query.collaborator_id;
   const date = normalizeDateInput(query.date);
 
-  if (!serviceId || !collaboratorId) {
-    throw createError('Servico e profissional sao obrigatorios para consultar disponibilidade', 400);
+  if (!serviceId) {
+    throw createError('Servico e obrigatorio para consultar disponibilidade', 400);
   }
 
   const settings = await getBookingSettings(companyId);
   const service = await ensureService(companyId, serviceId);
-  await ensureCollaborator(companyId, collaboratorId);
   const durationMinutes = Number(service.estimated_time_minutes || 30);
   const startsAtFloor = addMinutes(new Date(), Number(settings.minimum_notice_minutes || 0));
+  const timezone = settings.timezone || BRAZIL_TIMEZONE;
 
-  const appointmentsResult = await pool.query(
-    `SELECT starts_at, ends_at
-     FROM barber_appointments
-     WHERE company_id = $1
-       AND collaborator_id = $2
-       AND appointment_date = $3::date
-       AND status = ANY($4::text[])`,
-    [companyId, collaboratorId, date, ACTIVE_APPOINTMENT_STATUSES]
-  );
+  if (!collaboratorId && settings.allow_any_collaborator === false) {
+    throw createError('Selecione um profissional para consultar a disponibilidade', 400);
+  }
 
-  const blocksResult = await pool.query(
-    `SELECT starts_at, ends_at
-     FROM barber_booking_blocks
-     WHERE company_id = $1
-       AND (collaborator_id IS NULL OR collaborator_id = $2)
-       AND DATE(starts_at AT TIME ZONE $4) <= $3::date
-       AND DATE(ends_at AT TIME ZONE $4) >= $3::date`,
-    [companyId, collaboratorId, date, settings.timezone || BRAZIL_TIMEZONE]
-  );
+  async function loadCollaboratorSlots(targetCollaboratorId) {
+    await ensureCollaborator(companyId, targetCollaboratorId);
 
-  const conflictsFn = (slotStart, slotEnd) => {
-    const appointmentConflict = appointmentsResult.rows.some((item) => {
-      const itemStart = new Date(item.starts_at);
-      const itemEnd = new Date(item.ends_at);
-      return itemStart < slotEnd && itemEnd > slotStart;
+    const appointmentsResult = await pool.query(
+      `SELECT starts_at, ends_at
+       FROM barber_appointments
+       WHERE company_id = $1
+         AND collaborator_id = $2
+         AND DATE(starts_at AT TIME ZONE $4) = $3::date
+         AND status = ANY($5::text[])`,
+      [companyId, targetCollaboratorId, date, timezone, ACTIVE_APPOINTMENT_STATUSES]
+    );
+
+    const blocksResult = await pool.query(
+      `SELECT starts_at, ends_at
+       FROM barber_booking_blocks
+       WHERE company_id = $1
+         AND (collaborator_id IS NULL OR collaborator_id = $2)
+         AND DATE(starts_at AT TIME ZONE $4) <= $3::date
+         AND DATE(ends_at AT TIME ZONE $4) >= $3::date`,
+      [companyId, targetCollaboratorId, date, timezone]
+    );
+
+    const conflictsFn = (slotStart, slotEnd) => {
+      const appointmentConflict = appointmentsResult.rows.some((item) => {
+        const itemStart = new Date(item.starts_at);
+        const itemEnd = new Date(item.ends_at);
+        return itemStart < slotEnd && itemEnd > slotStart;
+      });
+
+      if (appointmentConflict) {
+        return true;
+      }
+
+      return blocksResult.rows.some((item) => {
+        const itemStart = new Date(item.starts_at);
+        const itemEnd = new Date(item.ends_at);
+        return itemStart < slotEnd && itemEnd > slotStart;
+      });
+    };
+
+    return buildAvailabilitySlots({
+      date,
+      settings,
+      startsAtFloor,
+      durationMinutes,
+      conflictsFn
     });
+  }
 
-    if (appointmentConflict) {
-      return true;
+  if (collaboratorId) {
+    const collaborator = await ensureCollaborator(companyId, collaboratorId);
+
+    return {
+      company: {
+        id: company.id,
+        name: company.name,
+        slug: company.public_booking_slug
+      },
+      date,
+      timezone,
+      service: {
+        id: service.id,
+        name: service.name,
+        duration_minutes: durationMinutes
+      },
+      minimum_notice_minutes: Number(settings.minimum_notice_minutes || 0),
+      online_min_advance_enabled: settings.online_min_advance_enabled === true,
+      online_min_advance_value: Number(settings.online_min_advance_value || 0),
+      any_collaborator: false,
+      slots: (await loadCollaboratorSlots(collaboratorId)).map((slot) => ({
+        ...slot,
+        collaborator_id: collaborator.id,
+        collaborator_name: collaborator.name
+      }))
+    };
+  }
+
+  const collaborators = await listBookableCollaborators(companyId);
+  const mergedSlots = new Map();
+
+  for (const collaborator of collaborators) {
+    const slots = await loadCollaboratorSlots(collaborator.id);
+
+    for (const slot of slots) {
+      if (!slot.available) {
+        continue;
+      }
+
+      const existing = mergedSlots.get(slot.time);
+      const collaboratorSummary = {
+        id: collaborator.id,
+        name: collaborator.name
+      };
+
+      if (existing) {
+        existing.available_collaborators.push(collaboratorSummary);
+        continue;
+      }
+
+      mergedSlots.set(slot.time, {
+        ...slot,
+        collaborator_id: collaborator.id,
+        collaborator_name: collaborator.name,
+        available_collaborators: [collaboratorSummary]
+      });
     }
-
-    return blocksResult.rows.some((item) => {
-      const itemStart = new Date(item.starts_at);
-      const itemEnd = new Date(item.ends_at);
-      return itemStart < slotEnd && itemEnd > slotStart;
-    });
-  };
+  }
 
   return {
     company: {
@@ -947,20 +1168,17 @@ async function getSchedulingAvailability(companySlug, query = {}) {
       slug: company.public_booking_slug
     },
     date,
-    timezone: settings.timezone || BRAZIL_TIMEZONE,
+    timezone,
     service: {
       id: service.id,
       name: service.name,
       duration_minutes: durationMinutes
     },
     minimum_notice_minutes: Number(settings.minimum_notice_minutes || 0),
-    slots: buildAvailabilitySlots({
-      date,
-      settings,
-      startsAtFloor,
-      durationMinutes,
-      conflictsFn
-    })
+    online_min_advance_enabled: settings.online_min_advance_enabled === true,
+    online_min_advance_value: Number(settings.online_min_advance_value || 0),
+    any_collaborator: true,
+    slots: Array.from(mergedSlots.values()).sort((first, second) => first.time.localeCompare(second.time))
   };
 }
 
@@ -991,8 +1209,6 @@ async function listClientAppointments(user) {
        barber_appointments.customer_name,
        barber_appointments.customer_phone,
        barber_appointments.customer_email,
-       barber_appointments.appointment_date,
-       barber_appointments.appointment_time::text AS appointment_time,
        barber_appointments.starts_at,
        barber_appointments.ends_at,
        barber_appointments.status,
@@ -1050,21 +1266,21 @@ async function createClientAppointment(user, data) {
 
   try {
     await client.query('BEGIN');
+    const hasAppointmentSource = await columnExists('barber_appointments', 'source', client);
 
     const settings = await getBookingSettings(company.id, client);
     const slot = await validateBookableSlot({
       companyId: company.id,
       collaboratorId: data.collaboratorId || data.collaborator_id,
       serviceId: data.serviceId || data.service_id,
-      date: data.appointmentDate || data.appointment_date,
-      time: data.appointmentTime || data.appointment_time,
+      startsAt: data.startsAt || data.starts_at,
       settings,
-      client
+      client,
+      user
     });
 
     const result = await client.query(
       `INSERT INTO barber_appointments (
-         owner_id,
          company_id,
          customer_id,
          service_id,
@@ -1072,16 +1288,14 @@ async function createClientAppointment(user, data) {
          customer_name,
          customer_phone,
          customer_email,
-         appointment_date,
-         appointment_time,
          starts_at,
          ends_at,
          status,
          notes,
          updated_at
        )
-       VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8::date, $9::time, $10::timestamptz, $11::timestamptz, 'scheduled', $12, NOW())
-       RETURNING id, company_id, customer_id, service_id, collaborator_id, appointment_date, appointment_time::text AS appointment_time, starts_at, ends_at, status, notes, created_at, updated_at`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9::timestamptz, 'scheduled', $10, NOW())
+       RETURNING id, company_id, customer_id, service_id, collaborator_id, starts_at, ends_at, status, notes, created_at, updated_at`,
       [
         company.id,
         user.customer_id || user.id,
@@ -1090,8 +1304,6 @@ async function createClientAppointment(user, data) {
         user.name,
         user.phone || null,
         user.email,
-        slot.appointmentDate,
-        slot.appointmentTime,
         slot.startsAt.toISOString(),
         slot.endsAt.toISOString(),
         String(data.notes || '').trim() || null
@@ -1106,6 +1318,137 @@ async function createClientAppointment(user, data) {
         booking_customer_id: user.customer_id || user.id
       }
     }, client);
+
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function createPublicAppointment(companySlug, data = {}) {
+  const company = await getCompanyBySlug(companySlug);
+  const client = await pool.connect();
+
+  const customerName = String(data.customerName || data.customer_name || '').trim();
+  const customerPhone = normalizePhone(data.customerPhone || data.customer_phone || '');
+  const customerEmail = normalizeEmail(data.customerEmail || data.customer_email || '') || null;
+  const notes = String(data.notes || '').trim() || null;
+  const serviceId = data.serviceId || data.service_id;
+  const requestedCollaboratorId = data.collaboratorId || data.collaborator_id || null;
+  const startsAtInput = data.startsAt || data.starts_at;
+
+  if (!customerName) {
+    throw createError('Nome do cliente e obrigatorio', 400);
+  }
+
+  if (!customerPhone) {
+    throw createError('WhatsApp do cliente e obrigatorio', 400);
+  }
+
+  if (!serviceId) {
+    throw createError('Servico e obrigatorio para concluir o agendamento', 400);
+  }
+
+  try {
+    await client.query('BEGIN');
+
+    const settings = await getBookingSettings(company.id, client);
+    let resolvedCollaboratorId = requestedCollaboratorId;
+
+    if (requestedCollaboratorId && settings.allow_customer_select_collaborator === false) {
+      throw createError('A escolha direta de profissional nao esta disponivel para este link', 403);
+    }
+
+    if (!resolvedCollaboratorId) {
+      if (settings.allow_any_collaborator === false) {
+        throw createError('Selecione um profissional para continuar com o agendamento', 400);
+      }
+
+      const availability = await getSchedulingAvailability(companySlug, {
+        serviceId,
+        date: getLocalDateTimeParts(normalizeStartsAtInput(startsAtInput), settings.timezone || BRAZIL_TIMEZONE).date
+      });
+
+      const selectedSlot = availability.slots.find((slot) => slot.starts_at === normalizeStartsAtInput(startsAtInput).toISOString() && slot.available);
+
+      if (!selectedSlot?.collaborator_id) {
+        throw createError('Nao existe profissional disponivel neste horario', 409);
+      }
+
+      resolvedCollaboratorId = selectedSlot.collaborator_id;
+    }
+
+    const slot = await validateBookableSlot({
+      companyId: company.id,
+      collaboratorId: resolvedCollaboratorId,
+      serviceId,
+      startsAt: startsAtInput,
+      settings,
+      client
+    });
+
+    const insertColumns = [
+      'company_id',
+      'service_id',
+      'collaborator_id',
+      'customer_name',
+      'customer_phone',
+      'customer_email',
+      'starts_at',
+      'ends_at',
+      'status',
+      'notes'
+    ];
+    const insertValues = [
+      company.id,
+      serviceId,
+      resolvedCollaboratorId,
+      customerName,
+      customerPhone,
+      customerEmail,
+      slot.startsAt.toISOString(),
+      slot.endsAt.toISOString(),
+      'scheduled',
+      notes
+    ];
+
+    if (hasAppointmentSource) {
+      insertColumns.push('source');
+      insertValues.push('public_link');
+    }
+
+    insertColumns.push('updated_at');
+    let valueIndex = 0;
+    const valuesSql = insertColumns
+      .map((columnName) => {
+        if (columnName === 'updated_at') {
+          return 'NOW()';
+        }
+
+        valueIndex += 1;
+
+        switch (columnName) {
+          case 'starts_at':
+          case 'ends_at':
+            return `$${valueIndex}::timestamptz`;
+          default:
+            return `$${valueIndex}`;
+        }
+      })
+      .join(', ');
+
+    const result = await client.query(
+       `INSERT INTO barber_appointments (
+         ${insertColumns.join(',\n         ')}
+       )
+       VALUES (${valuesSql})
+       RETURNING id, company_id, service_id, collaborator_id, customer_name, customer_phone, customer_email, starts_at, ends_at, status, notes, ${hasAppointmentSource ? 'source' : `'public_link'::text AS source`}, created_at, updated_at`,
+      insertValues
+    );
 
     await client.query('COMMIT');
     return result.rows[0];
@@ -1186,7 +1529,11 @@ module.exports = {
   preRegisterClient,
   resendClientConfirmation,
   confirmClientEmail,
+  getBookingSettings,
+  validateBookableSlot,
+  getPublicBookingInfo,
   getSchedulingAvailability,
+  createPublicAppointment,
   listClientAppointments,
   createClientAppointment,
   cancelClientAppointment

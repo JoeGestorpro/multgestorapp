@@ -76,22 +76,84 @@ ALTER TABLE barber_appointments ADD COLUMN IF NOT EXISTS client_user_id UUID REF
 ALTER TABLE barber_appointments ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES booking_customers(id) ON DELETE SET NULL;
 ALTER TABLE barber_appointments ADD COLUMN IF NOT EXISTS starts_at TIMESTAMPTZ;
 ALTER TABLE barber_appointments ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ;
+ALTER TABLE barber_appointments ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'admin_manual';
+ALTER TABLE barber_appointments ADD COLUMN IF NOT EXISTS canceled_reason TEXT;
+ALTER TABLE barber_appointments ALTER COLUMN appointment_date DROP NOT NULL;
+ALTER TABLE barber_appointments ALTER COLUMN appointment_time DROP NOT NULL;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'barber_appointments'
+      AND column_name = 'owner_id'
+      AND is_nullable = 'NO'
+  ) THEN
+    ALTER TABLE barber_appointments
+      ALTER COLUMN owner_id DROP NOT NULL;
+  END IF;
+END $$;
+
+UPDATE barber_appointments
+SET starts_at = (
+      appointment_date::text || 'T' || appointment_time::text || ':00-04:00'
+    )::timestamptz
+WHERE starts_at IS NULL
+  AND appointment_date IS NOT NULL
+  AND appointment_time IS NOT NULL;
+
+UPDATE barber_appointments
+SET ends_at = starts_at + (COALESCE(barber_services.estimated_time_minutes, 30) || ' minutes')::interval
+FROM barber_services
+WHERE barber_services.id = barber_appointments.service_id
+  AND barber_services.company_id = barber_appointments.company_id
+  AND barber_appointments.starts_at IS NOT NULL
+  AND barber_appointments.ends_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_barber_appointments_client_user_id ON barber_appointments(client_user_id);
 CREATE INDEX IF NOT EXISTS idx_barber_appointments_customer_id ON barber_appointments(customer_id);
 CREATE INDEX IF NOT EXISTS idx_barber_appointments_starts_at ON barber_appointments(starts_at);
 CREATE INDEX IF NOT EXISTS idx_barber_appointments_collaborator_period ON barber_appointments(company_id, collaborator_id, starts_at, ends_at);
+DROP INDEX IF EXISTS idx_barber_appointments_date;
+DROP INDEX IF EXISTS idx_barber_appointments_comp_coll_start;
 
 CREATE TABLE IF NOT EXISTS barber_booking_settings (
   company_id UUID PRIMARY KEY REFERENCES companies(id) ON DELETE CASCADE,
   timezone TEXT NOT NULL DEFAULT 'America/Cuiaba',
   slot_interval_minutes INTEGER NOT NULL DEFAULT 30,
   minimum_notice_minutes INTEGER NOT NULL DEFAULT 60,
+  online_min_advance_enabled BOOLEAN NOT NULL DEFAULT true,
+  online_min_advance_value INTEGER NOT NULL DEFAULT 1,
   cancellation_limit_hours INTEGER NOT NULL DEFAULT 6,
+  allow_customer_select_collaborator BOOLEAN NOT NULL DEFAULT true,
+  allow_any_collaborator BOOLEAN NOT NULL DEFAULT true,
+  confirmation_message TEXT,
   weekly_hours JSONB NOT NULL DEFAULT '{"0": null, "1": {"start": "08:00", "end": "19:00"}, "2": {"start": "08:00", "end": "19:00"}, "3": {"start": "08:00", "end": "19:00"}, "4": {"start": "08:00", "end": "19:00"}, "5": {"start": "08:00", "end": "19:00"}, "6": {"start": "08:00", "end": "17:00"}}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE barber_booking_settings ADD COLUMN IF NOT EXISTS allow_customer_select_collaborator BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE barber_booking_settings ADD COLUMN IF NOT EXISTS allow_any_collaborator BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE barber_booking_settings ADD COLUMN IF NOT EXISTS confirmation_message TEXT;
+ALTER TABLE barber_booking_settings ADD COLUMN IF NOT EXISTS online_min_advance_enabled BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE barber_booking_settings ADD COLUMN IF NOT EXISTS online_min_advance_value INTEGER NOT NULL DEFAULT 0;
+
+UPDATE barber_booking_settings
+SET
+  online_min_advance_enabled = CASE
+    WHEN COALESCE(minimum_notice_minutes, 0) > 0 THEN true
+    ELSE COALESCE(online_min_advance_enabled, false)
+  END,
+  online_min_advance_value = CASE
+    WHEN COALESCE(minimum_notice_minutes, 0) > 0 THEN GREATEST(1, CEIL(minimum_notice_minutes / 60.0)::INTEGER)
+    ELSE COALESCE(online_min_advance_value, 0)
+  END
+WHERE online_min_advance_enabled IS NULL
+   OR online_min_advance_value IS NULL
+   OR (COALESCE(minimum_notice_minutes, 0) > 0 AND online_min_advance_value = 0);
 
 CREATE TABLE IF NOT EXISTS barber_booking_blocks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -100,8 +162,11 @@ CREATE TABLE IF NOT EXISTS barber_booking_blocks (
   starts_at TIMESTAMPTZ NOT NULL,
   ends_at TIMESTAMPTZ NOT NULL,
   reason TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE barber_booking_blocks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 CREATE INDEX IF NOT EXISTS idx_barber_booking_blocks_company_id ON barber_booking_blocks(company_id);
 CREATE INDEX IF NOT EXISTS idx_barber_booking_blocks_collaborator_id ON barber_booking_blocks(collaborator_id);

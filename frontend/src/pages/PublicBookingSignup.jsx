@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { BarberIcon } from '../components/barber/BarberUI'
+import { useBookingAuth } from '../contexts/useBookingAuth'
 import api from '../services/api'
+import {
+  confirmPendingBooking,
+  getPendingSummary,
+  readPendingBooking
+} from './booking/pendingBooking'
 import './Barber.css'
 
 const emptyForm = {
@@ -13,6 +20,8 @@ const emptyForm = {
 
 function PublicBookingSignup() {
   const { slug } = useParams()
+  const navigate = useNavigate()
+  const { login } = useBookingAuth()
   const [booking, setBooking] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [loading, setLoading] = useState(true)
@@ -22,6 +31,9 @@ function PublicBookingSignup() {
   const [success, setSuccess] = useState('')
   const [registrationStarted, setRegistrationStarted] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState('')
+
+  const pendingBooking = readPendingBooking(slug)
+  const pendingSummary = getPendingSummary(pendingBooking)
 
   useEffect(() => {
     async function loadBooking() {
@@ -54,6 +66,33 @@ function PublicBookingSignup() {
 
     try {
       await api.post(`/public/booking/${slug}/register`, form)
+
+      try {
+        const authUser = await login({
+          email: form.email,
+          password: form.password,
+          companySlug: slug
+        })
+        const currentPendingBooking = readPendingBooking(slug)
+
+        if (currentPendingBooking) {
+          const appointment = await confirmPendingBooking(slug, currentPendingBooking)
+          navigate(`/agendar/${slug}/confirmado`, {
+            replace: true,
+            state: {
+              appointment,
+              summary: getPendingSummary(currentPendingBooking)
+            }
+          })
+          return
+        }
+
+        navigate(`/agendar/${authUser.company_public_booking_slug || slug}/minha-conta`, { replace: true })
+        return
+      } catch {
+        // Algumas contas precisam confirmar o e-mail antes do primeiro login.
+      }
+
       setRegisteredEmail(form.email)
       setRegistrationStarted(true)
       setSuccess('')
@@ -86,9 +125,20 @@ function PublicBookingSignup() {
   }
 
   return (
-    <main className="barber-public-shell">
-      <section className="barber-public-page">
-        <section className="auth-card barber-public-auth-card">
+    <main className="barber-figma-page">
+      <header className="barber-figma-top-hero">
+        <div className="barber-figma-grid-texture" aria-hidden="true" />
+        <Link className="barber-figma-round-button" to={`/agendar/${slug}/login`} aria-label="Voltar ao login">
+          <BarberIcon name="arrowLeft" />
+        </Link>
+        <div className="barber-figma-hero-title">
+          <h1>BarberGestor</h1>
+          <p>Crie sua conta</p>
+        </div>
+      </header>
+
+      <section className="barber-figma-content">
+        <div className="barber-figma-form-card">
           {registrationStarted ? (
             <div className="barber-public-success-state">
               <div className="barber-public-success-icon" aria-hidden="true">
@@ -127,29 +177,57 @@ function PublicBookingSignup() {
             </div>
           ) : (
             <>
-              <h1>Crie sua conta para agendar</h1>
-              <p>{booking?.company?.name || 'BarberGestor'} vai usar seu cadastro para confirmar e gerenciar seus horarios.</p>
+              <span className="barber-overline">{booking?.company?.name || 'BarberGestor'}</span>
+              <h2>Criar conta</h2>
+              <p>Cadastre-se rapidamente para confirmar seu horario</p>
+
+              {pendingSummary && (
+                <div className="barber-booking-pending-summary barber-figma-summary-card">
+                  <span>Resumo do horario</span>
+                  <strong>{pendingSummary.serviceName}</strong>
+                  <div>
+                    <small>{pendingSummary.collaboratorName}</small>
+                    <small>{pendingSummary.dateLabel} as {pendingSummary.appointmentTime}</small>
+                  </div>
+                </div>
+              )}
 
               {error && <div className="error-message">{error}</div>}
 
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit} className="barber-figma-form">
                 <label htmlFor="signup-name">Nome</label>
-                <input id="signup-name" name="name" value={form.name} onChange={handleChange} required />
+                <div className="barber-figma-input-wrap">
+                  <BarberIcon name="users" />
+                  <input id="signup-name" name="name" value={form.name} onChange={handleChange} placeholder="Joao Silva" required />
+                </div>
 
                 <label htmlFor="signup-phone">Telefone</label>
-                <input id="signup-phone" name="phone" value={form.phone} onChange={handleChange} required />
+                <div className="barber-figma-input-wrap">
+                  <BarberIcon name="phone" />
+                  <input id="signup-phone" name="phone" value={form.phone} onChange={handleChange} placeholder="(11) 99999-9999" required />
+                </div>
 
                 <label htmlFor="signup-email">E-mail</label>
-                <input id="signup-email" name="email" type="email" value={form.email} onChange={handleChange} required />
+                <div className="barber-figma-input-wrap">
+                  <BarberIcon name="mail" />
+                  <input id="signup-email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="seu@email.com" required />
+                </div>
 
                 <label htmlFor="signup-password">Senha</label>
-                <input id="signup-password" name="password" type="password" value={form.password} onChange={handleChange} required />
+                <div className="barber-figma-input-wrap">
+                  <BarberIcon name="lock" />
+                  <input id="signup-password" name="password" type="password" value={form.password} onChange={handleChange} placeholder="********" required />
+                </div>
 
                 <label htmlFor="signup-confirm-password">Confirmar senha</label>
-                <input id="signup-confirm-password" name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} required />
+                <div className="barber-figma-input-wrap">
+                  <BarberIcon name="lock" />
+                  <input id="signup-confirm-password" name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} placeholder="********" required />
+                </div>
 
                 <button type="submit" disabled={submitting}>
-                  {submitting ? 'Enviando...' : 'Iniciar cadastro'}
+                  <span>{submitting ? 'Confirmando...' : 'Criar conta e confirmar'}</span>
+                  <BarberIcon name="chevronRight" />
                 </button>
               </form>
 
@@ -157,11 +235,11 @@ function PublicBookingSignup() {
                 <button className="button-secondary" type="button" disabled={!form.email || resending} onClick={resendConfirmation}>
                   {resending ? 'Reenviando...' : 'Reenviar confirmacao'}
                 </button>
-                <Link to={`/agendar/${slug}/login?redirect=${encodeURIComponent(`/agendar/${slug}`)}`}>Ja tenho conta</Link>
+                <Link to={`/agendar/${slug}/login`}>Ja tenho conta</Link>
               </div>
             </>
           )}
-        </section>
+        </div>
       </section>
     </main>
   )

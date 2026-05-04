@@ -267,7 +267,11 @@ function sortSubscriptionsByPriority(subscriptions, companyPlanSnapshot, hasUpda
 }
 
 function logPlanDebug(snapshot) {
-  if (process.env.NODE_ENV === 'production' || !snapshot?.company_id) {
+  if (
+    process.env.NODE_ENV === 'production'
+    || process.env.DEBUG_PLAN !== 'true'
+    || !snapshot?.company_id
+  ) {
     return;
   }
 

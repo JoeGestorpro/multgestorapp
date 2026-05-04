@@ -5,27 +5,51 @@ import {
   BarberCard,
   BarberEmptyState,
   BarberIcon,
-  BarberTable
+  BarberModal
 } from '../../components/barber/BarberUI'
 import ServiceIcon from '../../components/barber/ServiceIcon'
 import { SERVICE_ICON_OPTIONS, normalizeServiceIcon } from '../../components/barber/ServiceIcon.utils'
 
+function getServiceTypeLabel(type) {
+  if (type === 'combo') {
+    return 'Combo'
+  }
+
+  if (type === 'product') {
+    return 'Produto'
+  }
+
+  return 'Servico'
+}
+
 function Servicos({
-  isAdmin,
-  money,
-  services,
+  deleteOpen,
+  deletePassword,
+  deletePin,
+  deleteTarget,
   filters,
   form,
+  isAdmin,
+  isDrawerOpen,
   isEditing,
+  isSaving,
+  money,
+  onCloseDelete,
+  onCloseDrawer,
+  onDelete,
+  onDeleteConfirm,
+  onDeletePasswordChange,
+  onDeletePinChange,
+  onEdit,
   onFilterChange,
   onFormChange,
+  onOpenCreate,
   onSubmit,
-  onEdit,
   onToggleStatus,
-  onDelete,
-  onCancelEdit
+  services
 }) {
   const [iconCategory, setIconCategory] = useState('all')
+
   const visibleIcons = useMemo(() => {
     if (iconCategory === 'all') {
       return SERVICE_ICON_OPTIONS
@@ -34,198 +58,67 @@ function Servicos({
     return SERVICE_ICON_OPTIONS.filter((option) => option.category === iconCategory)
   }, [iconCategory])
 
+  const totalServices = services.length
+  const activeServices = services.filter((service) => service.is_active).length
+  const averageDuration = services.filter((service) => service.estimated_time_minutes).length
+    ? Math.round(
+      services
+        .filter((service) => service.estimated_time_minutes)
+        .reduce((sum, service) => sum + Number(service.estimated_time_minutes || 0), 0)
+      / services.filter((service) => service.estimated_time_minutes).length
+    )
+    : null
+
   return (
     <>
-      <section className="barber-grid-two">
-        {isAdmin && (
-          <BarberCard>
-            <div className="barber-panel-header">
-              <div>
-                <h3>{isEditing ? 'Editar servico' : 'Cadastrar servico'}</h3>
-                <p>Monte o catalogo da barbearia com nome, preco, tipo, status e tempo medio.</p>
-              </div>
-              <BarberBadge tone={form.isActive ? 'success' : 'danger'}>
-                {form.isActive ? 'Ativo' : 'Inativo'}
-              </BarberBadge>
-            </div>
-
-            <form className="barber-panel-stack" onSubmit={onSubmit}>
-              <div className="barber-form-grid">
-                <div className="barber-form-block">
-                  <label htmlFor="service-name">Nome do servico</label>
-                  <input
-                    className="barber-input"
-                    id="service-name"
-                    name="name"
-                    onChange={onFormChange}
-                    required
-                    value={form.name}
-                  />
-                </div>
-
-                <div className="barber-form-block">
-                  <label htmlFor="service-price">Preco</label>
-                  <input
-                    className="barber-input"
-                    id="service-price"
-                    min="0"
-                    name="price"
-                    onChange={onFormChange}
-                    required
-                    step="0.01"
-                    type="number"
-                    value={form.price}
-                  />
-                </div>
-
-                <div className="barber-form-block barber-form-block-full">
-                  <label htmlFor="service-description">Descricao</label>
-                  <textarea
-                    className="barber-textarea"
-                    id="service-description"
-                    name="description"
-                    onChange={onFormChange}
-                    placeholder="Detalhes do servico, diferenciais ou o que esta incluso."
-                    rows="4"
-                    value={form.description}
-                  />
-                </div>
-
-                <div className="barber-form-block">
-                  <label htmlFor="service-type">Tipo de servico</label>
-                  <select
-                    className="barber-select"
-                    id="service-type"
-                    name="serviceType"
-                    onChange={onFormChange}
-                    value={form.serviceType}
-                  >
-                    <option value="service">Servico</option>
-                    <option value="product">Produto</option>
-                    <option value="combo">Combo</option>
-                  </select>
-                </div>
-
-                <div className="barber-form-block">
-                  <label htmlFor="estimated-time-minutes">Tempo medio (min)</label>
-                  <input
-                    className="barber-input"
-                    id="estimated-time-minutes"
-                    min="0"
-                    name="estimatedTimeMinutes"
-                    onChange={onFormChange}
-                    step="1"
-                    type="number"
-                    value={form.estimatedTimeMinutes}
-                  />
-                </div>
-
-                <div className="barber-form-block">
-                  <label htmlFor="service-status">Status</label>
-                  <select
-                    className="barber-select"
-                    id="service-status"
-                    name="isActive"
-                    onChange={onFormChange}
-                    value={String(form.isActive)}
-                  >
-                    <option value="true">Ativo</option>
-                    <option value="false">Inativo</option>
-                  </select>
-                </div>
-
-                <div className="barber-form-block barber-form-block-full">
-                  <div className="barber-panel-header">
-                    <div>
-                      <h3>Icone do servico</h3>
-                      <p>Escolha um icone que represente melhor este servico.</p>
-                    </div>
-                  </div>
-
-                  <div className="barber-icon-picker">
-                    <div className="barber-icon-picker-tabs">
-                      {[
-                        { key: 'all', label: 'Todos' },
-                        { key: 'corte', label: 'Corte' },
-                        { key: 'barba', label: 'Barba' },
-                        { key: 'estetica', label: 'Estetica' },
-                        { key: 'coloracao', label: 'Coloracao' },
-                        { key: 'outros', label: 'Outros' }
-                      ].map((category) => (
-                        <button
-                          className={`barber-icon-filter ${iconCategory === category.key ? 'active' : ''}`}
-                          key={category.key}
-                          onClick={() => setIconCategory(category.key)}
-                          type="button"
-                        >
-                          {category.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="barber-icon-grid">
-                      {visibleIcons.map((option) => {
-                        const active = normalizeServiceIcon(form.icon, form.name) === option.key
-
-                        return (
-                          <button
-                            className={`barber-icon-option ${active ? 'active' : ''}`}
-                            key={option.key}
-                            onClick={() => onFormChange({ target: { name: 'icon', value: option.key } })}
-                            type="button"
-                          >
-                            <span className="barber-icon-option-check">{active ? '✓' : ''}</span>
-                            <div className="barber-icon-preview">
-                              <ServiceIcon icon={option.key} />
-                            </div>
-                            <strong>{option.label}</strong>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="barber-page-actions">
-                <BarberButton type="submit" variant="primary">
-                  <BarberIcon name="catalog" />
-                  <span>{isEditing ? 'Salvar alteracoes' : 'Salvar servico'}</span>
-                </BarberButton>
-                {isEditing && (
-                  <BarberButton onClick={onCancelEdit} type="button" variant="ghost">
-                    Cancelar edicao
-                  </BarberButton>
-                )}
-              </div>
-            </form>
-          </BarberCard>
-        )}
-
-        <BarberCard>
-          <div className="barber-panel-header">
+      <section className="barber-services-shell">
+        <BarberCard className="barber-services-hero">
+          <div className="barber-services-hero-copy">
             <div>
-              <h3>Busca e filtros</h3>
-              <p>{isAdmin ? 'Pesquise por nome e filtre status usando o backend novo.' : 'Visualize apenas os servicos ativos liberados para lancamento.'}</p>
+              <span className="barber-services-eyebrow">Catalogo operacional</span>
+              <h2>Servicos</h2>
+              <p>Organize o menu da barbearia com status claro, preco certo e edicao rapida.</p>
             </div>
-            <BarberBadge tone="admin">{services.length} itens</BarberBadge>
+            {isAdmin && (
+              <BarberButton onClick={onOpenCreate} type="button" variant="primary">
+                <BarberIcon name="plus" />
+                <span>Novo servico</span>
+              </BarberButton>
+            )}
           </div>
 
-          <div className="barber-toolbar">
-            <div className="barber-form-block">
-              <label htmlFor="service-search">Busca por nome</label>
+          <div className="barber-services-metrics">
+            <div className="barber-services-metric">
+              <span>Total</span>
+              <strong>{totalServices}</strong>
+            </div>
+            <div className="barber-services-metric">
+              <span>Ativos</span>
+              <strong>{activeServices}</strong>
+            </div>
+            <div className="barber-services-metric">
+              <span>Tempo medio</span>
+              <strong>{averageDuration ? `${averageDuration} min` : '-'}</strong>
+            </div>
+          </div>
+        </BarberCard>
+
+        <BarberCard className="barber-services-toolbar-card">
+          <div className="barber-services-toolbar">
+            <div className="barber-services-toolbar-search">
+              <label htmlFor="service-search">Buscar</label>
               <input
                 className="barber-input"
                 id="service-search"
                 name="search"
                 onChange={onFilterChange}
-                placeholder="Buscar degradê, barba, combo..."
+                placeholder="Buscar por nome ou descricao"
                 value={filters.search}
               />
             </div>
 
-            <div className="barber-form-block">
-              <label htmlFor="service-filter-status">Filtro por status</label>
+            <div className="barber-services-toolbar-filter">
+              <label htmlFor="service-filter-status">Status</label>
               <select
                 className="barber-select"
                 id="service-filter-status"
@@ -238,55 +131,50 @@ function Servicos({
                 <option value="inactive">Inativos</option>
               </select>
             </div>
-          </div>
 
-            <div className="barber-notes-list">
-              <div className="barber-notes-item">
-                <strong>Catalogo multi-tenant</strong>
-                <p>Os servicos listados aqui pertencem apenas a barbearia logada e respeitam a separacao por empresa.</p>
-              </div>
-              <div className="barber-notes-item">
-                <strong>Comissao centralizada no colaborador</strong>
-                <p>Servicos ativos aparecem automaticamente na venda e o percentual aplicado vem do colaborador selecionado.</p>
-              </div>
+            <div className="barber-services-toolbar-summary">
+              <BarberBadge tone="admin">{totalServices} itens</BarberBadge>
             </div>
-          </BarberCard>
-      </section>
-
-      <BarberCard>
-        <div className="barber-table-header">
-          <div>
-            <h2>Catalogo de servicos</h2>
-            <p>Tabela completa com status, tempo medio e acoes de gerenciamento.</p>
           </div>
-        </div>
+        </BarberCard>
 
-        <BarberTable columns={['Nome', 'Tipo', 'Preco', 'Tempo medio', 'Status', 'Acoes']}>
+        <BarberCard className="barber-services-list-card">
           {services.length > 0 ? (
-            services.map((service) => (
-              <tr key={service.id}>
-                <td>
-                  <div className="barber-service-label">
+            <div className="barber-services-grid">
+              {services.map((service) => (
+                <article className="barber-service-premium-card" key={service.id}>
+                  <div className="barber-service-premium-top">
                     <span className="barber-service-card-icon">
                       <ServiceIcon icon={service.icon} serviceName={service.name} />
                     </span>
-                    <div>
-                      <strong>{service.name}</strong>
+                    <div className="barber-service-premium-copy">
+                      <div className="barber-service-premium-title">
+                        <strong>{service.name}</strong>
+                        <BarberBadge tone={service.is_active ? 'success' : 'danger'}>
+                          {service.is_active ? 'Ativo' : 'Inativo'}
+                        </BarberBadge>
+                      </div>
                       <span>{service.description || 'Sem descricao cadastrada'}</span>
                     </div>
                   </div>
-                </td>
-                <td>{service.service_type === 'combo' ? 'Combo' : service.service_type === 'product' ? 'Produto' : 'Servico'}</td>
-                <td>{money(service.price)}</td>
-                <td>{service.estimated_time_minutes ? `${service.estimated_time_minutes} min` : '-'}</td>
-                <td>
-                  <BarberBadge tone={service.is_active ? 'success' : 'danger'}>
-                    {service.is_active ? 'Ativo' : 'Inativo'}
-                  </BarberBadge>
-                </td>
-                <td>
-                  {isAdmin ? (
-                    <div className="barber-inline-actions">
+
+                  <div className="barber-service-premium-meta">
+                    <div>
+                      <small>Preco</small>
+                      <strong>{money(service.price)}</strong>
+                    </div>
+                    <div>
+                      <small>Tempo</small>
+                      <strong>{service.estimated_time_minutes ? `${service.estimated_time_minutes} min` : '-'}</strong>
+                    </div>
+                    <div>
+                      <small>Tipo</small>
+                      <strong>{getServiceTypeLabel(service.service_type)}</strong>
+                    </div>
+                  </div>
+
+                  {isAdmin && (
+                    <div className="barber-service-premium-actions">
                       <BarberButton onClick={() => onEdit(service.id)} type="button" variant="ghost">
                         Editar
                       </BarberButton>
@@ -301,24 +189,237 @@ function Servicos({
                         Excluir
                       </BarberButton>
                     </div>
-                  ) : (
-                    <span>-</span>
                   )}
-                </td>
-              </tr>
-            ))
+                </article>
+              ))}
+            </div>
           ) : (
-            <tr>
-              <td colSpan="6">
-                <BarberEmptyState
-                  description="Cadastre o primeiro servico para liberar o catalogo no lancamento das vendas."
-                  title="Nenhum servico encontrado"
-                />
-              </td>
-            </tr>
+            <BarberEmptyState
+              description="Cadastre o primeiro servico para liberar o catalogo nas vendas e no agendamento."
+              title="Nenhum servico encontrado"
+            />
           )}
-        </BarberTable>
-      </BarberCard>
+        </BarberCard>
+      </section>
+
+      {isAdmin && (
+        <>
+          <div className={`barber-drawer-root ${isDrawerOpen ? 'open' : ''}`} role="presentation">
+            <button
+              aria-label="Fechar painel de servicos"
+              className="barber-drawer-backdrop"
+              onClick={onCloseDrawer}
+              type="button"
+            />
+            <aside aria-modal="true" className="barber-drawer barber-services-drawer" role="dialog">
+              <div className="barber-drawer-header">
+                <div>
+                  <span className="barber-services-eyebrow">{isEditing ? 'Editar servico' : 'Novo servico'}</span>
+                  <h3>{isEditing ? 'Atualize o servico' : 'Cadastrar servico'}</h3>
+                  <p>Preencha os dados essenciais e publique o servico no catalogo da barbearia.</p>
+                </div>
+                <button className="barber-icon-button" onClick={onCloseDrawer} type="button">
+                  <BarberIcon name="close" />
+                </button>
+              </div>
+
+              <form className="barber-services-drawer-form" onSubmit={onSubmit}>
+                <div className="barber-form-grid">
+                  <div className="barber-form-block barber-form-block-full">
+                    <label htmlFor="service-name">Nome</label>
+                    <input
+                      className="barber-input"
+                      id="service-name"
+                      name="name"
+                      onChange={onFormChange}
+                      required
+                      value={form.name}
+                    />
+                  </div>
+
+                  <div className="barber-form-block">
+                    <label htmlFor="service-price">Preco</label>
+                    <input
+                      className="barber-input"
+                      id="service-price"
+                      min="0"
+                      name="price"
+                      onChange={onFormChange}
+                      required
+                      step="0.01"
+                      type="number"
+                      value={form.price}
+                    />
+                  </div>
+
+                  <div className="barber-form-block">
+                    <label htmlFor="estimated-time-minutes">Tempo (min)</label>
+                    <input
+                      className="barber-input"
+                      id="estimated-time-minutes"
+                      min="0"
+                      name="estimatedTimeMinutes"
+                      onChange={onFormChange}
+                      step="1"
+                      type="number"
+                      value={form.estimatedTimeMinutes}
+                    />
+                  </div>
+
+                  <div className="barber-form-block">
+                    <label htmlFor="service-type">Tipo</label>
+                    <select
+                      className="barber-select"
+                      id="service-type"
+                      name="serviceType"
+                      onChange={onFormChange}
+                      value={form.serviceType}
+                    >
+                      <option value="service">Servico</option>
+                      <option value="product">Produto</option>
+                      <option value="combo">Combo</option>
+                    </select>
+                  </div>
+
+                  <div className="barber-form-block">
+                    <label htmlFor="service-status">Status</label>
+                    <select
+                      className="barber-select"
+                      id="service-status"
+                      name="isActive"
+                      onChange={onFormChange}
+                      value={String(form.isActive)}
+                    >
+                      <option value="true">Ativo</option>
+                      <option value="false">Inativo</option>
+                    </select>
+                  </div>
+
+                  <div className="barber-form-block barber-form-block-full">
+                    <label htmlFor="service-description">Descricao</label>
+                    <textarea
+                      className="barber-textarea"
+                      id="service-description"
+                      name="description"
+                      onChange={onFormChange}
+                      placeholder="Diferenciais, observacoes ou o que esta incluso."
+                      rows="4"
+                      value={form.description}
+                    />
+                  </div>
+
+                  <div className="barber-form-block barber-form-block-full">
+                    <div className="barber-services-icon-header">
+                      <div>
+                        <label>Icone</label>
+                        <span>Escolha uma representacao visual para o servico.</span>
+                      </div>
+                      <span className="barber-service-card-icon">
+                        <ServiceIcon icon={form.icon} serviceName={form.name} />
+                      </span>
+                    </div>
+
+                    <div className="barber-icon-picker">
+                      <div className="barber-icon-picker-tabs">
+                        {[
+                          { key: 'all', label: 'Todos' },
+                          { key: 'corte', label: 'Corte' },
+                          { key: 'barba', label: 'Barba' },
+                          { key: 'estetica', label: 'Estetica' },
+                          { key: 'coloracao', label: 'Coloracao' },
+                          { key: 'outros', label: 'Outros' }
+                        ].map((category) => (
+                          <button
+                            className={`barber-icon-filter ${iconCategory === category.key ? 'active' : ''}`}
+                            key={category.key}
+                            onClick={() => setIconCategory(category.key)}
+                            type="button"
+                          >
+                            {category.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="barber-icon-grid">
+                        {visibleIcons.map((option) => {
+                          const active = normalizeServiceIcon(form.icon, form.name) === option.key
+
+                          return (
+                            <button
+                              className={`barber-icon-option ${active ? 'active' : ''}`}
+                              key={option.key}
+                              onClick={() => onFormChange({ target: { name: 'icon', value: option.key } })}
+                              type="button"
+                            >
+                              <span className="barber-icon-option-check">{active ? '✓' : ''}</span>
+                              <div className="barber-icon-preview">
+                                <ServiceIcon icon={option.key} />
+                              </div>
+                              <strong>{option.label}</strong>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="barber-drawer-actions">
+                  <BarberButton onClick={onCloseDrawer} type="button" variant="ghost">
+                    Cancelar
+                  </BarberButton>
+                  <BarberButton disabled={isSaving} type="submit" variant="primary">
+                    <BarberIcon name="catalog" />
+                    <span>{isSaving ? 'Salvando...' : isEditing ? 'Salvar alteracoes' : 'Salvar servico'}</span>
+                  </BarberButton>
+                </div>
+              </form>
+            </aside>
+          </div>
+
+          <BarberModal
+            onClose={onCloseDelete}
+            open={deleteOpen}
+            subtitle={deleteTarget ? `${deleteTarget.name} • ${money(deleteTarget.price)}` : ''}
+            title="Confirmar exclusao do servico"
+          >
+            <div className="barber-modal-content">
+              <p className="barber-inline-hint">Confirme com senha admin ou PIN para remover este servico do catalogo.</p>
+              <div className="barber-form-grid">
+                <div className="barber-form-block">
+                  <label htmlFor="delete-service-password">Senha admin</label>
+                  <input
+                    className="barber-input"
+                    id="delete-service-password"
+                    onChange={(event) => onDeletePasswordChange(event.target.value)}
+                    type="password"
+                    value={deletePassword}
+                  />
+                </div>
+                <div className="barber-form-block">
+                  <label htmlFor="delete-service-pin">PIN</label>
+                  <input
+                    className="barber-input"
+                    id="delete-service-pin"
+                    onChange={(event) => onDeletePinChange(event.target.value)}
+                    type="password"
+                    value={deletePin}
+                  />
+                </div>
+              </div>
+              <div className="barber-modal-actions">
+                <BarberButton onClick={onCloseDelete} type="button" variant="ghost">
+                  Cancelar
+                </BarberButton>
+                <BarberButton onClick={onDeleteConfirm} type="button" variant="danger">
+                  <BarberIcon name="trash" />
+                  <span>Excluir servico</span>
+                </BarberButton>
+              </div>
+            </div>
+          </BarberModal>
+        </>
+      )}
     </>
   )
 }

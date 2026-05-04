@@ -26,6 +26,9 @@ const upload = multer({
 const router = express.Router();
 
 router.post('/collaborator-login', barberController.collaboratorLogin);
+router.get('/public/:slug/booking-info', barberController.getPublicBooking);
+router.get('/public/:slug/available-slots', barberController.getPublicAvailableSlots);
+router.post('/public/:slug/appointments', barberController.createPublicBookingAppointment);
 
 async function requireBarberModule(req, res, next) {
   try {
@@ -74,6 +77,7 @@ router.use(requireBarberModule);
 router.get('/me', barberController.barberMe);
 router.get('/company/plan', barberController.getCompanyPlan);
 router.get('/settings', barberController.getSettings);
+router.patch('/settings', barberController.updateSettings);
 router.post('/settings/pin/forgot', barberController.forgotPin);
 router.post('/settings/pin/reset', barberController.resetPin);
 router.get('/my-dashboard', barberController.myDashboard);
@@ -125,13 +129,23 @@ router.get('/settlements', requirePlanFeature('advanced_reports'), barberControl
 router.post('/settlements', requirePlanFeature('advanced_reports'), barberController.createSettlement);
 router.get('/appointments', requirePlanFeature('advanced_schedule'), barberController.listAppointments);
 router.post('/appointments', requirePlanFeature('advanced_schedule'), barberController.createAppointment);
-router.patch('/appointments/:id', requirePlanFeature('advanced_schedule'), barberController.updateAppointment);
-router.patch('/appointments/:id/cancel', requirePlanFeature('advanced_schedule'), barberController.cancelAppointment);
+router.patch('/appointments/:id/status', requirePlanFeature('advanced_schedule'), barberController.updateAppointmentStatus);
+router.patch('/appointments/:id/reschedule', requirePlanFeature('advanced_schedule'), barberController.rescheduleAppointment);
+router.delete('/appointments/:id', requirePlanFeature('advanced_schedule'), barberController.deleteAppointment);
 router.get('/customers', barberController.listCustomers);
 router.get('/customers/:id', barberController.getCustomerById);
 router.patch('/customers/:id/status', barberController.updateCustomerStatus);
 router.get('/sales', barberController.listSales);
+router.get('/sales/summary', barberController.getSalesSummary);
 router.post('/sales', requireActivePlan, barberController.createSale);
+router.post('/sales/:id/cancel', barberController.cancelSale);
 router.delete('/sales/:id', barberController.deleteSale);
+
+router.get('/schedule/blocks', barberController.listScheduleBlocks);
+router.post('/schedule/blocks', barberController.createScheduleBlock);
+router.delete('/schedule/blocks/:id', barberController.deleteScheduleBlock);
+
+router.get('/working-hours', barberController.listWorkingHours);
+router.post('/working-hours', barberController.updateWorkingHours);
 
 module.exports = router;

@@ -7,6 +7,11 @@ import CollaboratorMobileDashboard from '../components/barber/CollaboratorMobile
 import LockedFeature from '../components/common/LockedFeature'
 import ServiceIcon from '../components/barber/ServiceIcon'
 import { normalizeServiceIcon } from '../components/barber/ServiceIcon.utils'
+import AgendaGrid from '../components/barber/agenda/AgendaGrid'
+import AppointmentModal from '../components/barber/agenda/AppointmentModal'
+import AppointmentComposerModal from '../components/barber/agenda/AppointmentComposerModal'
+import AppointmentDetailsPanel from '../components/barber/agenda/AppointmentDetailsPanel'
+import AgendaToolbar from '../components/barber/agenda/AgendaToolbar'
 import {
   BarberBadge,
   BarberButton,
@@ -123,6 +128,28 @@ const emptyAppointmentsOverview = {
   appointments: []
 }
 
+const defaultAppointmentFilters = {
+  date: '',
+  collaboratorId: 'all',
+  status: 'all'
+}
+
+const agendaWeekdayLabels = ['Domingo', 'Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado']
+
+function buildEmptyAppointmentForm(overrides = {}) {
+  return {
+    serviceId: '',
+    collaboratorId: '',
+    customerName: '',
+    customerPhone: '',
+    customerEmail: '',
+    appointmentDate: new Date().toISOString().slice(0, 10),
+    appointmentTime: '08:00',
+    notes: '',
+    ...overrides
+  }
+}
+
 const emptyPersonalReport = {
   collaborator: null,
   period: null,
@@ -150,6 +177,17 @@ const emptyBarberSettings = {
     pin_configured: null,
     expires_in_minutes: 10
   },
+  agenda: {
+    timezone: 'America/Cuiaba',
+    slot_interval_minutes: 30,
+    online_min_advance_enabled: false,
+    online_min_advance_value: 0,
+    minimum_notice_minutes: 0,
+    cancellation_limit_hours: 0,
+    allow_customer_select_collaborator: true,
+    allow_any_collaborator: true,
+    confirmation_message: ''
+  },
   plan: null
 }
 
@@ -170,6 +208,25 @@ const defaultCollaboratorFinancialFilters = {
   endDate: ''
 }
 
+const defaultSalesFilters = {
+  collaboratorId: '',
+  period: 'today',
+  startDate: '',
+  endDate: ''
+}
+
+const emptySalesSummary = {
+  total_sales: 0,
+  total_amount: 0,
+  total_commission: 0,
+  total_discount: 0,
+  total_by_payment_method: [],
+  total_by_collaborator: [],
+  totals_day: { total_amount: 0, total_sales: 0 },
+  totals_week: { total_amount: 0, total_sales: 0 },
+  totals_month: { total_amount: 0, total_sales: 0 }
+}
+
 const viewMeta = {
   dashboard: {
     label: 'Dashboard',
@@ -177,9 +234,9 @@ const viewMeta = {
     description: 'KPIs, ranking, faturamento recente e as ultimas movimentacoes da barbearia.'
   },
   appointments: {
-    label: 'Agendamentos',
-    title: 'Horarios, reservas e atendimento online',
-    description: 'Gerencie horarios, profissionais disponiveis e reservas dos seus clientes.'
+    label: 'Agenda',
+    title: 'Agenda da barbearia',
+    description: 'Controle horarios, disponibilidade da equipe e reservas em um fluxo unico.'
   },
   customers: {
     label: 'Clientes',
@@ -197,8 +254,8 @@ const viewMeta = {
     description: 'Organize estoque, categorias, fornecedor opcional e precificacao no mesmo padrao premium.'
   },
   sales: {
-    label: 'Vendas',
-    title: 'Operacao comercial',
+    label: 'Atendimentos',
+    title: 'Operacao de atendimentos',
     description: 'Registre atendimentos com clareza, acompanhe pagamentos e trate exclusoes com aprovacao.'
   },
   cashier: {
@@ -350,6 +407,23 @@ function buildCollaboratorFinancialParams(filters) {
   return params
 }
 
+function buildSalesParams(filters) {
+  const params = {
+    period: filters.period || 'today'
+  }
+
+  if (filters.collaboratorId) {
+    params.collaborator_id = filters.collaboratorId
+  }
+
+  if (params.period === 'custom' && filters.startDate && filters.endDate) {
+    params.start_date = filters.startDate
+    params.end_date = filters.endDate
+  }
+
+  return params
+}
+
 function advanceTone(status) {
   return {
     approved: 'approved',
@@ -372,6 +446,8 @@ function appointmentTone(status) {
   return {
     scheduled: 'pending',
     confirmed: 'approved',
+    arrived: 'admin',
+    in_progress: 'pix',
     completed: 'cash',
     canceled: 'danger',
     no_show: 'admin'
@@ -382,14 +458,25 @@ function appointmentLabel(status) {
   return {
     scheduled: 'Agendado',
     confirmed: 'Confirmado',
+    arrived: 'Chegou',
+    in_progress: 'Em atendimento',
     completed: 'Concluido',
     canceled: 'Cancelado',
     no_show: 'Nao compareceu'
   }[status] || status || 'Nao informado'
 }
 
+function collaboratorDisplayName(collaborator) {
+  return collaborator?.name || collaborator?.collaborator_name || collaborator?.nickname || 'Colaborador'
+}
+
 function formatAppointmentSlot(appointment) {
-  if (!appointment?.appointment_date) {
+  if (!appointment?.starts_at) {
+    return '-'
+  }
+
+  const startsAt = new Date(appointment.starts_at)
+  if (Number.isNaN(startsAt.getTime())) {
     return '-'
   }
 
@@ -397,14 +484,83 @@ function formatAppointmentSlot(appointment) {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
-  }).format(new Date(`${appointment.appointment_date}T00:00:00`))
+  }).format(startsAt)
 
-  const time = String(appointment.appointment_time || '').slice(0, 5)
+  const time = new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(startsAt)
+
   return time ? `${date} às ${time}` : date
 }
 
-function collaboratorDisplayName(collaborator) {
-  return collaborator?.name || collaborator?.collaborator_name || collaborator?.nickname || 'Colaborador'
+function formatAppointmentRange(appointment) {
+  if (!appointment?.starts_at) {
+    return '-'
+  }
+
+  const startsAt = new Date(appointment.starts_at)
+  if (Number.isNaN(startsAt.getTime())) {
+    return '-'
+  }
+
+  const start = new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(startsAt)
+
+  const end = appointment?.ends_at
+    ? new Intl.DateTimeFormat('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).format(new Date(appointment.ends_at))
+    : ''
+
+  const date = new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit'
+  }).format(startsAt)
+
+  if (start && end) {
+    return `${date} • ${start} - ${end}`
+  }
+
+  return start ? `${date} • ${start}` : date
+}
+
+function buildAppointmentStartsAt(date, time) {
+  const normalizedDate = String(date || '').trim()
+  const normalizedTime = String(time || '').trim()
+
+  if (!normalizedDate || !normalizedTime) {
+    return ''
+  }
+
+  const parsed = new Date(`${normalizedDate}T${normalizedTime}:00`)
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString()
+}
+
+function getAppointmentDateKey(appointment) {
+  if (!appointment?.starts_at) {
+    return ''
+  }
+
+  const parsed = new Date(appointment.starts_at)
+  if (Number.isNaN(parsed.getTime())) {
+    return ''
+  }
+
+  return parsed.toISOString().slice(0, 10)
+}
+
+function buildEmptySaleForm(collaboratorId = '') {
+  return {
+    ...emptySale,
+    collaboratorId: collaboratorId || ''
+  }
 }
 
 function normalizeAvatarFile(file) {
@@ -426,7 +582,7 @@ function normalizeAvatarFile(file) {
 function getInitialBarberView(pathname) {
   const normalized = String(pathname || '').trim()
 
-  if (normalized.startsWith('/barber/agenda') || normalized.startsWith('/barber/agendamentos')) {
+  if (normalized.startsWith('/barber/agenda') || normalized.startsWith('/barber/agendamentos') || normalized.startsWith('/barber/minha-agenda')) {
     return 'appointments'
   }
 
@@ -538,6 +694,11 @@ function Barber() {
   const [serviceFilters, setServiceFilters] = useState(defaultServiceFilters)
   const [serviceForm, setServiceForm] = useState(emptyService)
   const [editingServiceId, setEditingServiceId] = useState('')
+  const [serviceDrawerOpen, setServiceDrawerOpen] = useState(false)
+  const [submittingService, setSubmittingService] = useState(false)
+  const [deleteServiceId, setDeleteServiceId] = useState('')
+  const [deleteServicePassword, setDeleteServicePassword] = useState('')
+  const [deleteServicePin, setDeleteServicePin] = useState('')
   const [products, setProducts] = useState([])
   const [productCatalog, setProductCatalog] = useState([])
   const [productFilters, setProductFilters] = useState(defaultProductFilters)
@@ -551,6 +712,8 @@ function Barber() {
   const [personalReport, setPersonalReport] = useState(emptyPersonalReport)
   const [collaboratorFinancialSummary, setCollaboratorFinancialSummary] = useState([])
   const [collaboratorFinancialFilters, setCollaboratorFinancialFilters] = useState(defaultCollaboratorFinancialFilters)
+  const [salesFilters, setSalesFilters] = useState(defaultSalesFilters)
+  const [salesSummary, setSalesSummary] = useState(emptySalesSummary)
   const [collaboratorForm, setCollaboratorForm] = useState(emptyCollaborator)
   const [editingCollaboratorId, setEditingCollaboratorId] = useState('')
   const [collaboratorModalOpen, setCollaboratorModalOpen] = useState(false)
@@ -558,6 +721,7 @@ function Barber() {
   const [saleForm, setSaleForm] = useState(emptySale)
   const [saleCatalogSearch, setSaleCatalogSearch] = useState('')
   const [saleCatalogFilter, setSaleCatalogFilter] = useState('all')
+  const [servicePickerOpen, setServicePickerOpen] = useState(false)
   const [saleModalOpen, setSaleModalOpen] = useState(false)
   const [advanceForm, setAdvanceForm] = useState(emptyAdvance)
   const [settlementCollaboratorId, setSettlementCollaboratorId] = useState('')
@@ -575,6 +739,7 @@ function Barber() {
   const [success, setSuccess] = useState('')
   const [settingsData, setSettingsData] = useState(emptyBarberSettings)
   const [settingsLoading, setSettingsLoading] = useState(false)
+  const [settingsSaving, setSettingsSaving] = useState(false)
   const [pinRecoveryOpen, setPinRecoveryOpen] = useState(false)
   const [pinRecoveryStep, setPinRecoveryStep] = useState('request')
   const [pinRecoverySubmitting, setPinRecoverySubmitting] = useState(false)
@@ -584,13 +749,26 @@ function Barber() {
     newPin: '',
     confirmPin: ''
   })
+  const [scheduleBlocks, setScheduleBlocks] = useState([])
+  const [workingHours, setWorkingHours] = useState([])
+  const [appointmentViewTab, setAppointmentViewTab] = useState('list') // 'calendar', 'list', 'blocks', 'hours'
+  const [agendaMode, setAgendaMode] = useState('week')
+  const [agendaMonthCursor, setAgendaMonthCursor] = useState(() => new Date().toISOString().slice(0, 10))
+  const [activeAgendaAppointment, setActiveAgendaAppointment] = useState(null)
+  const [agendaModalOpen, setAgendaModalOpen] = useState(false)
+  const [appointmentFilters, setAppointmentFilters] = useState(defaultAppointmentFilters)
+  const [appointmentComposerOpen, setAppointmentComposerOpen] = useState(false)
+  const [submittingAppointment, setSubmittingAppointment] = useState(false)
+  const [appointmentForm, setAppointmentForm] = useState(() => buildEmptyAppointmentForm())
+  const [showAgendaFilters, setShowAgendaFilters] = useState(true)
 
-  const isAdmin = ['admin', 'owner', 'master_admin'].includes(user?.role)
-  const canManageCash = ['admin', 'owner', 'master_admin', 'secretary'].includes(user?.role)
+  const isAdmin = ['admin', 'owner', 'master_admin', 'tenant_owner', 'tenant_admin'].includes(user?.role)
+  const canManageCash = ['admin', 'owner', 'master_admin', 'tenant_owner', 'tenant_admin', 'secretary'].includes(user?.role)
   const currentView = getInitialBarberView(location.pathname) || activeView
   const meta = viewMeta[currentView]
   const isEditingCollaborator = Boolean(editingCollaboratorId)
   const isCollaborator = user?.role === 'collaborator'
+  const loggedInCollaboratorId = user?.collaborator_id || user?.collaboratorId || ''
   const currentPlanType = planLoading ? null : normalizeFeaturePlanType(user?.plan_type)
   const planLabel = planLoading ? 'Carregando plano...' : getPlanDisplayLabel(currentPlanType)
   const canUseCollaboratorsFeature = canUseFeature(currentPlanType, 'collaborators')
@@ -598,6 +776,16 @@ function Barber() {
   const canUseFinancialDashboardFeature = canUseFeature(currentPlanType, 'financial_dashboard')
   const canUseAdvancedScheduleFeature = canUseFeature(currentPlanType, 'advanced_schedule')
   const canUseExtraPermissionsFeature = canUseFeature(currentPlanType, 'extra_permissions')
+  const loggedInCollaborator = useMemo(() => {
+    if (!isCollaborator) {
+      return null
+    }
+
+    return dashboard?.collaborator
+      || personalReport?.collaborator
+      || collaborators.find((collaborator) => collaborator.id === loggedInCollaboratorId)
+      || null
+  }, [collaborators, dashboard?.collaborator, isCollaborator, loggedInCollaboratorId, personalReport?.collaborator])
 
   const lockedViews = useMemo(() => {
     const nextLockedViews = {}
@@ -742,21 +930,34 @@ function Barber() {
 
     try {
       const requests = [
-        api.get('/barber/dashboard'),
+        api.get(isCollaborator ? '/barber/my-dashboard' : '/barber/dashboard'),
         api.get('/barber/services'),
-        api.get(isCollaborator ? '/barber/my-sales' : '/barber/sales'),
+        api.get(isCollaborator ? '/barber/my-sales' : '/barber/sales', {
+          params: isCollaborator ? {} : buildSalesParams(salesFilters)
+        }),
         api.get('/barber/advances')
       ]
 
-      if (canUseAdvancedReportsFeature) {
+      if (!isCollaborator) {
+        requests.push(api.get('/barber/sales/summary', {
+          params: buildSalesParams(salesFilters)
+        }))
+      }
+
+      if (!isCollaborator && canUseAdvancedReportsFeature) {
         requests.push(api.get('/barber/settlements'))
         requests.push(api.get('/barber/collaborators/financial-summary', {
           params: buildCollaboratorFinancialParams(collaboratorFinancialFilters)
         }))
       }
 
-      if ((isAdmin || canManageCash) && canUseAdvancedScheduleFeature) {
+      if ((isAdmin || canManageCash || isCollaborator) && canUseAdvancedScheduleFeature) {
         requests.push(api.get('/barber/appointments'))
+
+        if (!isCollaborator) {
+          requests.push(api.get('/barber/schedule/blocks'))
+          requests.push(api.get('/barber/working-hours'))
+        }
       }
 
       if (isCollaborator && canUseAdvancedReportsFeature) {
@@ -789,7 +990,14 @@ function Barber() {
 
       let responseIndex = 0
 
-      if (canUseAdvancedReportsFeature) {
+      if (!isCollaborator) {
+        setSalesSummary(restResponses[responseIndex].data.data || emptySalesSummary)
+        responseIndex += 1
+      } else {
+        setSalesSummary(emptySalesSummary)
+      }
+
+      if (!isCollaborator && canUseAdvancedReportsFeature) {
         setSettlements(restResponses[responseIndex].data.data.settlements)
         responseIndex += 1
         setCollaboratorFinancialSummary(restResponses[responseIndex].data.data || [])
@@ -799,11 +1007,30 @@ function Barber() {
         setCollaboratorFinancialSummary([])
       }
 
-      if ((isAdmin || canManageCash) && canUseAdvancedScheduleFeature) {
+      if ((isAdmin || canManageCash || isCollaborator) && canUseAdvancedScheduleFeature) {
         setAppointmentsOverview(restResponses[responseIndex].data.data || emptyAppointmentsOverview)
         responseIndex += 1
+
+        if (!isCollaborator) {
+          setScheduleBlocks(restResponses[responseIndex].data.data || [])
+          responseIndex += 1
+          setWorkingHours(restResponses[responseIndex].data.data || [])
+          responseIndex += 1
+        } else {
+          setScheduleBlocks([])
+          setWorkingHours([])
+        }
       } else {
         setAppointmentsOverview(emptyAppointmentsOverview)
+        setScheduleBlocks([])
+        setWorkingHours([])
+      }
+
+      if (isCollaborator && canUseAdvancedReportsFeature) {
+        setPersonalReport(restResponses[responseIndex].data.data)
+        responseIndex += 1
+      } else {
+        setPersonalReport(emptyPersonalReport)
       }
 
       if (isAdmin) {
@@ -818,21 +1045,23 @@ function Barber() {
         setSuppliers([])
       }
 
-      if (isCollaborator && canUseAdvancedReportsFeature) {
-        setPersonalReport(restResponses[responseIndex].data.data)
-        responseIndex += 1
-      } else {
-        setPersonalReport(emptyPersonalReport)
-      }
-
       if ((isAdmin || canManageCash) && canUseCollaboratorsFeature) {
-        setCollaborators(restResponses[responseIndex].data.data)
+        const collaboratorsResponse = restResponses[responseIndex]?.data?.data
+        const nextCollaborators = Array.isArray(collaboratorsResponse)
+          ? collaboratorsResponse
+          : collaboratorsResponse?.collaborators
+            || collaboratorsResponse?.items
+            || collaboratorsResponse?.rows
+            || []
+
+        setCollaborators(nextCollaborators)
         responseIndex += 1
       } else {
         setCollaborators([])
       }
 
     } catch (err) {
+      console.error('Erro ao carregar dados do BarberGestor:', err)
       setError(err.response?.data?.error || 'Nao foi possivel carregar o BarberGestor')
     } finally {
       setLoading(false)
@@ -844,7 +1073,8 @@ function Barber() {
     canUseCollaboratorsFeature,
     collaboratorFinancialFilters,
     isAdmin,
-    isCollaborator
+    isCollaborator,
+    salesFilters
   ])
 
   useEffect(() => {
@@ -854,6 +1084,23 @@ function Barber() {
 
     return () => window.clearTimeout(timeoutId)
   }, [loadData])
+
+  useEffect(() => {
+    if (!isCollaborator) {
+      return
+    }
+
+    setSaleForm((current) => {
+      if (current.collaboratorId === loggedInCollaboratorId) {
+        return current
+      }
+
+      return {
+        ...current,
+        collaboratorId: loggedInCollaboratorId
+      }
+    })
+  }, [isCollaborator, loggedInCollaboratorId])
 
   useEffect(() => {
     if (currentView === 'settings' && isAdmin) {
@@ -891,6 +1138,16 @@ function Barber() {
     setPinRecoveryForm((current) => ({
       ...current,
       [field]: field === 'email' ? normalizeEmail(value) : value
+    }))
+  }
+
+  function handleAgendaSettingsChange(field, value) {
+    setSettingsData((current) => ({
+      ...current,
+      agenda: {
+        ...(current.agenda || emptyBarberSettings.agenda),
+        [field]: value
+      }
     }))
   }
 
@@ -965,6 +1222,36 @@ function Barber() {
       setError(err.response?.data?.error || 'Nao foi possivel redefinir o PIN.')
     } finally {
       setPinRecoverySubmitting(false)
+    }
+  }
+
+  async function handleAgendaSettingsSubmit(event) {
+    event.preventDefault()
+    setError('')
+    setSuccess('')
+
+    const enabled = settingsData.agenda?.online_min_advance_enabled === true
+    const value = Number(settingsData.agenda?.online_min_advance_value || 0)
+    const allowedAdvanceValues = [1, 2, 4, 8, 12, 24]
+
+    if (enabled && !allowedAdvanceValues.includes(value)) {
+      setError('Selecione uma antecedencia minima valida em horas para o agendamento online.')
+      return
+    }
+
+    try {
+      setSettingsSaving(true)
+      const response = await api.patch('/barber/settings', {
+        online_min_advance_enabled: enabled,
+        online_min_advance_value: enabled ? value : 0
+      })
+
+      setSettingsData(response.data?.data || emptyBarberSettings)
+      setSuccess('Configuracoes da agenda online atualizadas com sucesso.')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Nao foi possivel atualizar as configuracoes da agenda.')
+    } finally {
+      setSettingsSaving(false)
     }
   }
 
@@ -1138,18 +1425,59 @@ function Barber() {
 
   const ranking = visibleCollaboratorSummary.slice(0, 5)
   const topCollaborator = ranking[0]
-  const visibleServices = services.filter((service) => service.is_active && !service.is_deleted)
+  const visibleServices = Array.isArray(services)
+    ? services.filter((service) => service.is_active !== false && service.is_deleted !== true)
+    : []
+  const servicesById = useMemo(() => {
+    return new Map(visibleServices.map((service) => [service.id, service]))
+  }, [visibleServices])
   const visibleProducts = products.filter((product) => product.is_active && !product.is_deleted)
-  const appointmentGroups = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10)
+  const filteredAppointments = useMemo(() => {
     const appointments = appointmentsOverview.appointments || []
 
+    return appointments.filter((appointment) => {
+      if (appointmentFilters.date && getAppointmentDateKey(appointment) !== appointmentFilters.date) {
+        return false
+      }
+
+      if (appointmentFilters.status !== 'all' && appointment.status !== appointmentFilters.status) {
+        return false
+      }
+
+      if (!isCollaborator && appointmentFilters.collaboratorId !== 'all' && appointment.collaborator_id !== appointmentFilters.collaboratorId) {
+        return false
+      }
+
+      return true
+    })
+  }, [appointmentFilters.collaboratorId, appointmentFilters.date, appointmentFilters.status, appointmentsOverview.appointments, isCollaborator])
+
+  const appointmentGroups = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    const appointments = filteredAppointments
+
     return {
-      today: appointments.filter((appointment) => appointment.appointment_date === today && appointment.status !== 'canceled'),
-      upcoming: appointments.filter((appointment) => appointment.appointment_date >= today && ['scheduled', 'confirmed'].includes(appointment.status)),
+      today: appointments.filter((appointment) => getAppointmentDateKey(appointment) === today && appointment.status !== 'canceled'),
+      upcoming: appointments.filter((appointment) => getAppointmentDateKey(appointment) >= today && ['scheduled', 'confirmed', 'arrived', 'in_progress'].includes(appointment.status)),
+      active: appointments.filter((appointment) => ['confirmed', 'arrived', 'in_progress'].includes(appointment.status)),
+      completed: appointments.filter((appointment) => appointment.status === 'completed'),
       canceled: appointments.filter((appointment) => appointment.status === 'canceled')
     }
-  }, [appointmentsOverview.appointments])
+  }, [filteredAppointments])
+  const appointmentsWithMeta = useMemo(() => {
+    return filteredAppointments.map((appointment) => ({
+      ...appointment,
+      dateKey: getAppointmentDateKey(appointment),
+      timeLabel: appointment.starts_at ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(appointment.starts_at)) : '--:--',
+      timeCompactLabel: appointment.starts_at ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(appointment.starts_at)) : '--:--',
+      slotLabel: formatAppointmentRange(appointment),
+      appointment_date_label: appointment.starts_at ? shortDate(appointment.starts_at) : '-',
+      duration_label: appointment.ends_at && appointment.starts_at
+        ? `${Math.max(0, Math.round((new Date(appointment.ends_at) - new Date(appointment.starts_at)) / 60000))} min`
+        : '-',
+      service_price_label: money(servicesById.get(appointment.service_id)?.price || appointment.service_price || 0)
+    }))
+  }, [filteredAppointments, servicesById])
 
   const saleCatalogItems = useMemo(() => {
     const normalizedSearch = saleCatalogSearch.trim().toLowerCase()
@@ -1211,7 +1539,18 @@ function Barber() {
 
   function closeSaleModal() {
     setSaleModalOpen(false)
-    setSaleForm(emptySale)
+    setSaleForm(buildEmptySaleForm(loggedInCollaboratorId))
+  }
+
+  function openServicePicker() {
+    setError('')
+    setSaleCatalogSearch('')
+    setSaleCatalogFilter('all')
+    setServicePickerOpen(true)
+  }
+
+  function closeServicePicker() {
+    setServicePickerOpen(false)
   }
 
   function calculateSaleItemPreview(source, quantity) {
@@ -1248,6 +1587,38 @@ function Barber() {
     setError('')
   }
 
+  function appendSaleItemFromCatalog(source, itemType, quantity = 1, options = {}) {
+    const qty = Math.max(Number(quantity || 1), 1)
+    const preview = calculateSaleItemPreview(source, qty)
+
+    setSaleForm((current) => ({
+      ...current,
+      catalogType: 'service',
+      serviceId: '',
+      productId: '',
+      quantity: 1,
+      items: [
+        ...current.items,
+        {
+          key: `${itemType}-${source.id}-${Date.now()}`,
+          itemType,
+          itemId: source.id,
+          name: source.name,
+          icon: itemType === 'product' ? 'product' : normalizeServiceIcon(source.icon, source.name),
+          unitPrice: Number(source.price ?? source.sale_price ?? 0),
+          quantity: qty,
+          ...preview
+        }
+      ]
+    }))
+
+    setError('')
+
+    if (options.closeAfterAdd) {
+      setServicePickerOpen(false)
+    }
+  }
+
   function addSaleItem() {
     const itemType = selectedSaleItemType
     const source = selectedSaleSource
@@ -1265,29 +1636,10 @@ function Barber() {
       return
     }
 
-    const preview = calculateSaleItemPreview(source, quantity)
-
-    setSaleForm((current) => ({
-      ...current,
-      catalogType: 'service',
-      serviceId: '',
-      productId: '',
-      quantity: 1,
-      items: [
-        ...current.items,
-        {
-          key: `${itemType}-${itemId}-${Date.now()}`,
-          itemType,
-          itemId,
-          name: source.name,
-          icon: itemType === 'product' ? 'product' : normalizeServiceIcon(source.icon, source.name),
-          unitPrice: Number(source.price ?? source.sale_price ?? 0),
-          quantity,
-          ...preview
-        }
-      ]
-    }))
-    setError('')
+    appendSaleItemFromCatalog({
+      ...source,
+      id: itemId
+    }, itemType, quantity)
   }
 
   function removeSaleItem(itemKey) {
@@ -1325,6 +1677,20 @@ function Barber() {
   function resetServiceEditor() {
     setEditingServiceId('')
     setServiceForm(emptyService)
+    setServiceDrawerOpen(false)
+    setSubmittingService(false)
+  }
+
+  function openServiceCreateDrawer() {
+    setEditingServiceId('')
+    setServiceForm(emptyService)
+    setServiceDrawerOpen(true)
+  }
+
+  function closeServiceDeleteModal() {
+    setDeleteServiceId('')
+    setDeleteServicePassword('')
+    setDeleteServicePin('')
   }
 
   function closeCollaboratorModal() {
@@ -1462,6 +1828,7 @@ function Barber() {
     event.preventDefault()
     setError('')
     setSuccess('')
+    setSubmittingService(true)
 
     const payload = {
       name: serviceForm.name,
@@ -1478,10 +1845,10 @@ function Barber() {
     try {
       if (isEditingService) {
         await api.put(`/barber/services/${editingServiceId}`, payload)
-        setSuccess('Servico atualizado')
+        setSuccess('Servico atualizado com sucesso.')
       } else {
         await api.post('/barber/services', payload)
-        setSuccess('Servico cadastrado')
+        setSuccess('Servico cadastrado com sucesso.')
       }
 
       resetServiceEditor()
@@ -1492,6 +1859,8 @@ function Barber() {
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Nao foi possivel salvar o servico')
+    } finally {
+      setSubmittingService(false)
     }
   }
 
@@ -1503,6 +1872,7 @@ function Barber() {
       const response = await api.get(`/barber/services/${serviceId}`)
       setEditingServiceId(serviceId)
       setServiceForm(normalizeServiceForm(response.data.data))
+      setServiceDrawerOpen(true)
       navigateView('services')
     } catch (err) {
       setError(err.response?.data?.error || 'Nao foi possivel carregar o servico')
@@ -1525,20 +1895,31 @@ function Barber() {
     }
   }
 
-  async function removeService(serviceId) {
-    if (!window.confirm('Deseja realmente excluir este servico do catalogo?')) {
-      return
-    }
+  function requestServiceDelete(serviceId) {
+    setDeleteServiceId(serviceId)
+  }
 
+  async function removeService() {
     setError('')
     setSuccess('')
 
+    if (!deleteServicePassword && !deleteServicePin) {
+      setError('Informe a senha admin ou PIN para excluir')
+      return
+    }
+
     try {
-      await api.delete(`/barber/services/${serviceId}`)
-      if (editingServiceId === serviceId) {
+      await api.delete(`/barber/services/${deleteServiceId}`, {
+        data: {
+          adminPassword: deleteServicePassword,
+          pin: deleteServicePin
+        }
+      })
+      if (editingServiceId === deleteServiceId) {
         resetServiceEditor()
       }
-      setSuccess('Servico excluido')
+      closeServiceDeleteModal()
+      setSuccess('Servico excluido com seguranca.')
       await loadData()
       await loadServiceCatalog(serviceFilters, { keepFullList: true, showError: false })
     } catch (err) {
@@ -1695,6 +2076,7 @@ function Barber() {
       closeCollaboratorModal()
       await loadData()
     } catch (err) {
+      console.error('Erro ao salvar colaborador:', err)
       setError(err.response?.data?.error || 'Nao foi possivel salvar o colaborador')
     }
   }
@@ -1808,16 +2190,151 @@ function Barber() {
     }
   }
 
-  async function cancelAppointment(appointmentId) {
+  async function cancelAppointment(appointmentId, reason = '') {
     setError('')
     setSuccess('')
 
     try {
-      await api.patch(`/barber/appointments/${appointmentId}/cancel`)
+      await api.patch(`/barber/appointments/${appointmentId}/cancel`, { reason })
       setSuccess('Agendamento cancelado')
       await loadData({ clearMessage: false })
     } catch (err) {
       setError(err.response?.data?.error || 'Nao foi possivel cancelar o agendamento')
+    }
+  }
+
+  async function rescheduleAppointment(appointmentId, date, time) {
+    setError('')
+    setSuccess('')
+
+    try {
+      const startsAt = buildAppointmentStartsAt(date, time)
+      await api.patch(`/barber/appointments/${appointmentId}/reschedule`, {
+        startsAt
+      })
+      setSuccess('Agendamento remarcado')
+      await loadData({ clearMessage: false })
+    } catch (err) {
+      setError(err.response?.data?.error || 'Nao foi possivel remarcar o agendamento')
+    }
+  }
+
+  async function deleteAppointment(appointmentId) {
+    if (!window.confirm('Excluir permanentemente este agendamento?')) return
+
+    setError('')
+    setSuccess('')
+
+    try {
+      await api.delete(`/barber/appointments/${appointmentId}`)
+      setSuccess('Agendamento excluido')
+      await loadData({ clearMessage: false })
+    } catch (err) {
+      setError(err.response?.data?.error || 'Nao foi possivel excluir o agendamento')
+    }
+  }
+
+  async function saveWorkingHours(hoursData) {
+    setError('')
+    setSuccess('')
+    try {
+      await api.post('/barber/working-hours', hoursData)
+      setSuccess('Horario de funcionamento atualizado')
+      await loadData({ clearMessage: false })
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao salvar horario')
+    }
+  }
+
+  function updateAppointmentForm(event) {
+    const { name, value } = event.target
+    setAppointmentForm((current) => ({
+      ...current,
+      [name]: value
+    }))
+  }
+
+  function updateSalesFilters(event) {
+    const { name, value } = event.target
+    setSalesFilters((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === 'period' && value !== 'custom' ? { startDate: '', endDate: '' } : {})
+    }))
+  }
+
+  function closeAppointmentComposer() {
+    setAppointmentComposerOpen(false)
+    setAppointmentForm(buildEmptyAppointmentForm({
+      appointmentDate: appointmentFilters.date || new Date().toISOString().slice(0, 10),
+      collaboratorId: isCollaborator ? loggedInCollaboratorId : ''
+    }))
+  }
+
+  function openAppointmentComposer(seed = {}) {
+    if (!canManageCash) {
+      return
+    }
+
+    setError('')
+    setSuccess('')
+    setAppointmentForm(buildEmptyAppointmentForm({
+      appointmentDate: appointmentFilters.date || new Date().toISOString().slice(0, 10),
+      collaboratorId: isCollaborator ? loggedInCollaboratorId : '',
+      ...seed
+    }))
+    setAppointmentComposerOpen(true)
+  }
+
+  async function submitAppointment(event) {
+    event.preventDefault()
+    setError('')
+    setSuccess('')
+    setSubmittingAppointment(true)
+
+    try {
+      const startsAt = buildAppointmentStartsAt(appointmentForm.appointmentDate, appointmentForm.appointmentTime)
+      await api.post('/barber/appointments', {
+        serviceId: appointmentForm.serviceId,
+        collaboratorId: appointmentForm.collaboratorId,
+        customerName: appointmentForm.customerName,
+        customerPhone: appointmentForm.customerPhone,
+        customerEmail: appointmentForm.customerEmail,
+        notes: appointmentForm.notes,
+        startsAt
+      })
+      setSuccess('Agendamento criado com sucesso')
+      closeAppointmentComposer()
+      await loadData({ clearMessage: false })
+    } catch (err) {
+      console.error('Erro ao criar agendamento:', err)
+      setError(err.response?.data?.error || 'Nao foi possivel criar o agendamento')
+    } finally {
+      setSubmittingAppointment(false)
+    }
+  }
+
+  async function saveScheduleBlock(blockData) {
+    setError('')
+    setSuccess('')
+    try {
+      await api.post('/barber/schedule/blocks', blockData)
+      setSuccess('Bloqueio de agenda criado')
+      await loadData({ clearMessage: false })
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao criar bloqueio')
+    }
+  }
+
+  async function deleteScheduleBlock(blockId) {
+    setError('')
+    setSuccess('')
+    try {
+      await api.delete(`/barber/schedule/blocks/${blockId}`)
+      setSuccess('Bloqueio removido')
+      await loadData({ clearMessage: false })
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao remover bloqueio')
     }
   }
 
@@ -1980,28 +2497,25 @@ function Barber() {
       return
     }
 
-    if (!deletePassword && !deletePin) {
-      setError('Informe a senha admin ou PIN para excluir')
+    if (!deletePin) {
+      setError('Informe o PIN admin para cancelar')
       return
     }
 
     try {
-      await api.delete(`/barber/sales/${deleteSaleId}`, {
-        data: {
-          reason: deleteReason,
-          adminPassword: deletePassword,
-          pin: deletePin
-        }
+      await api.post(`/barber/sales/${deleteSaleId}/cancel`, {
+        reason: deleteReason,
+        pin: deletePin
       })
 
       setDeleteSaleId('')
       setDeleteReason('')
       setDeletePassword('')
       setDeletePin('')
-      setSuccess('Venda excluida')
+      setSuccess('Atendimento cancelado')
       await loadData()
     } catch (err) {
-      setError(err.response?.data?.error || 'Nao foi possivel excluir a venda')
+      setError(err.response?.data?.error || 'Nao foi possivel cancelar o atendimento')
     }
   }
 
@@ -2016,7 +2530,7 @@ function Barber() {
             metrics={collaboratorMetrics}
             money={money}
             onOpenSale={() => {
-              setSaleForm(emptySale)
+              setSaleForm(buildEmptySaleForm(loggedInCollaboratorId))
               setSaleModalOpen(true)
             }}
             recentAttendances={collaboratorRecentAttendances}
@@ -2025,29 +2539,42 @@ function Barber() {
         )
       }
 
+      const collaboratorTodayCommission = collaboratorMetrics.today?.commission ?? collaboratorMetrics.todayCommission ?? 0
+      const collaboratorWeekCommission = collaboratorMetrics.week?.commission ?? collaboratorMetrics.weekCommission ?? 0
+      const collaboratorMonthCommission = collaboratorMetrics.month?.commission ?? collaboratorMetrics.monthCommission ?? 0
+      const collaboratorTodayAttendances = collaboratorMetrics.today?.appointments ?? collaboratorMetrics.todayAttendances ?? 0
+      const collaboratorMonthAttendances = collaboratorMetrics.month?.appointments ?? collaboratorMetrics.monthAttendances ?? 0
+      const pendingAdvancesCount = advances.filter((advance) => advance.status === 'pending').length
+
       const collaboratorCards = [
         {
-          title: 'Meus atendimentos hoje',
-          value: `${collaboratorMetrics.totalAttendances || collaboratorMetrics.todayAttendances || 0}`,
-          detail: 'Quantidade de atendimentos feitos por voce hoje',
-          glow: 'blue'
-        },
-        {
-          title: 'Minha comissao acumulada',
-          value: money(collaboratorMetrics.myCommissionAccumulated || collaboratorMetrics.totalCommission),
-          detail: 'Soma das suas comissoes registradas',
+          title: 'Comissao hoje',
+          value: money(collaboratorTodayCommission),
+          detail: 'Baseado nos atendimentos que voce lancou hoje',
           glow: 'green'
         },
         {
           title: 'Comissao da semana',
-          value: money(collaboratorMetrics.weekCommission),
-          detail: 'Apurado apenas nas suas vendas',
+          value: money(collaboratorWeekCommission),
+          detail: 'Apurado apenas nas suas vendas ativas',
           glow: 'gold'
         },
         {
-          title: 'Adiantamentos',
-          value: money(collaboratorMetrics.myAdvances || collaboratorMetrics.totalAdvances),
-          detail: 'Vales aprovados ou liquidados no seu nome',
+          title: 'Comissao do mes',
+          value: money(collaboratorMonthCommission),
+          detail: 'Acumulado pessoal do mes atual',
+          glow: 'gold'
+        },
+        {
+          title: 'Atendimentos do mes',
+          value: `${collaboratorMonthAttendances}`,
+          detail: 'Quantidade lancada no seu perfil',
+          glow: 'blue'
+        },
+        {
+          title: 'Comissoes pendentes',
+          value: money(collaboratorMetrics.mySettlementBalance || collaboratorMetrics.netCommission || 0),
+          detail: `${pendingAdvancesCount} vale(s) pendente(s), quando houver`,
           glow: 'red'
         }
       ]
@@ -2063,9 +2590,9 @@ function Barber() {
                 sem expor valores financeiros da barbearia.
               </p>
               <div className="barber-inline-kpis">
-                <span>{collaboratorMetrics.totalAttendances || collaboratorMetrics.todayAttendances || 0} atendimentos hoje</span>
+                <span>{collaboratorTodayAttendances} atendimentos hoje</span>
                 <span>{collaboratorRecentAttendances.length} registros recentes</span>
-                <span>{advances.filter((advance) => advance.status === 'pending').length} vales pendentes</span>
+                <span>{pendingAdvancesCount} vales pendentes</span>
               </div>
             </div>
 
@@ -2579,16 +3106,28 @@ function Barber() {
   function renderServices() {
     return (
       <Servicos
+        deletePassword={deleteServicePassword}
+        deletePin={deleteServicePin}
+        deleteTarget={serviceCatalog.find((service) => service.id === deleteServiceId) || null}
+        deleteOpen={Boolean(deleteServiceId)}
         filters={serviceFilters}
         form={serviceForm}
         isAdmin={isAdmin}
         isEditing={isEditingService}
+        isSaving={submittingService}
+        isDrawerOpen={serviceDrawerOpen}
         money={money}
         onCancelEdit={resetServiceEditor}
-        onDelete={removeService}
+        onCloseDelete={closeServiceDeleteModal}
+        onCloseDrawer={resetServiceEditor}
+        onDelete={requestServiceDelete}
+        onDeleteConfirm={removeService}
         onEdit={editService}
         onFilterChange={updateServiceFilters}
         onFormChange={updateServiceForm}
+        onOpenCreate={openServiceCreateDrawer}
+        onDeletePasswordChange={setDeleteServicePassword}
+        onDeletePinChange={setDeleteServicePin}
         onSubmit={submitService}
         onToggleStatus={toggleServiceStatus}
         services={serviceCatalog}
@@ -2621,189 +3160,527 @@ function Barber() {
       ? `${window.location.origin}${appointmentsOverview.public_booking_path}`
       : ''
 
-    const summaryCards = [
-      {
-        label: 'Agendamentos de hoje',
-        value: appointmentsOverview.summary.appointments_today,
-        tone: 'cash'
-      },
-      {
-        label: 'Proximos horarios',
-        value: appointmentsOverview.summary.upcoming_slots,
-        tone: 'pix'
-      },
-      {
-        label: 'Profissionais disponiveis',
-        value: appointmentsOverview.summary.available_collaborators,
-        tone: 'admin'
-      },
-      {
-        label: 'Servicos agendaveis',
-        value: appointmentsOverview.summary.bookable_services,
-        tone: 'permuta'
+    const summaryCards = isCollaborator
+      ? [
+          { label: 'Hoje', value: appointmentGroups.today.length, tone: 'cash' },
+          { label: 'Confirmados', value: appointmentGroups.active.length, tone: 'approved' },
+          { label: 'Finalizados', value: appointmentGroups.completed.length, tone: 'admin' },
+          { label: 'Faltas', value: filteredAppointments.filter((appointment) => appointment.status === 'no_show').length, tone: 'danger' }
+        ]
+      : [
+          { label: 'Agendamentos hoje', value: appointmentsOverview.summary.appointments_today, tone: 'cash' },
+          { label: 'Confirmados', value: appointmentGroups.active.length, tone: 'approved' },
+          { label: 'Faltas', value: filteredAppointments.filter((appointment) => appointment.status === 'no_show').length, tone: 'danger' },
+          { label: 'Ocupacao do dia', value: `${Math.max(0, Math.min(100, Math.round((appointmentGroups.today.length / Math.max(appointmentsOverview.summary.available_collaborators || 1, 1)) * 25)))}%`, tone: 'pix' }
+        ]
+
+    const collaboratorOptions = isCollaborator
+      ? [loggedInCollaborator].filter(Boolean)
+      : collaborators.filter((collaborator) => collaborator.is_active && !collaborator.is_deleted)
+    const agendaDate = appointmentFilters.date || new Date().toISOString().slice(0, 10)
+    const currentDate = new Date(`${agendaDate}T00:00:00`)
+    const currentMonth = new Date(`${agendaMonthCursor.slice(0, 7)}-01T00:00:00`)
+    const selectedCollaboratorIds = isCollaborator
+      ? [loggedInCollaboratorId]
+      : appointmentFilters.collaboratorId === 'all'
+        ? collaboratorOptions.map((collaborator) => collaborator.id)
+        : [appointmentFilters.collaboratorId]
+    const collaboratorsForGrid = collaboratorOptions.filter((collaborator) => selectedCollaboratorIds.includes(collaborator.id))
+    const todayDate = new Date().toISOString().slice(0, 10)
+    const todayList = appointmentsWithMeta.filter((appointment) => appointment.dateKey === todayDate)
+    const selectedDateLabel = new Intl.DateTimeFormat('pt-BR', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long'
+    }).format(currentDate)
+    const shiftAgendaDate = (amount) => {
+      const next = new Date(currentDate)
+      next.setDate(next.getDate() + amount)
+      const nextDate = next.toISOString().slice(0, 10)
+      setAppointmentFilters((current) => ({ ...current, date: nextDate }))
+      setAgendaMonthCursor(nextDate)
+      setActiveAgendaAppointment(null)
+    }
+    const selectedWeekday = currentDate.getDay()
+    const fallbackWorkingHours = agendaWeekdayLabels.map((_, weekday) => ({
+      id: `fallback-${weekday}`,
+      company_id: user?.company_id || '',
+      collaborator_id: null,
+      weekday,
+      opens_at: '08:00',
+      closes_at: '20:00',
+      is_closed: false
+    }))
+    const effectiveWorkingHours = workingHours.length > 0 ? workingHours : fallbackWorkingHours
+    const workingHoursByCollaborator = Object.fromEntries(
+      collaboratorsForGrid.map((collaborator) => {
+        const specific = effectiveWorkingHours.find((item) => item.weekday === selectedWeekday && item.collaborator_id === collaborator.id)
+        const companyWide = effectiveWorkingHours.find((item) => item.weekday === selectedWeekday && !item.collaborator_id)
+        return [collaborator.id, specific || companyWide || null]
+      })
+    )
+    const dayWorkingHours = effectiveWorkingHours.find((item) => item.weekday === selectedWeekday && !item.collaborator_id) || null
+    const nextOpeningLabel = dayWorkingHours?.is_closed
+      ? 'Dia fechado'
+      : `${dayWorkingHours?.opens_at || '08:00'} - ${dayWorkingHours?.closes_at || '20:00'}`
+    const blockedAppointmentsForSelectedDay = scheduleBlocks.flatMap((block) => {
+      const startsAt = new Date(block.starts_at)
+      const endsAt = new Date(block.ends_at)
+      const dayStart = new Date(`${agendaDate}T00:00:00`)
+      const dayEnd = new Date(`${agendaDate}T23:59:59`)
+
+      if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+        return []
       }
-    ]
 
-    const renderAppointmentCards = (items, emptyTitle, emptyDescription) => {
-      if (items.length === 0) {
-        return (
-          <BarberEmptyState
-            description={emptyDescription}
-            title={emptyTitle}
-          />
-        )
+      if (!(startsAt < dayEnd && endsAt > dayStart)) {
+        return []
       }
 
-      return (
-        <div className="barber-appointments-list">
-          {items.map((appointment) => (
-            <article className="barber-appointment-card" key={appointment.id}>
-              <div className="barber-appointment-card-top">
-                <div>
-                  <strong>{appointment.customer_name}</strong>
-                  <p>{appointment.customer_phone}</p>
-                </div>
-                <BarberBadge tone={appointmentTone(appointment.status)}>
-                  {appointmentLabel(appointment.status)}
-                </BarberBadge>
-              </div>
+      const targetCollaborators = block.collaborator_id
+        ? collaboratorsForGrid.filter((collaborator) => collaborator.id === block.collaborator_id)
+        : collaboratorsForGrid
 
-              <div className="barber-appointment-card-grid">
-                <div>
-                  <span>Servico</span>
-                  <strong>{appointment.service_name}</strong>
-                </div>
-                <div>
-                  <span>Profissional</span>
-                  <strong>{appointment.collaborator_name}</strong>
-                </div>
-                <div>
-                  <span>Horario</span>
-                  <strong>{formatAppointmentSlot(appointment)}</strong>
-                </div>
-                <div>
-                  <span>Status</span>
-                  <strong>{appointmentLabel(appointment.status)}</strong>
-                </div>
-              </div>
+      return targetCollaborators.map((collaborator) => ({
+        id: `blocked-${block.id}-${collaborator.id}`,
+        company_id: user?.company_id || '',
+        collaborator_id: collaborator.id,
+        collaborator_name: collaborator.nickname || collaborator.name || 'Colaborador',
+        customer_name: 'Horario bloqueado',
+        customer_phone: '',
+        service_name: block.reason || 'Bloqueio manual',
+        reason: block.reason || 'Bloqueio manual',
+        status: 'blocked',
+        starts_at: block.starts_at,
+        ends_at: block.ends_at,
+        appointment_date_label: shortDate(block.starts_at),
+        timeLabel: `${String(startsAt.getHours()).padStart(2, '0')}:${String(startsAt.getMinutes()).padStart(2, '0')}`,
+        timeCompactLabel: `${String(startsAt.getHours()).padStart(2, '0')}:${String(startsAt.getMinutes()).padStart(2, '0')}`,
+        slotLabel: `${String(startsAt.getHours()).padStart(2, '0')}:${String(startsAt.getMinutes()).padStart(2, '0')} - ${String(endsAt.getHours()).padStart(2, '0')}:${String(endsAt.getMinutes()).padStart(2, '0')}`,
+        dateKey: agendaDate,
+        duration_label: `${Math.max(0, Math.round((endsAt - startsAt) / 60000))} min`,
+        service_price_label: '-',
+        notes: block.reason || 'Horario indisponivel para novos agendamentos.'
+      }))
+    })
+    const appointmentsForSelectedDay = [
+      ...appointmentsWithMeta.filter((appointment) => appointment.dateKey === agendaDate),
+      ...blockedAppointmentsForSelectedDay
+    ].sort((left, right) => String(left.starts_at || '').localeCompare(String(right.starts_at || '')))
+    const appointmentsForGrid = appointmentsForSelectedDay.filter((appointment) => collaboratorsForGrid.some((collaborator) => collaborator.id === appointment.collaborator_id))
 
-              {appointment.notes && (
-                <div className="barber-appointment-notes">
-                  <span>Observacoes</span>
-                  <p>{appointment.notes}</p>
-                </div>
-              )}
+    const weekDays = Array.from({ length: 7 }, (_, index) => {
+      const base = new Date(currentDate)
+      base.setDate(currentDate.getDate() - currentDate.getDay() + index)
+      const dateKey = base.toISOString().slice(0, 10)
+      return {
+        key: dateKey,
+        label: new Intl.DateTimeFormat('pt-BR', { weekday: 'short' }).format(base),
+        day: String(base.getDate()).padStart(2, '0')
+      }
+    })
 
-              <div className="barber-inline-actions">
-                {appointment.status === 'scheduled' && (
-                  <BarberButton onClick={() => updateAppointmentStatus(appointment.id, 'confirmed')} type="button" variant="secondary">
-                    Confirmar
-                  </BarberButton>
-                )}
-                {['scheduled', 'confirmed'].includes(appointment.status) && (
-                  <BarberButton onClick={() => updateAppointmentStatus(appointment.id, 'completed')} type="button" variant="primary">
-                    Concluir
-                  </BarberButton>
-                )}
-                {appointment.status !== 'canceled' && appointment.status !== 'completed' && (
-                  <BarberButton onClick={() => cancelAppointment(appointment.id)} type="button" variant="danger">
-                    Cancelar
-                  </BarberButton>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-      )
+    const firstDay = new Date(currentMonth)
+    const start = new Date(firstDay)
+    start.setDate(1 - firstDay.getDay())
+    const monthMatrix = Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(start)
+      date.setDate(start.getDate() + index)
+      return {
+        key: date.toISOString(),
+        date: date.toISOString().slice(0, 10),
+        day: date.getDate(),
+        inMonth: date.getMonth() === currentMonth.getMonth()
+      }
+    })
+
+    const miniCalendar = {
+      monthLabel: new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentMonth),
+      days: monthMatrix,
+      goPrevMonth: () => {
+        const next = new Date(currentMonth)
+        next.setMonth(next.getMonth() - 1)
+        setAgendaMonthCursor(next.toISOString().slice(0, 10))
+      },
+      goNextMonth: () => {
+        const next = new Date(currentMonth)
+        next.setMonth(next.getMonth() + 1)
+        setAgendaMonthCursor(next.toISOString().slice(0, 10))
+      }
     }
 
     return (
-      <section className="barber-page barber-appointments-page">
-        <div className="barber-grid-two">
-          <BarberCard className="barber-appointments-link-card">
-            <div className="barber-table-header">
-              <div>
-                <h2>Seu link de agendamento</h2>
-                <p>Compartilhe este link com os clientes para receber reservas online da sua barbearia.</p>
-              </div>
-              <BarberButton onClick={copyBookingLink} type="button" variant="primary">
-                <BarberIcon name="copy" />
-                <span>Copiar link de agendamento</span>
-              </BarberButton>
-            </div>
-
-            {publicBookingUrl ? (
-              <div className="barber-appointments-link-box">
-                <span>Link publico da barbearia</span>
-                <strong>{publicBookingUrl}</strong>
-              </div>
-            ) : (
-              <BarberEmptyState
-                description="O link publico sera disponibilizado assim que o slug da barbearia estiver pronto."
-                title="Link ainda indisponivel"
-              />
-            )}
-          </BarberCard>
-
-          <div className="barber-kpi-grid barber-appointments-summary">
-            {summaryCards.map((card) => (
-              <BarberCard className="barber-appointment-summary-card" key={card.label}>
-                <div className="barber-kpi-topline">
-                  <span>{card.label}</span>
-                  <BarberBadge tone={card.tone}>{card.value}</BarberBadge>
+      <section className="barber-page">
+        {!isCollaborator && (
+          <div className="barber-grid-two">
+            <BarberCard className="barber-appointments-link-card">
+              <div className="barber-table-header">
+                <div>
+                  <h2>Link publico da agenda</h2>
+                  <p>Compartilhe com seus clientes para receber agendamentos online.</p>
                 </div>
+                <BarberButton onClick={copyBookingLink} variant="primary">Copiar link</BarberButton>
+              </div>
+              <div className="barber-appointments-link-box">
+                <strong>{publicBookingUrl || 'Configurando link...'}</strong>
+              </div>
+            </BarberCard>
+
+            <div className="barber-kpi-grid">
+              {summaryCards.map((card) => (
+                <BarberCard key={card.label}>
+                  <span>{card.label}</span>
+                  <strong>{card.value}</strong>
+                </BarberCard>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {isCollaborator && (
+          <div className="barber-kpi-grid">
+            {summaryCards.map((card) => (
+              <BarberCard key={card.label}>
+                <span>{card.label}</span>
                 <strong>{card.value}</strong>
               </BarberCard>
             ))}
           </div>
-        </div>
+        )}
 
-        <div className="barber-grid-three barber-appointments-columns">
-          <BarberCard>
-            <div className="barber-table-header">
-              <div>
-                <h2>Hoje</h2>
-                <p>Reservas previstas para a data atual.</p>
+        <BarberCard className="barber-appointments-workspace">
+          <div className="agenda-board-shell">
+            <div className="agenda-board-main">
+              <div className="barber-table-header agenda-board-header">
+                <div>
+                  <h2>{isCollaborator ? 'Minha agenda' : 'Agenda da barbearia'}</h2>
+                  <p>{isCollaborator ? 'Veja seus horarios do dia e avance cada atendimento com poucos cliques.' : 'Gerencie a operacao do dia em uma grade clara, moderna e pronta para escalar.'}</p>
+                </div>
+                <div className="barber-inline-actions">
+                  {!isCollaborator && (
+                    <BarberButton
+                      onClick={() => openAppointmentComposer({
+                        appointmentDate: agendaDate,
+                        collaboratorId: collaboratorsForGrid[0]?.id || ''
+                      })}
+                      type="button"
+                      variant="primary"
+                    >
+                      + Novo agendamento
+                    </BarberButton>
+                  )}
+                  {!isCollaborator && publicBookingUrl && (
+                    <BarberButton onClick={copyBookingLink} type="button" variant="ghost">
+                      Copiar link publico
+                    </BarberButton>
+                  )}
+                </div>
               </div>
-              <BarberBadge tone="cash">{appointmentGroups.today.length}</BarberBadge>
-            </div>
-            {renderAppointmentCards(
-              appointmentGroups.today,
-              'Nenhum agendamento encontrado.',
-              'Quando novos clientes reservarem horarios, eles aparecerao aqui.'
-            )}
-          </BarberCard>
 
-          <BarberCard>
-            <div className="barber-table-header">
-              <div>
-                <h2>Proximos</h2>
-                <p>Confirmacoes futuras e reservas em andamento.</p>
-              </div>
-              <BarberBadge tone="pix">{appointmentGroups.upcoming.length}</BarberBadge>
-            </div>
-            {renderAppointmentCards(
-              appointmentGroups.upcoming,
-              'Nenhum horario futuro confirmado.',
-              'Assim que houver reservas para os proximos dias, elas serao listadas aqui.'
-            )}
-          </BarberCard>
+              <AgendaToolbar
+                mode={agendaMode}
+                onModeChange={setAgendaMode}
+                onNext={() => shiftAgendaDate(agendaMode === 'week' ? 7 : 1)}
+                onPrev={() => shiftAgendaDate(agendaMode === 'week' ? -7 : -1)}
+                onToday={() => {
+                  setAppointmentFilters((current) => ({ ...current, date: todayDate }))
+                  setAgendaMonthCursor(todayDate)
+                  setActiveAgendaAppointment(null)
+                }}
+                onToggleFilters={() => setShowAgendaFilters((current) => !current)}
+                selectedDate={agendaDate}
+                showFilters={showAgendaFilters}
+              />
 
-          <BarberCard>
-            <div className="barber-table-header">
-              <div>
-                <h2>Cancelados</h2>
-                <p>Historico recente de cancelamentos.</p>
-              </div>
-              <BarberBadge tone="danger">{appointmentGroups.canceled.length}</BarberBadge>
+              {showAgendaFilters && (
+                <div className="agenda-filters-panel">
+                  <label className="barber-form-block">
+                    <span>Data</span>
+                    <input
+                      className="barber-input"
+                      type="date"
+                      value={agendaDate}
+                      onChange={(event) => {
+                        const nextDate = event.target.value
+                        setAppointmentFilters((current) => ({ ...current, date: nextDate }))
+                        setAgendaMonthCursor(nextDate || new Date().toISOString().slice(0, 10))
+                        setActiveAgendaAppointment(null)
+                      }}
+                    />
+                  </label>
+
+                  {!isCollaborator && (
+                    <label className="barber-form-block">
+                      <span>Colaborador</span>
+                      <select
+                        className="barber-select"
+                        value={appointmentFilters.collaboratorId}
+                        onChange={(event) => setAppointmentFilters((current) => ({ ...current, collaboratorId: event.target.value }))}
+                      >
+                        <option value="all">Toda a equipe</option>
+                        {collaboratorOptions.map((collaborator) => (
+                          <option key={collaborator.id} value={collaborator.id}>
+                            {collaborator.nickname || collaborator.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+
+                  <label className="barber-form-block">
+                    <span>Status</span>
+                    <select
+                      className="barber-select"
+                      value={appointmentFilters.status}
+                      onChange={(event) => setAppointmentFilters((current) => ({ ...current, status: event.target.value }))}
+                    >
+                      <option value="all">Todos</option>
+                      <option value="scheduled">Agendado</option>
+                      <option value="confirmed">Confirmado</option>
+                      <option value="arrived">Chegou</option>
+                      <option value="in_progress">Em atendimento</option>
+                      <option value="completed">Finalizado</option>
+                      <option value="no_show">Faltou</option>
+                      <option value="canceled">Cancelado</option>
+                    </select>
+                  </label>
+
+                  <div className="agenda-filters-actions">
+                    <BarberButton onClick={() => setAppointmentFilters({ ...defaultAppointmentFilters, date: todayDate })} type="button" variant="ghost">
+                      Limpar filtros
+                    </BarberButton>
+                  </div>
+                </div>
+              )}
             </div>
-            {renderAppointmentCards(
-              appointmentGroups.canceled,
-              'Nenhum agendamento cancelado.',
-              'Os cancelamentos aparecem aqui para acompanhamento da equipe.'
+          </div>
+
+          {!isCollaborator && (
+            <div className="barber-tabs">
+              {['list', 'blocks', 'hours'].map((tab) => (
+                <button
+                  key={tab}
+                  className={`barber-tab ${appointmentViewTab === tab ? 'active' : ''}`}
+                  onClick={() => setAppointmentViewTab(tab)}
+                >
+                  {tab === 'list' ? 'Agenda' : tab === 'blocks' ? 'Bloqueios' : 'Funcionamento'}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="barber-tab-content">
+            {(isCollaborator || appointmentViewTab === 'list') && (
+              <div className="agenda-studio-layout">
+                <div className="agenda-main-panel">
+                  <div className="agenda-summary-strip">
+                    <div className="agenda-summary-card">
+                      <span>Data selecionada</span>
+                      <strong>{selectedDateLabel}</strong>
+                    </div>
+                    <div className="agenda-summary-card">
+                      <span>Agendamentos do dia</span>
+                      <strong>{appointmentsForSelectedDay.filter((appointment) => appointment.status !== 'blocked').length}</strong>
+                    </div>
+                    <div className="agenda-summary-card">
+                      <span>Confirmados</span>
+                      <strong>{appointmentsForSelectedDay.filter((appointment) => ['confirmed', 'arrived', 'in_progress'].includes(appointment.status)).length}</strong>
+                    </div>
+                    <div className="agenda-summary-card">
+                      <span>Funcionamento</span>
+                      <strong>{nextOpeningLabel}</strong>
+                    </div>
+                  </div>
+
+                  {agendaMode === 'week' && (
+                    <div className="agenda-week-days">
+                      {weekDays.map((day) => (
+                        <button
+                          className={day.key === agendaDate ? 'active' : ''}
+                          key={day.key}
+                          onClick={() => setAppointmentFilters((current) => ({ ...current, date: day.key }))}
+                          type="button"
+                        >
+                          <span>{day.label}</span>
+                          <strong>{day.day}</strong>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {isMobileViewport ? (
+                    <div className="agenda-mobile-list">
+                      {!isCollaborator && (
+                        <BarberButton
+                          className="agenda-mobile-create"
+                          onClick={() => openAppointmentComposer({
+                            appointmentDate: agendaDate,
+                            collaboratorId: collaboratorsForGrid[0]?.id || ''
+                          })}
+                          type="button"
+                          variant="secondary"
+                        >
+                          + Novo agendamento
+                        </BarberButton>
+                      )}
+                      {appointmentsForSelectedDay.map((app) => (
+                        <button className={`agenda-mobile-item status-${app.status || 'scheduled'}`} key={app.id} onClick={() => { setActiveAgendaAppointment(app); setAgendaModalOpen(true) }} type="button">
+                          <strong>{app.customer_name}</strong>
+                          <p>{app.service_name}</p>
+                          <small>{app.slotLabel}</small>
+                        </button>
+                      ))}
+                      {appointmentsForSelectedDay.length === 0 && (
+                        <BarberEmptyState description="Sem atendimentos para o dia selecionado." title="Dia sem reservas" />
+                      )}
+                    </div>
+                  ) : (
+                    collaboratorsForGrid.length > 0 ? (
+                      <AgendaGrid
+                        appointments={appointmentsForGrid}
+                        collaborators={collaboratorsForGrid}
+                        onSelectAppointment={(appointment) => {
+                          setActiveAgendaAppointment(appointment)
+                          if (isMobileViewport) {
+                            setAgendaModalOpen(true)
+                          }
+                        }}
+                        onSelectSlot={!isCollaborator ? (slot) => openAppointmentComposer({
+                          appointmentDate: agendaDate,
+                          appointmentTime: slot.time,
+                          collaboratorId: slot.collaboratorId
+                        }) : undefined}
+                        selectedDate={agendaDate}
+                        workingHoursByCollaborator={workingHoursByCollaborator}
+                      />
+                    ) : (
+                      <BarberEmptyState description={isCollaborator ? 'Seu perfil ainda nao foi vinculado a um colaborador ativo para montar a agenda.' : 'Cadastre colaboradores ativos para distribuir a grade da agenda.'} title="Sem colaboradores" />
+                    )
+                  )}
+                </div>
+
+                {!isMobileViewport && (
+                  <AppointmentDetailsPanel
+                    appointment={activeAgendaAppointment}
+                    isCollaborator={isCollaborator}
+                    onArrived={(id) => updateAppointmentStatus(id, 'arrived')}
+                    onCancel={(appointment) => {
+                      const reason = window.prompt('Motivo do cancelamento:')
+                      if (reason !== null) {
+                        cancelAppointment(appointment.id, reason)
+                      }
+                    }}
+                    onClose={() => setActiveAgendaAppointment(null)}
+                    onComplete={(id) => updateAppointmentStatus(id, 'completed')}
+                    onConfirm={(id) => updateAppointmentStatus(id, 'confirmed')}
+                    onReschedule={(appointment) => {
+                      const startsAt = appointment?.starts_at ? new Date(appointment.starts_at) : null
+                      const defaultDate = startsAt && !Number.isNaN(startsAt.getTime()) ? startsAt.toISOString().slice(0, 10) : ''
+                      const defaultTime = startsAt && !Number.isNaN(startsAt.getTime())
+                        ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(startsAt)
+                        : ''
+                      const newDate = window.prompt('Nova data (AAAA-MM-DD):', defaultDate)
+                      const newTime = window.prompt('Novo horario (HH:MM):', defaultTime)
+                      if (newDate && newTime) {
+                        rescheduleAppointment(appointment.id, newDate, newTime)
+                      }
+                    }}
+                    onStart={(id) => updateAppointmentStatus(id, 'in_progress')}
+                  />
+                )}
+              </div>
             )}
-          </BarberCard>
-        </div>
+
+            {!isCollaborator && appointmentViewTab === 'blocks' && (
+              <div className="barber-blocks-view">
+                <div className="barber-table-header">
+                  <h3>Bloqueios de agenda</h3>
+                  <BarberButton onClick={() => {
+                    const collab = window.prompt('ID do Colaborador (vazio para todos):')
+                    const start = window.prompt('Inicio (AAAA-MM-DD HH:MM):')
+                    const end = window.prompt('Fim (AAAA-MM-DD HH:MM):')
+                    const reason = window.prompt('Motivo:')
+                    if (start && end) saveScheduleBlock({ collaboratorId: collab, startsAt: start, endsAt: end, reason })
+                  }} variant="primary">Novo bloqueio</BarberButton>
+                </div>
+                <BarberTable columns={['Inicio', 'Fim', 'Motivo', 'Acoes']}>
+                  {scheduleBlocks.map(block => (
+                    <tr key={block.id}>
+                      <td>{fullDate(block.starts_at)}</td>
+                      <td>{fullDate(block.ends_at)}</td>
+                      <td>{block.reason}</td>
+                      <td><BarberButton onClick={() => deleteScheduleBlock(block.id)} variant="danger">Remover</BarberButton></td>
+                    </tr>
+                  ))}
+                </BarberTable>
+              </div>
+            )}
+
+            {!isCollaborator && appointmentViewTab === 'hours' && (
+              <div className="barber-hours-view">
+                <h3>Horarios de funcionamento</h3>
+                <p>Defina a janela base da agenda online. Se nada estiver salvo, o sistema assume 08:00-20:00.</p>
+                <div className="barber-working-hours-grid">
+                  {agendaWeekdayLabels.map((day, idx) => {
+                    const h = effectiveWorkingHours.find(wh => wh.weekday === idx && !wh.collaborator_id)
+                    return (
+                      <div key={day} className="barber-hour-row">
+                        <span>{day}</span>
+                        <input type="time" defaultValue={h?.opens_at || '08:00'} onBlur={(e) => saveWorkingHours({ weekday: idx, opensAt: e.target.value, closesAt: h?.closes_at || '20:00', isClosed: false })} />
+                        <input type="time" defaultValue={h?.closes_at || '20:00'} onBlur={(e) => saveWorkingHours({ weekday: idx, opensAt: h?.opens_at || '08:00', closesAt: e.target.value, isClosed: false })} />
+                        <label><input type="checkbox" defaultChecked={h?.is_closed} onChange={(e) => saveWorkingHours({ weekday: idx, opensAt: h?.opens_at || '08:00', closesAt: h?.closes_at || '20:00', isClosed: e.target.checked })} /> Fechado</label>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </BarberCard>
+
+        <AppointmentModal
+          appointment={activeAgendaAppointment}
+          isCollaborator={isCollaborator}
+          onArrived={(id) => updateAppointmentStatus(id, 'arrived')}
+          onCancel={(appointment) => {
+            const reason = window.prompt('Motivo do cancelamento:')
+            if (reason !== null) {
+              cancelAppointment(appointment.id, reason)
+            }
+          }}
+          onClose={() => {
+            setAgendaModalOpen(false)
+            setActiveAgendaAppointment(null)
+          }}
+          onComplete={(id) => updateAppointmentStatus(id, 'completed')}
+          onConfirm={(id) => updateAppointmentStatus(id, 'confirmed')}
+          onReschedule={(appointment) => {
+            const startsAt = appointment?.starts_at ? new Date(appointment.starts_at) : null
+            const defaultDate = startsAt && !Number.isNaN(startsAt.getTime()) ? startsAt.toISOString().slice(0, 10) : ''
+            const defaultTime = startsAt && !Number.isNaN(startsAt.getTime())
+              ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(startsAt)
+              : ''
+            const newDate = window.prompt('Nova data (AAAA-MM-DD):', defaultDate)
+            const newTime = window.prompt('Novo horario (HH:MM):', defaultTime)
+            if (newDate && newTime) {
+              rescheduleAppointment(appointment.id, newDate, newTime)
+            }
+          }}
+          onStart={(id) => updateAppointmentStatus(id, 'in_progress')}
+          open={agendaModalOpen && isMobileViewport}
+        />
+
+        <AppointmentComposerModal
+          collaborators={collaboratorOptions}
+          form={appointmentForm}
+          isCollaborator={isCollaborator}
+          onChange={updateAppointmentForm}
+          onClose={closeAppointmentComposer}
+          onSubmit={submitAppointment}
+          open={appointmentComposerOpen}
+          services={visibleServices}
+          submitting={submittingAppointment}
+        />
       </section>
     )
   }
@@ -2818,25 +3695,160 @@ function Barber() {
     ]
     const activeCollaborators = collaborators.filter((collaborator) => collaborator.is_active && !collaborator.is_deleted)
     const recentSales = sales.slice(0, 8)
+    const periodOptions = [
+      { value: 'today', label: 'Hoje' },
+      { value: 'week', label: 'Semana' },
+      { value: 'month', label: 'Mes' },
+      { value: 'custom', label: 'Periodo' }
+    ]
+    const salesSummaryCards = [
+      {
+        key: 'today',
+        label: 'Hoje',
+        value: money(salesSummary.totals_day?.total_amount || 0),
+        hint: `${salesSummary.totals_day?.total_sales || 0} atendimento(s)`
+      },
+      {
+        key: 'week',
+        label: 'Semana',
+        value: money(salesSummary.totals_week?.total_amount || 0),
+        hint: `${salesSummary.totals_week?.total_sales || 0} atendimento(s)`
+      },
+      {
+        key: 'month',
+        label: 'Mes',
+        value: money(salesSummary.totals_month?.total_amount || 0),
+        hint: `${salesSummary.totals_month?.total_sales || 0} atendimento(s)`
+      },
+      {
+        key: 'commission',
+        label: 'Comissao total',
+        value: money(salesSummary.total_commission || 0),
+        hint: `${salesSummary.total_sales || 0} venda(s) no filtro`
+      }
+    ]
+    const collaboratorSalesCards = [
+      {
+        key: 'today-commission',
+        label: 'Minha comissao hoje',
+        value: money(collaboratorMetrics.todayCommission || collaboratorMetrics.totalCommission || 0),
+        hint: 'baseado nos meus atendimentos'
+      },
+      {
+        key: 'week-commission',
+        label: 'Minha comissao na semana',
+        value: money(collaboratorMetrics.weekCommission || 0),
+        hint: 'somente meus atendimentos'
+      },
+      {
+        key: 'month-commission',
+        label: 'Minha comissao no mes',
+        value: money(collaboratorMetrics.monthCommission || 0),
+        hint: 'acumulado pessoal'
+      },
+      {
+        key: 'my-attendances',
+        label: 'Meus atendimentos',
+        value: `${collaboratorMetrics.totalAttendances || collaboratorMetrics.todayAttendances || sales.length || 0}`,
+        hint: 'historico pessoal'
+      }
+    ]
 
     return (
       <>
+        {isCollaborator ? (
+          <section className="barber-sales-control-panel">
+            <div className="barber-sales-summary-grid">
+              {collaboratorSalesCards.map((card) => (
+                <BarberCard className="barber-sales-summary-kpi" key={card.key}>
+                  <span>{card.label}</span>
+                  <strong>{card.value}</strong>
+                  <small>{card.hint}</small>
+                </BarberCard>
+              ))}
+            </div>
+          </section>
+        ) : (
+        <section className="barber-sales-control-panel">
+          <div className="barber-sales-summary-grid">
+            {salesSummaryCards.map((card) => (
+              <BarberCard className="barber-sales-summary-kpi" key={card.key}>
+                <span>{card.label}</span>
+                <strong>{card.value}</strong>
+                <small>{card.hint}</small>
+              </BarberCard>
+            ))}
+          </div>
+
+          <BarberCard className="barber-sales-filter-card">
+            <div className="barber-table-header">
+              <div>
+                <h2>Filtros de atendimentos</h2>
+                <p>Resumo calculado no backend, sempre filtrado por empresa e vendas ativas.</p>
+              </div>
+              <BarberButton onClick={() => loadData({ clearMessage: false })} type="button" variant="ghost">
+                <BarberIcon name="refresh" />
+                <span>Atualizar</span>
+              </BarberButton>
+            </div>
+
+            <div className="barber-sales-filter-grid">
+              {canManageCash ? (
+                <div className="barber-form-block">
+                  <label htmlFor="sales-filter-collaborator">Colaborador</label>
+                  <select className="barber-select" id="sales-filter-collaborator" name="collaboratorId" onChange={updateSalesFilters} value={salesFilters.collaboratorId}>
+                    <option value="">Todos</option>
+                    {activeCollaborators.map((collaborator) => (
+                      <option key={collaborator.id} value={collaborator.id}>
+                        {collaborator.name || collaborator.nickname}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+
+              <div className="barber-form-block">
+                <label htmlFor="sales-filter-period">Periodo</label>
+                <select className="barber-select" id="sales-filter-period" name="period" onChange={updateSalesFilters} value={salesFilters.period}>
+                  {periodOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {salesFilters.period === 'custom' ? (
+                <>
+                  <div className="barber-form-block">
+                    <label htmlFor="sales-filter-start">Inicio</label>
+                    <input className="barber-input" id="sales-filter-start" name="startDate" onChange={updateSalesFilters} type="date" value={salesFilters.startDate} />
+                  </div>
+                  <div className="barber-form-block">
+                    <label htmlFor="sales-filter-end">Fim</label>
+                    <input className="barber-input" id="sales-filter-end" name="endDate" onChange={updateSalesFilters} type="date" value={salesFilters.endDate} />
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </BarberCard>
+        </section>
+        )}
+
         <form className="barber-sales-workspace" onSubmit={createSale}>
           <section className="barber-sales-main">
             <BarberCard className="barber-sales-hero">
               <div className="barber-sales-hero-copy">
-                <span className="barber-overline">PDV BarberGestor</span>
-                <h2>Vendas</h2>
-                <p>Registre uma nova venda de forma rapida e intuitiva.</p>
+                <span className="barber-overline">Operacao BarberGestor</span>
+                <h2>Atendimentos</h2>
+                <p>Registre atendimentos com servicos reais, colaborador vinculado e fechamento integrado ao caixa.</p>
               </div>
 
               <div className="barber-sales-hero-meta">
-                <BarberBadge tone="cash">{todaySalesCount} vendas hoje</BarberBadge>
+                <BarberBadge tone="cash">{isCollaborator ? `${collaboratorMetrics.todayAttendances || 0} meus atendimentos hoje` : `${todaySalesCount} atendimentos hoje`}</BarberBadge>
                 <BarberBadge tone="admin">{visibleServices.length} servicos ativos</BarberBadge>
               </div>
 
               <div className="barber-sales-steps">
-                {['Itens', 'Pagamento', 'Finalizar'].map((step, index) => (
+                {['Servicos', 'Resumo', 'Finalizar'].map((step, index) => (
                   <div className={`barber-sales-step ${index === 0 ? 'active' : ''}`} key={step}>
                     <span>{index + 1}</span>
                     <strong>{step}</strong>
@@ -2845,36 +3857,19 @@ function Barber() {
               </div>
             </BarberCard>
 
-            <BarberCard className="barber-sales-catalog-panel">
+            <BarberCard className="barber-sales-catalog-panel barber-sales-launcher-panel">
               <div className="barber-table-header">
                 <div>
-                  <h2>Catalogo interativo</h2>
-                  <p>Toque em um servico ou produto real para montar a venda sem digitacao manual.</p>
+                  <h2>Adicionar servico</h2>
+                  <p>Abra o catalogo sob demanda e selecione apenas o que entra no atendimento atual.</p>
                 </div>
-                <BarberButton onClick={addSaleItem} type="button" variant="secondary">
+              </div>
+
+              <div className="barber-sales-launcher">
+                <BarberButton onClick={openServicePicker} type="button" variant="secondary">
                   <BarberIcon name="plus" />
-                  <span>Adicionar item</span>
+                  <span>Adicionar servico</span>
                 </BarberButton>
-              </div>
-
-              <div className="barber-sales-toolbar">
-                <div className="barber-form-block barber-sales-search">
-                  <label htmlFor="sales-search">Buscar</label>
-                  <input className="barber-input" id="sales-search" onChange={(event) => setSaleCatalogSearch(event.target.value)} placeholder="Buscar servico ou produto..." value={saleCatalogSearch} />
-                </div>
-
-                <div className="barber-sales-filter-group" role="tablist" aria-label="Filtros do catalogo">
-                  {[
-                    { key: 'all', label: 'Todos' },
-                    { key: 'service', label: 'Servicos' },
-                    { key: 'product', label: 'Produtos' }
-                  ].map((filter) => (
-                    <button className={`barber-sales-filter ${saleCatalogFilter === filter.key ? 'active' : ''}`} key={filter.key} onClick={() => setSaleCatalogFilter(filter.key)} type="button">
-                      {filter.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               <div className="barber-sales-inline-form">
                 <div className="barber-form-block">
@@ -2884,11 +3879,11 @@ function Barber() {
 
                 <div className="barber-sales-selection-chip">
                   <span>Selecionado agora</span>
-                  <strong>{selectedSaleSource ? formatServiceName(selectedSaleSource.name) : 'Nenhum item selecionado'}</strong>
+                  <strong>{selectedSaleSource ? formatServiceName(selectedSaleSource.name) : 'Nenhum servico selecionado'}</strong>
                   <small>
                     {selectedSaleSource
                       ? `${selectedSaleItemType === 'product' ? 'Produto' : 'Servico'} • ${money(selectedSaleSource.price ?? selectedSaleSource.sale_price ?? 0)}`
-                      : 'Escolha um card para preparar a venda.'}
+                      : 'Escolha um card para preparar o atendimento.'}
                   </small>
                 </div>
               </div>
@@ -2923,19 +3918,20 @@ function Barber() {
                 </div>
               ) : (
                 <BarberEmptyState
-                  description="Nenhum servico ativo encontrado. Cadastre servicos para comecar a vender."
+                  description="Nenhum servico ativo encontrado. Cadastre servicos para comecar a registrar atendimentos."
                   title="Catalogo vazio"
                 />
               )}
+              </div>
             </BarberCard>
 
             <BarberCard className="barber-sales-items-panel">
               <div className="barber-table-header">
                 <div>
-                  <h2>Itens da venda</h2>
-                  <p>Controle os itens adicionados, quantidade e subtotal antes de finalizar.</p>
+                  <h2>Servicos do atendimento</h2>
+                  <p>Controle os servicos adicionados, a quantidade e o subtotal antes de finalizar o atendimento.</p>
                 </div>
-                <BarberBadge tone="admin">{saleItemsCount} item(ns)</BarberBadge>
+                <BarberBadge tone="admin">{saleItemsCount} servico(s)</BarberBadge>
               </div>
 
               {saleForm.items.length > 0 ? (
@@ -2950,7 +3946,7 @@ function Barber() {
                         </span>
                         <div>
                           <strong>{item.name}</strong>
-                          <span>{selectedCollaborator?.name || selectedCollaborator?.nickname || user?.name || 'Colaborador vinculado no envio'}</span>
+                          <span>{collaboratorDisplayName(activeSaleCollaborator) || user?.name || 'Colaborador vinculado no envio'}</span>
                         </div>
                       </div>
 
@@ -2973,8 +3969,8 @@ function Barber() {
                 </div>
               ) : (
                 <BarberEmptyState
-                  description="Toque em um card do catalogo para adicionar servicos ou produtos reais na venda."
-                  title="Nenhum item na venda"
+                  description="Toque em um card do catalogo para adicionar servicos ou produtos reais no atendimento."
+                  title="Nenhum servico no atendimento"
                 />
               )}
             </BarberCard>
@@ -2984,15 +3980,15 @@ function Barber() {
             <BarberCard className="barber-sales-summary-card">
               <div className="barber-panel-header">
                 <div>
-                  <h3>Resumo da venda</h3>
-                  <p>Painel rapido para cliente, pagamento, troco e finalizacao.</p>
+                  <h3>Resumo do atendimento</h3>
+                  <p>Cliente, colaborador e pagamento organizados em um fluxo unico de fechamento.</p>
                 </div>
                 <BarberBadge tone="cash">{money(saleEffectiveTotal)}</BarberBadge>
               </div>
 
               <div className="barber-sales-summary-list">
                 <div className="barber-sales-summary-row">
-                  <span>Itens</span>
+                  <span>Servicos</span>
                   <strong>{saleItemsCount}</strong>
                 </div>
                 <div className="barber-sales-summary-row">
@@ -3009,73 +4005,82 @@ function Barber() {
                 </div>
               </div>
 
-              {canManageCash ? (
+              <div className="barber-sales-checkout-block">
+                <div className="barber-sales-checkout-header">
+                  <strong>Dados do atendimento</strong>
+                  <span>Cliente, profissional e forma de pagamento</span>
+                </div>
+
                 <div className="barber-form-block">
-                  <label htmlFor="sale-collaborator">Colaborador</label>
-                  <select className="barber-select" id="sale-collaborator" name="collaboratorId" onChange={updateSaleForm} value={saleForm.collaboratorId}>
-                    <option value="">Selecione o colaborador</option>
-                    {activeCollaborators.map((collaborator) => (
-                      <option key={collaborator.id} value={collaborator.id}>
-                        {collaborator.name || collaborator.nickname}
-                      </option>
+                  <label htmlFor="sale-client-name">Cliente</label>
+                  <input className="barber-input" id="sale-client-name" name="clientName" onChange={updateSaleForm} placeholder="Opcional" value={saleForm.clientName} />
+                </div>
+
+                {canManageCash ? (
+                  <div className="barber-form-block">
+                    <label htmlFor="sale-collaborator">Colaborador</label>
+                    <select className="barber-select" id="sale-collaborator" name="collaboratorId" onChange={updateSaleForm} value={saleForm.collaboratorId}>
+                      <option value="">Selecione o colaborador</option>
+                      {activeCollaborators.map((collaborator) => (
+                        <option key={collaborator.id} value={collaborator.id}>
+                          {collaborator.name || collaborator.nickname}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="barber-placeholder">
+                    <strong>Colaborador vinculado automaticamente</strong>
+                    <p>O atendimento sera registrado no perfil autenticado do colaborador.</p>
+                  </div>
+                )}
+
+                <div className="barber-form-block">
+                  <label>Pagamento</label>
+                  <div className="barber-sales-payment-grid">
+                    {paymentOptions.map((option) => (
+                      <button
+                        className={`barber-sales-payment-card ${saleForm.paymentMethod === option.value ? 'active' : ''}`}
+                        key={option.value}
+                        onClick={() => updateSaleForm({ target: { name: 'paymentMethod', value: option.value } })}
+                        type="button"
+                      >
+                        <BarberIcon name={option.icon} />
+                        <span>{option.label}</span>
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
-              ) : (
-                <div className="barber-placeholder">
-                  <strong>Venda vinculada ao seu usuario</strong>
-                  <p>Como colaborador, a API associa o atendimento ao seu perfil automaticamente.</p>
-                </div>
-              )}
 
-              <div className="barber-form-block">
-                <label htmlFor="sale-client-name">Cliente</label>
-                <input className="barber-input" id="sale-client-name" name="clientName" onChange={updateSaleForm} placeholder="Opcional" value={saleForm.clientName} />
-              </div>
+                {isCashPayment && (
+                  <>
+                    <div className="barber-form-block">
+                      <label htmlFor="sale-amount-received">Valor recebido</label>
+                      <input className="barber-input" id="sale-amount-received" min={saleEffectiveTotal || 0} name="amountReceived" onChange={updateSaleForm} step="0.01" type="number" value={saleForm.amountReceived} />
+                    </div>
 
-              <div className="barber-form-block">
-                <label>Pagamento</label>
-                <div className="barber-sales-payment-grid">
-                  {paymentOptions.map((option) => (
-                    <button
-                      className={`barber-sales-payment-card ${saleForm.paymentMethod === option.value ? 'active' : ''}`}
-                      key={option.value}
-                      onClick={() => updateSaleForm({ target: { name: 'paymentMethod', value: option.value } })}
-                      type="button"
-                    >
-                      <BarberIcon name={option.icon} />
-                      <span>{option.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+                    <div className="barber-sales-summary-highlight">
+                      <span>Troco</span>
+                      <strong>{money(Math.max(0, saleChangeDue))}</strong>
+                    </div>
+                  </>
+                )}
 
-              {isCashPayment && (
                 <div className="barber-form-block">
-                  <label htmlFor="sale-amount-received">Valor recebido</label>
-                  <input className="barber-input" id="sale-amount-received" min={saleEffectiveTotal || 0} name="amountReceived" onChange={updateSaleForm} step="0.01" type="number" value={saleForm.amountReceived} />
+                  <label htmlFor="sale-notes">Observacoes</label>
+                  <textarea className="barber-textarea" id="sale-notes" name="notes" onChange={updateSaleForm} placeholder="Anotacoes do atendimento, observacoes do cliente ou detalhes do procedimento..." rows="4" value={saleForm.notes} />
                 </div>
-              )}
-
-              <div className="barber-sales-summary-highlight">
-                <span>Troco</span>
-                <strong>{isCashPayment ? money(Math.max(0, saleChangeDue)) : money(0)}</strong>
-              </div>
-
-              <div className="barber-form-block">
-                <label htmlFor="sale-notes">Observacoes</label>
-                <textarea className="barber-textarea" id="sale-notes" name="notes" onChange={updateSaleForm} placeholder="Anotacoes da venda, observacoes do cliente ou detalhes do atendimento..." rows="4" value={saleForm.notes} />
               </div>
 
               {isCashPayment && saleForm.amountReceived && saleChangeDue < 0 && (
                 <div className="barber-message barber-message-error">
-                  Valor recebido menor que o total da venda.
+                  Valor recebido menor que o total do atendimento.
                 </div>
               )}
 
               <BarberButton className="barber-sales-submit" disabled={submittingSale} type="submit" variant="primary">
                 <BarberIcon name="plus" />
-                <span>{submittingSale ? 'Lancando venda...' : 'Finalizar venda'}</span>
+                <span>{submittingSale ? 'Registrando atendimento...' : 'Finalizar atendimento'}</span>
               </BarberButton>
             </BarberCard>
           </aside>
@@ -3084,8 +4089,8 @@ function Barber() {
         <BarberCard className="barber-sales-recent-panel">
           <div className="barber-table-header">
             <div>
-              <h2>Vendas recentes</h2>
-              <p>Ultimas operacoes reais registradas no sistema, com pagamento e colaborador.</p>
+              <h2>Atendimentos recentes</h2>
+              <p>Ultimos atendimentos registrados no sistema, com pagamento e colaborador responsavel.</p>
             </div>
             <BarberBadge tone="admin">{sales.length} registros</BarberBadge>
           </div>
@@ -3095,7 +4100,7 @@ function Barber() {
               {recentSales.map((sale) => (
                 <div className="barber-sales-recent-card" key={sale.id}>
                   <div className="barber-sales-recent-main">
-                    <strong>{sale.service_name || sale.client_name || 'Venda registrada'}</strong>
+                    <strong>{sale.service_name || sale.client_name || 'Atendimento registrado'}</strong>
                     <span>{sale.collaborator_name || 'Sem colaborador'} • {fullDate(sale.created_at)}</span>
                   </div>
 
@@ -3118,8 +4123,8 @@ function Barber() {
             </div>
           ) : (
             <BarberEmptyState
-              description="Assim que a primeira venda for registrada, o historico aparece aqui automaticamente."
-              title="Nenhuma venda registrada"
+              description="Assim que o primeiro atendimento for registrado, o historico aparece aqui automaticamente."
+              title="Nenhum atendimento registrado"
             />
           )}
         </BarberCard>
@@ -3127,8 +4132,573 @@ function Barber() {
     )
   }
 
+  function renderAttendancesWorkspace() {
+    const paymentOptions = [
+      { value: 'pix', label: 'Pix', icon: 'money' },
+      { value: 'cash', label: 'Dinheiro', icon: 'wallet' },
+      { value: 'credit', label: 'Cartao', icon: 'catalog' },
+      { value: 'debit', label: 'Debito', icon: 'catalog' },
+      { value: 'permuta', label: 'Permuta', icon: 'switch' }
+    ]
+    const activeCollaborators = collaborators.filter((collaborator) => collaborator.is_active && !collaborator.is_deleted)
+    const recentSales = sales.slice(0, 8)
+    const periodOptions = [
+      { value: 'today', label: 'Hoje' },
+      { value: 'week', label: 'Semana' },
+      { value: 'month', label: 'Mes' },
+      { value: 'custom', label: 'Periodo' }
+    ]
+    const salesSummaryCards = [
+      {
+        key: 'today',
+        label: 'Hoje',
+        value: money(salesSummary.totals_day?.total_amount || 0),
+        hint: `${salesSummary.totals_day?.total_sales || 0} atendimento(s)`
+      },
+      {
+        key: 'week',
+        label: 'Semana',
+        value: money(salesSummary.totals_week?.total_amount || 0),
+        hint: `${salesSummary.totals_week?.total_sales || 0} atendimento(s)`
+      },
+      {
+        key: 'month',
+        label: 'Mes',
+        value: money(salesSummary.totals_month?.total_amount || 0),
+        hint: `${salesSummary.totals_month?.total_sales || 0} atendimento(s)`
+      },
+      {
+        key: 'commission',
+        label: 'Comissao total',
+        value: money(salesSummary.total_commission || 0),
+        hint: `${salesSummary.total_sales || 0} venda(s) no filtro`
+      }
+    ]
+    const collaboratorTodayCommission = collaboratorMetrics.today?.commission ?? collaboratorMetrics.todayCommission ?? 0
+    const collaboratorTodayAttendances = collaboratorMetrics.today?.appointments ?? collaboratorMetrics.todayAttendances ?? 0
+    const lastPersonalSale = recentSales[0]
+    const collaboratorDayCards = [
+      {
+        key: 'today-commission',
+        label: 'Comissao de hoje',
+        value: money(collaboratorTodayCommission),
+        hint: 'Baseado nos atendimentos que voce lancou hoje'
+      },
+      {
+        key: 'today-attendances',
+        label: 'Atendimentos de hoje',
+        value: `${collaboratorTodayAttendances}`,
+        hint: 'Somente registros do seu perfil'
+      },
+      {
+        key: 'last-sale',
+        label: 'Ultimo atendimento lancado',
+        value: lastPersonalSale?.service_name || 'Nenhum atendimento',
+        hint: lastPersonalSale ? fullDate(lastPersonalSale.created_at) : 'Aguardando seu primeiro lancamento do dia'
+      },
+      {
+        key: 'day-status',
+        label: 'Status do dia',
+        value: collaboratorTodayAttendances > 0 ? 'Em andamento' : 'Sem lancamentos',
+        hint: collaboratorTodayAttendances > 0 ? 'Comissao pendente de fechamento' : 'Lance um atendimento para atualizar o saldo'
+      }
+    ]
+
+    return (
+      <>
+        {isCollaborator ? (
+          <section className="barber-sales-control-panel barber-sales-control-panel-personal">
+            <div className="barber-sales-summary-grid">
+              {collaboratorDayCards.map((card) => (
+                <BarberCard className="barber-sales-summary-kpi" key={card.key}>
+                  <span>{card.label}</span>
+                  <strong>{card.value}</strong>
+                  <small>{card.hint}</small>
+                </BarberCard>
+              ))}
+            </div>
+
+            <BarberCard className="barber-sales-filter-card barber-sales-personal-balance">
+              <div className="barber-table-header">
+                <div>
+                  <h2>Seu saldo de comissoes hoje</h2>
+                  <p>Baseado nos atendimentos que voce lancou hoje, sem expor o faturamento da barbearia.</p>
+                </div>
+                <BarberButton onClick={() => loadData({ clearMessage: false })} type="button" variant="ghost">
+                  <BarberIcon name="refresh" />
+                  <span>Atualizar</span>
+                </BarberButton>
+              </div>
+            </BarberCard>
+          </section>
+        ) : (
+          <section className="barber-sales-control-panel">
+            <div className="barber-sales-summary-grid">
+              {salesSummaryCards.map((card) => (
+                <BarberCard className="barber-sales-summary-kpi" key={card.key}>
+                  <span>{card.label}</span>
+                  <strong>{card.value}</strong>
+                  <small>{card.hint}</small>
+                </BarberCard>
+              ))}
+            </div>
+
+            <BarberCard className="barber-sales-filter-card">
+              <div className="barber-table-header">
+                <div>
+                  <h2>Filtros de atendimentos</h2>
+                  <p>Resumo calculado no backend, sempre filtrado por empresa e vendas ativas.</p>
+                </div>
+                <BarberButton onClick={() => loadData({ clearMessage: false })} type="button" variant="ghost">
+                  <BarberIcon name="refresh" />
+                  <span>Atualizar</span>
+                </BarberButton>
+              </div>
+
+              <div className="barber-sales-filter-grid">
+                {canManageCash ? (
+                  <div className="barber-form-block">
+                    <label htmlFor="sales-filter-collaborator">Colaborador</label>
+                    <select className="barber-select" id="sales-filter-collaborator" name="collaboratorId" onChange={updateSalesFilters} value={salesFilters.collaboratorId}>
+                      <option value="">Todos</option>
+                      {activeCollaborators.map((collaborator) => (
+                        <option key={collaborator.id} value={collaborator.id}>
+                          {collaborator.name || collaborator.nickname}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+
+                <div className="barber-form-block">
+                  <label htmlFor="sales-filter-period">Periodo</label>
+                  <select className="barber-select" id="sales-filter-period" name="period" onChange={updateSalesFilters} value={salesFilters.period}>
+                    {periodOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {salesFilters.period === 'custom' ? (
+                  <>
+                    <div className="barber-form-block">
+                      <label htmlFor="sales-filter-start">Inicio</label>
+                      <input className="barber-input" id="sales-filter-start" name="startDate" onChange={updateSalesFilters} type="date" value={salesFilters.startDate} />
+                    </div>
+                    <div className="barber-form-block">
+                      <label htmlFor="sales-filter-end">Fim</label>
+                      <input className="barber-input" id="sales-filter-end" name="endDate" onChange={updateSalesFilters} type="date" value={salesFilters.endDate} />
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            </BarberCard>
+          </section>
+        )}
+
+        <form className="barber-sales-workspace" onSubmit={createSale}>
+          <section className="barber-sales-main">
+            <BarberCard className="barber-sales-hero">
+              <div className="barber-sales-hero-copy">
+                <span className="barber-overline">Operacao BarberGestor</span>
+                <h2>Atendimentos</h2>
+                <p>Registre atendimentos com um fluxo enxuto, organizado e pronto para o fechamento profissional.</p>
+              </div>
+
+              <div className="barber-sales-hero-meta">
+                <BarberBadge tone="cash">{todaySalesCount} atendimentos hoje</BarberBadge>
+                <BarberBadge tone="admin">{visibleServices.length} servicos ativos</BarberBadge>
+              </div>
+            </BarberCard>
+
+            <div className="barber-sales-launcher-bar">
+              <BarberButton className="barber-sales-launcher-button" onClick={openServicePicker} type="button" variant="secondary">
+                <BarberIcon name="plus" />
+                <span>Adicionar servico</span>
+              </BarberButton>
+
+              <div className="barber-sales-launcher-summary">
+                <span>Resumo do atendimento</span>
+                <strong>{saleItemsCount > 0 ? `${saleItemsCount} servico(s)` : 'Nenhum servico'}</strong>
+                <small>{isCollaborator ? 'Lancamento vinculado ao seu perfil' : money(saleEffectiveTotal)}</small>
+              </div>
+            </div>
+
+            <BarberCard className="barber-sales-items-panel">
+              <div className="barber-table-header">
+                <div>
+                  <h2>Servicos do atendimento</h2>
+                  <p>Revise os servicos adicionados, ajuste quantidades e acompanhe o subtotal antes de finalizar.</p>
+                </div>
+                <BarberBadge tone="admin">{saleItemsCount} servico(s)</BarberBadge>
+              </div>
+
+              {saleForm.items.length > 0 ? (
+                <div className="barber-sales-items-list">
+                  {saleForm.items.map((item) => (
+                    <div className="barber-sales-item-row" key={item.key}>
+                      <div className="barber-sales-item-main">
+                        <span className="barber-sales-item-icon">
+                          {item.itemType === 'product'
+                            ? <BarberIcon name="product" />
+                            : <ServiceIcon icon={item.icon} serviceName={item.name} />}
+                        </span>
+                        <div>
+                          <strong>{item.name}</strong>
+                          <span>{collaboratorDisplayName(activeSaleCollaborator) || user?.name || 'Colaborador vinculado no envio'}</span>
+                        </div>
+                      </div>
+
+                      <div className="barber-sales-item-qty">
+                        <button onClick={() => updateSaleItemQuantity(item.key, -1)} type="button">-</button>
+                        <span>{item.quantity}</span>
+                        <button onClick={() => updateSaleItemQuantity(item.key, 1)} type="button">+</button>
+                      </div>
+
+                      <div className="barber-sales-item-values">
+                        <strong>{isCollaborator ? money(item.commissionAmount) : money(item.totalPrice)}</strong>
+                        <span>{isCollaborator ? 'minha comissao estimada' : `${money(item.unitPrice)} unitario`}</span>
+                      </div>
+
+                      <button className="barber-sales-item-remove" onClick={() => removeSaleItem(item.key)} type="button">
+                        <BarberIcon name="trash" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <BarberEmptyState
+                  description="Use o botao acima para abrir o catalogo e adicionar servicos sob demanda."
+                  title="Nenhum servico no atendimento"
+                />
+              )}
+            </BarberCard>
+          </section>
+
+          <aside className="barber-sales-sidebar">
+            <BarberCard className="barber-sales-summary-card">
+              <div className="barber-panel-header">
+                <div>
+                  <h3>Resumo do atendimento</h3>
+                  <p>Cliente, colaborador e pagamento organizados em um unico bloco de fechamento.</p>
+                </div>
+                <BarberBadge tone="cash">{isCollaborator ? money(saleEffectiveCommission) : money(saleEffectiveTotal)}</BarberBadge>
+              </div>
+
+              <div className="barber-sales-summary-list">
+                <div className="barber-sales-summary-row">
+                  <span>Servicos</span>
+                  <strong>{saleItemsCount}</strong>
+                </div>
+                {!isCollaborator && (
+                  <div className="barber-sales-summary-row">
+                    <span>Subtotal</span>
+                    <strong>{money(saleEffectiveTotal)}</strong>
+                  </div>
+                )}
+                <div className="barber-sales-summary-row">
+                  <span>{isCollaborator ? 'Minha comissao' : 'Comissao'}</span>
+                  <strong>{money(saleEffectiveCommission)}</strong>
+                </div>
+                {!isCollaborator && (
+                  <div className="barber-sales-summary-row">
+                    <span>Total liquido</span>
+                    <strong>{money(saleEffectiveNet)}</strong>
+                  </div>
+                )}
+              </div>
+
+              <div className="barber-sales-checkout-block">
+                <div className="barber-sales-checkout-header">
+                  <strong>Dados do atendimento</strong>
+                  <span>Cliente, profissional e forma de pagamento</span>
+                </div>
+
+                <div className="barber-form-block">
+                  <label htmlFor="sale-client-name">Cliente</label>
+                  <input className="barber-input" id="sale-client-name" name="clientName" onChange={updateSaleForm} placeholder="Opcional" value={saleForm.clientName} />
+                </div>
+
+                {canManageCash ? (
+                  <div className="barber-form-block">
+                    <label htmlFor="sale-collaborator">Colaborador</label>
+                    <select className="barber-select" id="sale-collaborator" name="collaboratorId" onChange={updateSaleForm} value={saleForm.collaboratorId}>
+                      <option value="">Selecione o colaborador</option>
+                      {activeCollaborators.map((collaborator) => (
+                        <option key={collaborator.id} value={collaborator.id}>
+                          {collaborator.name || collaborator.nickname}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="barber-placeholder">
+                    <strong>Colaborador vinculado automaticamente</strong>
+                    <p>O atendimento sera registrado no perfil autenticado do colaborador.</p>
+                  </div>
+                )}
+
+                <div className="barber-form-block">
+                  <label>Pagamento</label>
+                  <div className="barber-sales-payment-grid">
+                    {paymentOptions.map((option) => (
+                      <button
+                        className={`barber-sales-payment-card ${saleForm.paymentMethod === option.value ? 'active' : ''}`}
+                        key={option.value}
+                        onClick={() => updateSaleForm({ target: { name: 'paymentMethod', value: option.value } })}
+                        type="button"
+                      >
+                        <BarberIcon name={option.icon} />
+                        <span>{option.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {isCashPayment && (
+                  <>
+                    <div className="barber-form-block">
+                      <label htmlFor="sale-amount-received">Valor recebido</label>
+                      <input className="barber-input" id="sale-amount-received" min={saleEffectiveTotal || 0} name="amountReceived" onChange={updateSaleForm} step="0.01" type="number" value={saleForm.amountReceived} />
+                    </div>
+
+                    <div className="barber-sales-summary-highlight">
+                      <span>Troco</span>
+                      <strong>{money(Math.max(0, saleChangeDue))}</strong>
+                    </div>
+                  </>
+                )}
+
+                <div className="barber-form-block">
+                  <label htmlFor="sale-notes">Observacoes</label>
+                  <textarea className="barber-textarea" id="sale-notes" name="notes" onChange={updateSaleForm} placeholder="Observacoes do atendimento, observacoes do cliente ou detalhes do procedimento..." rows="4" value={saleForm.notes} />
+                </div>
+              </div>
+
+              {isCashPayment && saleForm.amountReceived && saleChangeDue < 0 && (
+                <div className="barber-message barber-message-error">
+                  Valor recebido menor que o total do atendimento.
+                </div>
+              )}
+
+              {!isCollaborator && <div className="barber-sales-total-card">
+                <span>Total</span>
+                <strong>{money(saleEffectiveTotal)}</strong>
+              </div>}
+
+              <BarberButton className="barber-sales-submit" disabled={submittingSale} type="submit" variant="primary">
+                <BarberIcon name="plus" />
+                <span>{submittingSale ? 'Registrando atendimento...' : 'Finalizar atendimento'}</span>
+              </BarberButton>
+            </BarberCard>
+          </aside>
+        </form>
+
+        <BarberCard className="barber-sales-recent-panel">
+          <div className="barber-table-header">
+            <div>
+              <h2>Atendimentos recentes</h2>
+              <p>Ultimos atendimentos registrados no sistema, com pagamento e colaborador responsavel.</p>
+            </div>
+            <BarberBadge tone="admin">{sales.length} registros</BarberBadge>
+          </div>
+
+          {recentSales.length > 0 ? (
+            <div className="barber-sales-recent-list">
+              {recentSales.map((sale) => (
+                <div className="barber-sales-recent-card" key={sale.id}>
+                  <div className="barber-sales-recent-main">
+                    <strong>{sale.service_name || sale.client_name || 'Atendimento registrado'}</strong>
+                    <span>{isCollaborator ? fullDate(sale.created_at) : `${sale.collaborator_name || 'Sem colaborador'} - ${fullDate(sale.created_at)}`}</span>
+                  </div>
+
+                  <div className="barber-sales-recent-meta">
+                    {!isCollaborator && <BarberBadge tone={paymentTone(sale.payment_method)}>
+                      {paymentLabel(sale.payment_method)}
+                    </BarberBadge>}
+                    <strong>{money(isCollaborator ? sale.commission_amount || 0 : sale.total_amount)}</strong>
+                  </div>
+
+                  {isAdmin ? (
+                    <button className="barber-sales-recent-remove" onClick={() => startDeleteSale(sale.id)} type="button">
+                      <BarberIcon name="trash" />
+                    </button>
+                  ) : (
+                    <span className="barber-sales-recent-id">{String(sale.id).slice(0, 8)}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <BarberEmptyState
+              description="Assim que o primeiro atendimento for registrado, o historico aparece aqui automaticamente."
+              title="Nenhum atendimento registrado"
+            />
+          )}
+        </BarberCard>
+
+        <BarberCard className="barber-sales-table-card">
+          <div className="barber-table-header">
+            <div>
+              <h2>Lista de atendimentos</h2>
+              <p>Vendas persistidas no banco, filtradas por periodo e colaborador.</p>
+            </div>
+            {!isCollaborator && <BarberBadge tone="cash">{money(salesSummary.total_amount || 0)}</BarberBadge>}
+          </div>
+
+          <BarberTable columns={isCollaborator ? ['Data', 'Servico', 'Cliente', 'Status', 'Minha comissao'] : ['Colaborador', 'Cliente', 'Data', 'Pagamento', 'Total', 'Comissao', 'Status', 'Acoes']}>
+            {sales.length > 0 ? (
+              sales.map((sale) => {
+                const commissionAmount = Number(sale.item_commission_amount ?? sale.commission_amount ?? 0)
+                const saleStatus = sale.status || 'active'
+
+                return isCollaborator ? (
+                  <tr key={sale.id}>
+                    <td>{fullDate(sale.created_at)}</td>
+                    <td>{sale.service_name || 'Atendimento registrado'}</td>
+                    <td>{sale.customer_name || sale.client_name || 'Nao informado'}</td>
+                    <td>
+                      <BarberBadge tone={saleStatus === 'canceled' ? 'danger' : 'approved'}>
+                        {saleStatus === 'canceled' ? 'Cancelado' : 'Ativo'}
+                      </BarberBadge>
+                    </td>
+                    <td>{money(commissionAmount)}</td>
+                  </tr>
+                ) : (
+                  <tr key={sale.id}>
+                    <td>
+                      <strong>{sale.collaborator_name || 'Sem colaborador'}</strong>
+                      <span>{sale.service_name || 'Atendimento registrado'}</span>
+                    </td>
+                    <td>
+                      <strong>{sale.customer_name || sale.client_name || 'Nao informado'}</strong>
+                      <span>{sale.customer_phone || sale.notes || '-'}</span>
+                    </td>
+                    <td>{fullDate(sale.created_at)}</td>
+                    <td>
+                      <BarberBadge tone={paymentTone(sale.payment_method)}>
+                        {paymentLabel(sale.payment_method)}
+                      </BarberBadge>
+                    </td>
+                    <td>{money(sale.total_amount)}</td>
+                    <td>{money(commissionAmount)}</td>
+                    <td>
+                      <BarberBadge tone={saleStatus === 'canceled' ? 'danger' : 'approved'}>
+                        {saleStatus === 'canceled' ? 'Cancelado' : 'Ativo'}
+                      </BarberBadge>
+                    </td>
+                    <td>
+                      {isAdmin && saleStatus !== 'canceled' ? (
+                        <BarberButton onClick={() => startDeleteSale(sale.id)} type="button" variant="danger">
+                          <BarberIcon name="trash" />
+                          <span>Cancelar atendimento</span>
+                        </BarberButton>
+                      ) : (
+                        <span>-</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })
+            ) : (
+              <tr>
+                <td colSpan={isCollaborator ? '5' : '8'}>
+                  <BarberEmptyState
+                    description="Nenhum atendimento encontrado para os filtros atuais."
+                    title="Sem registros no periodo"
+                  />
+                </td>
+              </tr>
+            )}
+          </BarberTable>
+        </BarberCard>
+
+        <BarberModal
+          onClose={closeServicePicker}
+          open={servicePickerOpen}
+          subtitle="Busque no catalogo e adicione servicos ou produtos sem poluir a tela principal."
+          title="Adicionar servico ao atendimento"
+        >
+          <div className="barber-modal-content">
+            <div className="barber-sales-picker-toolbar">
+              <div className="barber-form-block barber-sales-search">
+                <label htmlFor="sales-search-modal">Buscar</label>
+                <input
+                  className="barber-input"
+                  id="sales-search-modal"
+                  onChange={(event) => setSaleCatalogSearch(event.target.value)}
+                  placeholder="Buscar servico ou produto..."
+                  value={saleCatalogSearch}
+                />
+              </div>
+
+              <div className="barber-sales-filter-group" role="tablist" aria-label="Filtros do catalogo">
+                {[
+                  { key: 'all', label: 'Todos' },
+                  { key: 'service', label: 'Servicos' },
+                  { key: 'product', label: 'Produtos' }
+                ].map((filter) => (
+                  <button
+                    className={`barber-sales-filter ${saleCatalogFilter === filter.key ? 'active' : ''}`}
+                    key={filter.key}
+                    onClick={() => setSaleCatalogFilter(filter.key)}
+                    type="button"
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {saleCatalogItems.length > 0 ? (
+              <div className="barber-sales-picker-grid">
+                {saleCatalogItems.map((item) => (
+                  <div className="barber-sales-picker-card" key={`${item.type}-${item.id}`}>
+                    <div className="barber-sales-picker-main">
+                      <span className="barber-sales-catalog-icon">
+                        {item.type === 'product'
+                          ? <BarberIcon name="product" />
+                          : <ServiceIcon icon={item.icon} serviceName={item.name} />}
+                      </span>
+
+                      <div className="barber-sales-catalog-copy">
+                        <div className="barber-sales-catalog-name">{formatServiceName(item.name)}</div>
+                        <div className="barber-sales-catalog-type">
+                          {item.type === 'product' ? item.category || 'Produto' : item.category === 'combo' ? 'Combo' : 'Servico'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="barber-sales-picker-side">
+                      <strong className="barber-sales-catalog-price">{money(item.price)}</strong>
+                      <BarberButton onClick={() => appendSaleItemFromCatalog(item, item.type, 1, { closeAfterAdd: true })} type="button" variant="secondary">
+                        <BarberIcon name="plus" />
+                        <span>Adicionar</span>
+                      </BarberButton>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <BarberEmptyState
+                description="Nenhum item encontrado para este filtro. Ajuste a busca ou o tipo do catalogo."
+                title="Catalogo vazio"
+              />
+            )}
+
+            <div className="barber-modal-actions">
+              <BarberButton onClick={closeServicePicker} type="button" variant="ghost">
+                Fechar
+              </BarberButton>
+            </div>
+          </div>
+        </BarberModal>
+      </>
+    )
+  }
+
   function renderSales() {
-    return renderSalesV2()
+    return renderAttendancesWorkspace()
   }
 
   function RenderSalesLegacy() {
@@ -3138,8 +4708,8 @@ function Barber() {
           <BarberCard>
             <div className="barber-panel-header">
               <div>
-                <h3>Registrar nova venda</h3>
-                <p>Monte uma venda com os servicos ativos da barbearia e mantenha o caixa sincronizado com dados reais.</p>
+                <h3>Registrar atendimento</h3>
+                <p>Monte um atendimento com os servicos ativos da barbearia e mantenha o caixa sincronizado com dados reais.</p>
               </div>
               <BarberBadge tone="cash">{saleForm.items.length ? money(saleTotal) : 'Adicione itens'}</BarberBadge>
             </div>
@@ -3174,7 +4744,7 @@ function Barber() {
                   </div>
                 ) : (
                   <div className="barber-placeholder">
-                    <strong>Venda vinculada ao seu usuario</strong>
+                    <strong>Atendimento vinculado ao seu usuario</strong>
                     <p>Como colaborador, a API ja garante que o registro fique associado ao seu perfil.</p>
                   </div>
                 )}
@@ -3213,7 +4783,7 @@ function Barber() {
 
                 <div className="barber-form-block barber-form-block-full">
                   <label htmlFor="sale-notes">Observacoes</label>
-                  <textarea className="barber-textarea" id="sale-notes" name="notes" onChange={updateSaleForm} placeholder="Anotacoes da venda, observacoes do cliente ou detalhes do atendimento..." rows="4" value={saleForm.notes} />
+                  <textarea className="barber-textarea" id="sale-notes" name="notes" onChange={updateSaleForm} placeholder="Observacoes do atendimento, preferencias do cliente ou detalhes do servico..." rows="4" value={saleForm.notes} />
                 </div>
               </div>
 
@@ -3245,8 +4815,8 @@ function Barber() {
                   <tr>
                     <td colSpan="7">
                       <BarberEmptyState
-                        description="Adicione servicos do catalogo para montar a venda."
-                        title="Nenhum item na venda"
+                        description="Adicione servicos do catalogo para montar o atendimento."
+                        title="Nenhum servico no atendimento"
                       />
                     </td>
                   </tr>
@@ -3256,15 +4826,15 @@ function Barber() {
               <div className="barber-page-actions">
                 <BarberButton disabled={submittingSale} type="submit" variant="primary">
                   <BarberIcon name="plus" />
-                  <span>{submittingSale ? 'Lancando venda...' : 'Lancar venda do colaborador'}</span>
+                  <span>{submittingSale ? 'Registrando atendimento...' : 'Finalizar atendimento'}</span>
                 </BarberButton>
                 <div className="barber-placeholder" style={{ padding: 14 }}>
-                  <strong>{saleForm.items.length ? `${saleForm.items.length} item(ns) na venda` : 'Resumo da venda'}</strong>
+                  <strong>{saleForm.items.length ? `${saleForm.items.length} servico(s) no atendimento` : 'Resumo do atendimento'}</strong>
                   <p>
                     {saleForm.items.length
                       ? `${money(saleTotal)} bruto • ${money(saleCommissionTotal)} comissao • ${money(saleShopNetTotal)} liquido`
-                      : 'Adicione itens para visualizar subtotal, comissao do colaborador e liquido da barbearia.'}
-                    {selectedCollaborator ? ` • ${selectedCollaborator.nickname}` : ''}
+                      : 'Adicione servicos para visualizar subtotal, comissao do colaborador e liquido da barbearia.'}
+                    {activeSaleCollaborator ? ` • ${collaboratorDisplayName(activeSaleCollaborator)}` : ''}
                   </p>
                 </div>
               </div>
@@ -3287,7 +4857,7 @@ function Barber() {
               <div className="barber-summary-item">
                 <div>
                   <strong>Ticket medio estimado</strong>
-                  <p>Media das ultimas 50 vendas carregadas</p>
+                  <p>Media dos ultimos 50 atendimentos carregados</p>
                 </div>
                 <strong>
                   {money(
@@ -3306,7 +4876,7 @@ function Barber() {
               </div>
               <div className="barber-summary-item">
                 <div>
-                  <strong>Vendas com colaborador</strong>
+                  <strong>Atendimentos com colaborador</strong>
                   <p>Atendimentos associados a um profissional</p>
                 </div>
                 <strong>{sales.filter((sale) => sale.collaborator_name).length}</strong>
@@ -3422,7 +4992,7 @@ function Barber() {
               <div className="barber-inline-actions">
                 <BarberBadge tone="cash">Somente dados reais</BarberBadge>
                 <BarberButton onClick={() => {
-                  setSaleForm(emptySale)
+                  setSaleForm(buildEmptySaleForm(loggedInCollaboratorId))
                   setSaleModalOpen(true)
                 }} type="button" variant="primary">
                   <BarberIcon name="plus" />
@@ -3560,6 +5130,8 @@ function Barber() {
 
   function renderTeam() {
     const financialSummary = visibleCollaboratorFinancialSummary
+    const hasOperationalCollaborators = collaborators.length > 0
+    const hasFinancialSummary = financialSummary.length > 0
     const selectedPeriodLabel = {
       today: 'Hoje',
       week: 'Semana',
@@ -3629,7 +5201,7 @@ function Barber() {
         </BarberCard>
 
         <section className="barber-collaborator-grid">
-          {financialSummary.length > 0 ? (
+          {hasFinancialSummary ? (
             financialSummary.map((collaborator, index) => {
               const collaboratorRecord = collaborators.find((item) => item.id === collaborator.collaborator_id) || {}
 
@@ -3721,11 +5293,17 @@ function Barber() {
             <BarberCard className="barber-collaborator-card">
               <BarberEmptyState
                 description={isAdmin
-                  ? 'Nenhum colaborador cadastrado ainda.'
+                  ? hasOperationalCollaborators
+                    ? 'A equipe ja foi cadastrada, mas ainda nao gerou movimentacao no periodo selecionado.'
+                    : 'Nenhum colaborador cadastrado ainda.'
                   : 'Seu resumo financeiro aparecera aqui assim que houver vendas reais no periodo.'}
-                title={isAdmin ? 'Nenhum colaborador cadastrado' : 'Sem resumo financeiro'}
+                title={isAdmin
+                  ? hasOperationalCollaborators
+                    ? 'Equipe sem movimentacao no periodo'
+                    : 'Nenhum colaborador cadastrado'
+                  : 'Sem resumo financeiro'}
               />
-              {isAdmin && (
+              {isAdmin && !hasOperationalCollaborators && (
                 <div className="barber-inline-actions">
                   <BarberButton onClick={openCollaboratorCreateModal} type="button" variant="primary">
                     Adicionar primeiro colaborador
@@ -4187,6 +5765,8 @@ function Barber() {
     const companyPhone = settingsData.company?.phone || '-'
     const publicBookingSlug = settingsData.company?.public_booking_slug || ''
     const publicBookingUrl = publicBookingSlug ? `${window.location.origin}/agendar/${publicBookingSlug}` : ''
+    const onlineMinAdvanceEnabled = settingsData.agenda?.online_min_advance_enabled === true
+    const onlineMinAdvanceValue = Number(settingsData.agenda?.online_min_advance_value || 0)
 
     return (
       <>
@@ -4234,6 +5814,63 @@ function Barber() {
           <BarberCard className="barber-settings-card">
             <div className="barber-panel-header">
               <div>
+                <span className="barber-overline">Agenda</span>
+                <h3>Antecedencia para agendamento online</h3>
+                <p>Defina se o cliente precisa reservar com horas minimas de antecedencia no link publico.</p>
+              </div>
+              <BarberBadge tone={onlineMinAdvanceEnabled ? 'success' : 'neutral'}>
+                {onlineMinAdvanceEnabled ? 'Ativa' : 'Desativada'}
+              </BarberBadge>
+            </div>
+
+            <form className="barber-form-grid" onSubmit={handleAgendaSettingsSubmit}>
+              <label className="barber-settings-toggle">
+                <span>Exigir antecedencia minima para agendamentos online</span>
+                <input
+                  checked={onlineMinAdvanceEnabled}
+                  onChange={(event) => handleAgendaSettingsChange('online_min_advance_enabled', event.target.checked)}
+                  type="checkbox"
+                />
+              </label>
+
+              {onlineMinAdvanceEnabled ? (
+                <div className="barber-input-grid">
+                  <label>
+                    <span>Antecedencia minima</span>
+                    <input
+                      inputMode="numeric"
+                      min="1"
+                      onChange={(event) => handleAgendaSettingsChange('online_min_advance_value', Number(event.target.value || 0))}
+                      placeholder="1, 2, 4, 8, 12 ou 24"
+                      step="1"
+                      type="number"
+                      value={onlineMinAdvanceValue || ''}
+                    />
+                  </label>
+                </div>
+              ) : null}
+
+              <div className="barber-settings-hint">
+                <BarberIcon name="clock" />
+                <span>
+                  {onlineMinAdvanceEnabled
+                    ? `Clientes so verao horarios com pelo menos ${onlineMinAdvanceValue || 1} horas de antecedencia.`
+                    : 'Com a regra desativada, o cliente podera reservar qualquer horario disponivel no link online.'}
+                </span>
+              </div>
+
+              <div className="barber-settings-actions">
+                <BarberButton disabled={settingsSaving} type="submit" variant="primary">
+                  <BarberIcon name="check" />
+                  <span>{settingsSaving ? 'Salvando...' : 'Salvar agenda'}</span>
+                </BarberButton>
+              </div>
+            </form>
+          </BarberCard>
+
+          <BarberCard className="barber-settings-card">
+            <div className="barber-panel-header">
+              <div>
                 <span className="barber-overline">Seguranca</span>
                 <h3>Recuperacao e troca de PIN</h3>
                 <p>Use este fluxo para redefinir o PIN do dono/admin sem expor dados sensiveis no painel.</p>
@@ -4254,7 +5891,7 @@ function Barber() {
 
             {settingsLoading ? (
               <div className="barber-settings-loading">
-                <p>Carregando configuracoes de seguranca...</p>
+                <p>Carregando configuracoes de agenda e seguranca...</p>
               </div>
             ) : null}
 
@@ -4422,7 +6059,7 @@ function Barber() {
       )
     }
 
-    if (!isAdmin && currentView === 'appointments') {
+    if (!isAdmin && !isCollaborator && currentView === 'appointments') {
       return (
         <BarberCard>
           <BarberEmptyState
@@ -4889,7 +6526,9 @@ function Barber() {
       <BarberModal
         onClose={closeSaleModal}
         open={saleModalOpen}
-        subtitle="Selecione um servico ativo, vincule o colaborador e registre a venda direto no caixa."
+        subtitle={canManageCash
+          ? 'Selecione um servico ativo, vincule o colaborador e registre a venda direto no caixa.'
+          : 'Selecione um servico ativo e registre a venda vinculada automaticamente ao colaborador autenticado.'}
         title="Nova venda"
       >
         <div className="barber-modal-content">
@@ -4913,26 +6552,35 @@ function Barber() {
                 </select>
               </div>
 
-              <div className="barber-form-block">
-                <label htmlFor="cash-sale-collaborator">Colaborador</label>
-                <select
-                  className="barber-select"
-                  id="cash-sale-collaborator"
-                  name="collaboratorId"
-                  onChange={updateSaleForm}
-                  required
-                  value={saleForm.collaboratorId}
-                >
-                  <option value="">Selecione o colaborador</option>
-                  {collaborators
-                    .filter((collaborator) => collaborator.is_active)
-                    .map((collaborator) => (
-                      <option key={collaborator.id} value={collaborator.id}>
-                        {collaborator.name || collaborator.nickname}
-                      </option>
-                    ))}
-                </select>
-              </div>
+              {canManageCash ? (
+                <div className="barber-form-block">
+                  <label htmlFor="cash-sale-collaborator">Colaborador</label>
+                  <select
+                    className="barber-select"
+                    id="cash-sale-collaborator"
+                    name="collaboratorId"
+                    onChange={updateSaleForm}
+                    required
+                    value={saleForm.collaboratorId}
+                  >
+                    <option value="">Selecione o colaborador</option>
+                    {collaborators
+                      .filter((collaborator) => collaborator.is_active)
+                      .map((collaborator) => (
+                        <option key={collaborator.id} value={collaborator.id}>
+                          {collaborator.name || collaborator.nickname}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="barber-form-block">
+                  <label>Colaborador</label>
+                  <div className="barber-inline-hint">
+                    {collaboratorDisplayName(loggedInCollaborator) || user?.name || 'Colaborador autenticado'}
+                  </div>
+                </div>
+              )}
 
               <div className="barber-form-block">
                 <label htmlFor="cash-sale-quantity">Quantidade</label>
@@ -5053,7 +6701,7 @@ function Barber() {
               <div className="barber-summary-item">
                 <div>
                   <strong>Comissao total</strong>
-                  <p>{selectedCollaborator ? `Aplicada para ${selectedCollaborator.name || selectedCollaborator.nickname}` : 'Escolha o colaborador responsavel'}</p>
+                    <p>{activeSaleCollaborator ? `Aplicada para ${collaboratorDisplayName(activeSaleCollaborator)}` : 'Escolha o colaborador responsavel'}</p>
                 </div>
                 <strong>{money(saleCommissionTotal)}</strong>
               </div>
@@ -5097,12 +6745,12 @@ function Barber() {
       <BarberModal
         onClose={() => setDeleteSaleId('')}
         open={Boolean(deleteSaleId)}
-        subtitle={deleteSaleTarget ? `Venda de ${money(deleteSaleTarget.total_amount)} em ${fullDate(deleteSaleTarget.created_at)}` : ''}
-        title="Confirmar exclusao da venda"
+        subtitle={deleteSaleTarget ? `Atendimento de ${money(deleteSaleTarget.total_amount)} em ${fullDate(deleteSaleTarget.created_at)}` : ''}
+        title="Cancelar atendimento"
       >
         <div className="barber-modal-content">
           <div className="barber-form-block">
-            <label htmlFor="delete-reason">Motivo</label>
+            <label htmlFor="delete-reason">Motivo do cancelamento</label>
             <textarea
               className="barber-textarea"
               id="delete-reason"
@@ -5113,20 +6761,11 @@ function Barber() {
           </div>
           <div className="barber-form-grid">
             <div className="barber-form-block">
-              <label htmlFor="delete-password">Senha admin</label>
-              <input
-                className="barber-input"
-                id="delete-password"
-                onChange={(event) => setDeletePassword(event.target.value)}
-                type="password"
-                value={deletePassword}
-              />
-            </div>
-            <div className="barber-form-block">
-              <label htmlFor="delete-pin">PIN</label>
+              <label htmlFor="delete-pin">PIN admin</label>
               <input
                 className="barber-input"
                 id="delete-pin"
+                inputMode="numeric"
                 onChange={(event) => setDeletePin(event.target.value)}
                 type="password"
                 value={deletePin}
@@ -5139,7 +6778,7 @@ function Barber() {
             </BarberButton>
             <BarberButton onClick={deleteSale} type="button" variant="danger">
               <BarberIcon name="trash" />
-              <span>Excluir venda</span>
+              <span>Cancelar atendimento</span>
             </BarberButton>
           </div>
         </div>

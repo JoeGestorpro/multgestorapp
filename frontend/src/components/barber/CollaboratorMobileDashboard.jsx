@@ -18,7 +18,10 @@ function CollaboratorMobileDashboard({
 }) {
   const firstName = user?.name ? user.name.split(' ')[0] : 'colaborador'
   const pendingAdvances = advances.filter((advance) => advance.status === 'pending').length
-  const commissionToday = money(metrics.myCommissionAccumulated || metrics.totalCommission)
+  const todayCommissionValue = metrics.today?.commission ?? metrics.todayCommission ?? 0
+  const todayAttendances = metrics.today?.appointments ?? metrics.todayAttendances ?? 0
+  const weekCommission = metrics.week?.commission ?? metrics.weekCommission ?? 0
+  const commissionToday = money(todayCommissionValue)
   const netBalance = money(metrics.mySettlementBalance || metrics.netCommission)
 
   const quickActions = [
@@ -33,13 +36,13 @@ function CollaboratorMobileDashboard({
       key: 'attendances',
       icon: 'catalog',
       label: 'Meus atendimentos',
-      value: metrics.totalAttendances || metrics.todayAttendances || 0
+      value: todayAttendances
     },
     {
       key: 'commissions',
       icon: 'money',
       label: 'Minhas comissoes',
-      value: money(metrics.weekCommission)
+      value: money(weekCommission)
     },
     {
       key: 'advances',
@@ -81,7 +84,7 @@ function CollaboratorMobileDashboard({
         <div className="barber-collab-mobile-commission-strip">
           <div>
             <small>Atendimentos</small>
-            <strong>{metrics.totalAttendances || metrics.todayAttendances || 0}</strong>
+            <strong>{todayAttendances}</strong>
           </div>
           <div>
             <small>Liquido previsto</small>

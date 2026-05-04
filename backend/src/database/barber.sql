@@ -1,6 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES companies(id) ON DELETE SET NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS can_launch_sales BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view_own_dashboard BOOLEAN NOT NULL DEFAULT true;
@@ -12,9 +11,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_companies_public_booking_slug_unique
   ON companies(public_booking_slug)
   WHERE public_booking_slug IS NOT NULL;
 
-UPDATE users
-SET owner_id = company_id
-WHERE owner_id IS NULL AND company_id IS NOT NULL;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM users
+    WHERE company_id IS NULL
+    LIMIT 1
+  ) THEN
+    ALTER TABLE users
+      ALTER COLUMN company_id SET NOT NULL;
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS barber_services (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -27,7 +35,6 @@ CREATE TABLE IF NOT EXISTS barber_services (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
-ALTER TABLE barber_services ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES companies(id) ON DELETE CASCADE;
 ALTER TABLE barber_services ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE barber_services ADD COLUMN IF NOT EXISTS service_type TEXT NOT NULL DEFAULT 'service';
 ALTER TABLE barber_services ADD COLUMN IF NOT EXISTS estimated_time_minutes INTEGER;
@@ -39,12 +46,8 @@ UPDATE barber_services
 SET icon = 'scissors'
 WHERE icon IS NULL OR trim(icon) = '';
 
-UPDATE barber_services
-SET owner_id = company_id
-WHERE owner_id IS NULL;
-
 ALTER TABLE barber_services
-  ALTER COLUMN owner_id SET NOT NULL;
+  ALTER COLUMN company_id SET NOT NULL;
 
 ALTER TABLE barber_services
   ALTER COLUMN name SET NOT NULL;
@@ -81,7 +84,7 @@ END $$;
 
 CREATE TABLE IF NOT EXISTS barber_suppliers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   company_name TEXT,
   phone TEXT,
@@ -96,7 +99,7 @@ CREATE TABLE IF NOT EXISTS barber_suppliers (
 
 CREATE TABLE IF NOT EXISTS barber_products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   supplier_id UUID REFERENCES barber_suppliers(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
   description TEXT,
@@ -121,6 +124,14 @@ ALTER TABLE barber_products ADD COLUMN IF NOT EXISTS internal_code TEXT;
 ALTER TABLE barber_products ADD COLUMN IF NOT EXISTS stock_current NUMERIC(12, 2) NOT NULL DEFAULT 0;
 ALTER TABLE barber_products ADD COLUMN IF NOT EXISTS stock_minimum NUMERIC(12, 2) NOT NULL DEFAULT 0;
 ALTER TABLE barber_products ADD COLUMN IF NOT EXISTS unit TEXT;
+ALTER TABLE barber_suppliers ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
+ALTER TABLE barber_products ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
+
+ALTER TABLE barber_suppliers
+  ALTER COLUMN company_id SET NOT NULL;
+
+ALTER TABLE barber_products
+  ALTER COLUMN company_id SET NOT NULL;
 
 DO $$
 BEGIN
@@ -282,7 +293,6 @@ END $$;
 CREATE TABLE IF NOT EXISTS barber_collaborators (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  owner_id UUID REFERENCES companies(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   nickname TEXT NOT NULL,
   commission_type TEXT DEFAULT 'percentage',
@@ -293,19 +303,34 @@ CREATE TABLE IF NOT EXISTS barber_collaborators (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
-ALTER TABLE barber_collaborators ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES companies(id) ON DELETE CASCADE;
 ALTER TABLE barber_collaborators ADD COLUMN IF NOT EXISTS commission_type TEXT DEFAULT 'percentage';
 ALTER TABLE barber_collaborators ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false;
 ALTER TABLE barber_collaborators ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
 ALTER TABLE barber_collaborators ADD COLUMN IF NOT EXISTS available_for_booking BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE barber_collaborators ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE barber_collaborators ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'barber_collaborators'
+      AND column_name = 'owner_id'
+      AND is_nullable = 'NO'
+  ) THEN
+    ALTER TABLE barber_collaborators
+      ALTER COLUMN owner_id DROP NOT NULL;
+  END IF;
+END $$;
 
 UPDATE barber_collaborators
-SET owner_id = company_id
-WHERE owner_id IS NULL;
-
-ALTER TABLE barber_collaborators
-  ALTER COLUMN owner_id SET NOT NULL;
+SET company_id = users.company_id
+FROM users
+WHERE barber_collaborators.user_id = users.id
+  AND barber_collaborators.company_id IS NULL
+  AND users.company_id IS NOT NULL;
 
 ALTER TABLE barber_collaborators
   ALTER COLUMN commission_type SET DEFAULT 'percentage';
@@ -360,6 +385,33 @@ CREATE TABLE IF NOT EXISTS barber_sales (
 ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS amount_received NUMERIC(12, 2) DEFAULT 0;
 ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS sale_date_local DATE;
 ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS client_name TEXT;
+ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS customer_id UUID;
+ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS customer_name TEXT;
+ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS customer_phone TEXT;
+ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS subtotal NUMERIC(12, 2) NOT NULL DEFAULT 0;
+ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS discount NUMERIC(12, 2) NOT NULL DEFAULT 0;
+ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS commission_amount NUMERIC(12, 2) NOT NULL DEFAULT 0;
+ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE barber_sales ALTER COLUMN status SET DEFAULT 'active';
+ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS canceled_by UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS canceled_at TIMESTAMP;
+ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS canceled_reason TEXT;
+ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS appointment_id UUID;
+ALTER TABLE barber_sales ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW();
+
+UPDATE barber_sales
+SET customer_name = COALESCE(customer_name, client_name),
+    subtotal = CASE WHEN subtotal = 0 THEN total_amount ELSE subtotal END,
+    status = COALESCE(NULLIF(status, ''), 'active'),
+    updated_at = COALESCE(updated_at, created_at, NOW())
+WHERE customer_name IS NULL
+   OR subtotal = 0
+   OR status IS NULL
+   OR status = ''
+   OR updated_at IS NULL;
+
+ALTER TABLE barber_sales
+  ALTER COLUMN status SET NOT NULL;
 
 UPDATE barber_sales
 SET sale_date_local = created_at::date
@@ -367,7 +419,7 @@ WHERE sale_date_local IS NULL;
 
 CREATE TABLE IF NOT EXISTS barber_cash_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   cash_date DATE NOT NULL,
   status TEXT NOT NULL DEFAULT 'open',
   opened_at TIMESTAMP,
@@ -389,7 +441,7 @@ CREATE TABLE IF NOT EXISTS barber_cash_sessions (
   notes TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  CONSTRAINT uq_barber_cash_sessions_owner_date UNIQUE (owner_id, cash_date)
+  CONSTRAINT uq_barber_cash_sessions_company_date UNIQUE (company_id, cash_date)
 );
 
 CREATE TABLE IF NOT EXISTS barber_sale_items (
@@ -397,7 +449,7 @@ CREATE TABLE IF NOT EXISTS barber_sale_items (
   sale_id UUID NOT NULL REFERENCES barber_sales(id) ON DELETE CASCADE,
   item_type TEXT NOT NULL,
   item_id UUID,
-  owner_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
   collaborator_id UUID REFERENCES barber_collaborators(id) ON DELETE SET NULL,
   service_id UUID,
   product_id UUID,
@@ -413,20 +465,32 @@ CREATE TABLE IF NOT EXISTS barber_sale_items (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
-ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES companies(id) ON DELETE CASCADE;
+ALTER TABLE barber_cash_sessions ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
+ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
 ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS collaborator_id UUID REFERENCES barber_collaborators(id) ON DELETE SET NULL;
 ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS service_id UUID;
 ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS product_id UUID;
 ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS item_name_snapshot TEXT;
 ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS commission_type_snapshot TEXT;
 ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS commission_rate_snapshot NUMERIC(12, 2) DEFAULT 0;
+ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS commission_type TEXT;
+ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS commission_rate NUMERIC(12, 2) DEFAULT 0;
 ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS shop_net_amount NUMERIC(12, 2) NOT NULL DEFAULT 0;
 
 UPDATE barber_sale_items
-SET owner_id = barber_sales.company_id
+SET company_id = barber_sales.company_id
 FROM barber_sales
 WHERE barber_sale_items.sale_id = barber_sales.id
-  AND barber_sale_items.owner_id IS NULL;
+  AND barber_sale_items.company_id IS NULL;
+
+ALTER TABLE barber_cash_sessions
+  ALTER COLUMN company_id SET NOT NULL;
+
+ALTER TABLE barber_sale_items
+  ALTER COLUMN company_id SET NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_barber_cash_sessions_company_date_unique
+  ON barber_cash_sessions(company_id, cash_date);
 
 CREATE TABLE IF NOT EXISTS barber_advances (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -456,7 +520,6 @@ CREATE TABLE IF NOT EXISTS barber_settlements (
 
 CREATE TABLE IF NOT EXISTS barber_appointments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   service_id UUID NOT NULL REFERENCES barber_services(id) ON DELETE RESTRICT,
   collaborator_id UUID NOT NULL REFERENCES barber_collaborators(id) ON DELETE RESTRICT,
@@ -481,6 +544,43 @@ BEGIN
     ALTER TABLE barber_appointments
       ADD CONSTRAINT chk_barber_appointments_status
       CHECK (status IN ('scheduled', 'confirmed', 'completed', 'canceled', 'no_show'));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'chk_barber_sales_status'
+  ) THEN
+    ALTER TABLE barber_sales
+      ADD CONSTRAINT chk_barber_sales_status
+      CHECK (status IN ('active', 'canceled'));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'chk_barber_sales_discount_non_negative'
+  ) THEN
+    ALTER TABLE barber_sales
+      ADD CONSTRAINT chk_barber_sales_discount_non_negative CHECK (discount >= 0);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'chk_barber_sales_commission_non_negative'
+  ) THEN
+    ALTER TABLE barber_sales
+      ADD CONSTRAINT chk_barber_sales_commission_non_negative CHECK (commission_amount >= 0);
   END IF;
 END $$;
 
@@ -613,29 +713,29 @@ BEGIN
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_barber_services_company_id ON barber_services(company_id);
-CREATE INDEX IF NOT EXISTS idx_barber_services_owner_id ON barber_services(owner_id);
-CREATE INDEX IF NOT EXISTS idx_barber_services_owner_name ON barber_services(owner_id, name) WHERE is_deleted = false;
-CREATE INDEX IF NOT EXISTS idx_barber_services_owner_status ON barber_services(owner_id, is_active) WHERE is_deleted = false;
-CREATE INDEX IF NOT EXISTS idx_barber_suppliers_owner_id ON barber_suppliers(owner_id);
-CREATE INDEX IF NOT EXISTS idx_barber_suppliers_owner_name ON barber_suppliers(owner_id, name) WHERE is_deleted = false;
-CREATE INDEX IF NOT EXISTS idx_barber_products_owner_id ON barber_products(owner_id);
+CREATE INDEX IF NOT EXISTS idx_barber_services_company_name ON barber_services(company_id, name) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_barber_services_company_status ON barber_services(company_id, is_active) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_barber_suppliers_company_id ON barber_suppliers(company_id);
+CREATE INDEX IF NOT EXISTS idx_barber_suppliers_company_name ON barber_suppliers(company_id, name) WHERE is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_barber_products_supplier_id ON barber_products(supplier_id);
-CREATE INDEX IF NOT EXISTS idx_barber_products_owner_name ON barber_products(owner_id, name) WHERE is_deleted = false;
-CREATE INDEX IF NOT EXISTS idx_barber_products_owner_status ON barber_products(owner_id, is_active) WHERE is_deleted = false;
-CREATE INDEX IF NOT EXISTS idx_barber_products_owner_category ON barber_products(owner_id, category) WHERE is_deleted = false;
-CREATE INDEX IF NOT EXISTS idx_barber_products_owner_internal_code ON barber_products(owner_id, internal_code) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_barber_products_company_id ON barber_products(company_id);
+CREATE INDEX IF NOT EXISTS idx_barber_products_company_name ON barber_products(company_id, name) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_barber_products_company_status ON barber_products(company_id, is_active) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_barber_products_company_category ON barber_products(company_id, category) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_barber_products_company_internal_code ON barber_products(company_id, internal_code) WHERE is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_barber_collaborators_company_id ON barber_collaborators(company_id);
-CREATE INDEX IF NOT EXISTS idx_barber_collaborators_owner_id ON barber_collaborators(owner_id);
 CREATE INDEX IF NOT EXISTS idx_barber_collaborators_user_id ON barber_collaborators(user_id);
-CREATE INDEX IF NOT EXISTS idx_barber_collaborators_available_for_booking ON barber_collaborators(owner_id, available_for_booking, is_active);
-CREATE INDEX IF NOT EXISTS idx_barber_appointments_owner_id ON barber_appointments(owner_id);
+CREATE INDEX IF NOT EXISTS idx_barber_collaborators_available_for_booking ON barber_collaborators(company_id, available_for_booking, is_active);
 CREATE INDEX IF NOT EXISTS idx_barber_appointments_company_id ON barber_appointments(company_id);
 CREATE INDEX IF NOT EXISTS idx_barber_appointments_date ON barber_appointments(appointment_date);
 CREATE INDEX IF NOT EXISTS idx_barber_appointments_status ON barber_appointments(status);
 CREATE INDEX IF NOT EXISTS idx_barber_sales_company_id ON barber_sales(company_id);
 CREATE INDEX IF NOT EXISTS idx_barber_sales_company_date ON barber_sales(company_id, sale_date_local);
+CREATE INDEX IF NOT EXISTS idx_barber_sales_company_status_date ON barber_sales(company_id, status, sale_date_local DESC);
+CREATE INDEX IF NOT EXISTS idx_barber_sales_company_status_created ON barber_sales(company_id, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_barber_sales_company_collaborator_date ON barber_sales(company_id, collaborator_id, sale_date_local DESC);
 CREATE INDEX IF NOT EXISTS idx_barber_sale_items_sale_id ON barber_sale_items(sale_id);
-CREATE INDEX IF NOT EXISTS idx_barber_sale_items_owner_id ON barber_sale_items(owner_id);
+CREATE INDEX IF NOT EXISTS idx_barber_sale_items_company_id ON barber_sale_items(company_id);
 CREATE INDEX IF NOT EXISTS idx_barber_sale_items_product_id ON barber_sale_items(product_id);
 CREATE INDEX IF NOT EXISTS idx_barber_sale_items_service_id ON barber_sale_items(service_id);
 CREATE INDEX IF NOT EXISTS idx_barber_advances_company_id ON barber_advances(company_id);
@@ -645,5 +745,29 @@ CREATE INDEX IF NOT EXISTS idx_barber_settlements_company_id ON barber_settlemen
 CREATE INDEX IF NOT EXISTS idx_barber_settlements_collaborator_id ON barber_settlements(collaborator_id);
 CREATE INDEX IF NOT EXISTS idx_barber_audit_logs_company_id ON barber_audit_logs(company_id);
 CREATE INDEX IF NOT EXISTS idx_barber_audit_logs_entity ON barber_audit_logs(entity_type, entity_id);
-CREATE INDEX IF NOT EXISTS idx_barber_cash_sessions_owner_date ON barber_cash_sessions(owner_id, cash_date DESC);
-CREATE INDEX IF NOT EXISTS idx_barber_cash_sessions_owner_status ON barber_cash_sessions(owner_id, status, cash_date DESC);
+CREATE INDEX IF NOT EXISTS idx_barber_cash_sessions_company_date ON barber_cash_sessions(company_id, cash_date DESC);
+CREATE INDEX IF NOT EXISTS idx_barber_cash_sessions_company_status ON barber_cash_sessions(company_id, status, cash_date DESC);
+
+CREATE TABLE IF NOT EXISTS barber_working_hours (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  collaborator_id UUID REFERENCES barber_collaborators(id) ON DELETE CASCADE,
+  weekday INTEGER NOT NULL, -- 0-6 (Dom-Sab)
+  opens_at TIME,
+  closes_at TIME,
+  is_closed BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT uq_barber_working_hours_comp_coll_day UNIQUE (company_id, collaborator_id, weekday)
+);
+
+CREATE INDEX IF NOT EXISTS idx_barber_working_hours_company_id ON barber_working_hours(company_id);
+CREATE INDEX IF NOT EXISTS idx_barber_working_hours_company ON barber_working_hours(company_id);
+CREATE INDEX IF NOT EXISTS idx_barber_working_hours_company_weekday ON barber_working_hours(company_id, weekday);
+CREATE INDEX IF NOT EXISTS idx_barber_working_hours_collaborator_id ON barber_working_hours(collaborator_id);
+CREATE INDEX IF NOT EXISTS idx_barber_working_hours_collaborator ON barber_working_hours(collaborator_id);
+
+ALTER TABLE barber_appointments ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'admin_manual';
+ALTER TABLE barber_appointments ADD COLUMN IF NOT EXISTS canceled_reason TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_barber_appointments_comp_coll_start ON barber_appointments(company_id, collaborator_id, appointment_date, appointment_time);
