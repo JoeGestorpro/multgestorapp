@@ -40,6 +40,7 @@ const PAYMENT_METHOD_ALIASES = {
   credito: 'credito',
   debit: 'debito',
   debito: 'debito',
+  barter: 'permuta',
   trade: 'permuta',
   permuta: 'permuta'
 };
@@ -602,12 +603,41 @@ function isAdmin(user) {
 }
 
 function isSaleActiveSql(alias = 'barber_sales') {
-  return `COALESCE(${alias}.status, 'active') = 'active'`;
+  return `LOWER(TRIM(COALESCE(${alias}.status, 'active'))) NOT IN ('deleted', 'cancelled', 'canceled', 'removed')
+    AND LOWER(TRIM(COALESCE(${alias}.status, 'active'))) IN ('active', 'completed', 'paid', 'finalized')
+    AND ${alias}.canceled_at IS NULL
+    AND (
+      ${alias}.collaborator_id IS NULL
+      OR EXISTS (
+        SELECT 1
+        FROM barber_collaborators sale_collaborator_filter
+        WHERE sale_collaborator_filter.id = ${alias}.collaborator_id
+          AND sale_collaborator_filter.company_id = ${alias}.company_id
+          AND COALESCE(sale_collaborator_filter.is_deleted, false) = false
+          AND COALESCE(sale_collaborator_filter.is_active, true) = true
+      )
+    )`;
+}
+
+function getSaleItemType(item = {}) {
+  return String(item.item_type || item.itemType || (item.product_id || item.productId ? 'product' : 'service')).trim().toLowerCase();
+}
+
+function getSaleItemId(item = {}, itemType = getSaleItemType(item)) {
+  if (itemType === 'product') {
+    return item.product_id || item.productId || item.item_id || item.itemId || null;
+  }
+
+  return item.service_id || item.serviceId || item.item_id || item.itemId || null;
 }
 
 function normalizePaymentMethod(value) {
   const normalized = String(value || '').trim().toLowerCase();
   return PAYMENT_METHOD_ALIASES[normalized] || normalized;
+}
+
+function isBarterPayment(paymentMethod) {
+  return normalizePaymentMethod(paymentMethod) === 'permuta';
 }
 
 function getBusinessDateParts(input = new Date()) {
@@ -700,9 +730,15 @@ function buildBusinessTimestampRange(startDate, endDate) {
   const start = normalizeDateInput(startDate);
   const endExclusive = addDateDays(normalizeDateInput(endDate), 1);
 
+  const [startYear, startMonth, startDay] = start.split('-').map(Number);
+  const [endYear, endMonth, endDay] = endExclusive.split('-').map(Number);
+
+  const startUTC = new Date(Date.UTC(startYear, startMonth - 1, startDay, 4, 0, 0, 0));
+  const endUTC = new Date(Date.UTC(endYear, endMonth - 1, endDay, 4, 0, 0, 0));
+
   return {
-    startAt: `${start}T00:00:00.000-04:00`,
-    endAt: `${endExclusive}T00:00:00.000-04:00`
+    startAt: startUTC.toISOString(),
+    endAt: endUTC.toISOString()
   };
 }
 
@@ -859,6 +895,9 @@ function normalizeCollaboratorPayload(data = {}) {
     canLaunchSales: data.can_launch_sales === undefined && data.canLaunchSales === undefined
       ? false
       : Boolean(data.can_launch_sales ?? data.canLaunchSales),
+    canMakeBarter: data.can_make_barter === undefined && data.canMakeBarter === undefined
+      ? false
+      : Boolean(data.can_make_barter ?? data.canMakeBarter),
     availableForBooking: data.available_for_booking === undefined && data.availableForBooking === undefined
       ? false
       : Boolean(data.available_for_booking ?? data.availableForBooking),
@@ -984,7 +1023,7 @@ function buildReportPeriod(filter = 'today', startDate, endDate) {
 
 async function getCollaboratorForUser(companyId, userId, client = pool) {
   const result = await client.query(
-    `SELECT id, nickname, commission_type, commission_rate, is_active, is_deleted
+    `SELECT id, nickname, commission_type, commission_rate, can_make_barter, is_active, is_deleted
      FROM barber_collaborators
      WHERE company_id = $1
        AND user_id = $2
@@ -1009,6 +1048,7 @@ async function getCollaboratorRecord(companyId, collaboratorId, client = pool) {
        barber_collaborators.nickname,
        barber_collaborators.commission_type,
        barber_collaborators.commission_rate,
+       barber_collaborators.can_make_barter,
        barber_collaborators.available_for_booking,
        barber_collaborators.avatar_url,
        barber_collaborators.is_active,
@@ -1332,15 +1372,21 @@ async function recalculateCashSession(companyId, cashDate, client = pool) {
 
   const totalsResult = await client.query(
     `SELECT
-       COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS gross_total,
-       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'pix' THEN barber_sales.total_amount ELSE 0 END), 0)::numeric AS pix_total,
-       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'dinheiro' THEN barber_sales.total_amount ELSE 0 END), 0)::numeric AS cash_total,
-       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'credito' THEN barber_sales.total_amount ELSE 0 END), 0)::numeric AS credit_total,
-       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'debito' THEN barber_sales.total_amount ELSE 0 END), 0)::numeric AS debit_total,
-       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'permuta' THEN barber_sales.total_amount ELSE 0 END), 0)::numeric AS trade_total,
+       COALESCE(SUM(COALESCE(item_totals.gross_total, barber_sales.total_amount)), 0)::numeric AS gross_total,
+       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'pix' THEN COALESCE(item_totals.gross_total, barber_sales.total_amount) ELSE 0 END), 0)::numeric AS pix_total,
+       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'dinheiro' THEN COALESCE(item_totals.gross_total, barber_sales.total_amount) ELSE 0 END), 0)::numeric AS cash_total,
+       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'credito' THEN COALESCE(item_totals.gross_total, barber_sales.total_amount) ELSE 0 END), 0)::numeric AS credit_total,
+       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'debito' THEN COALESCE(item_totals.gross_total, barber_sales.total_amount) ELSE 0 END), 0)::numeric AS debit_total,
+       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'permuta' THEN COALESCE(item_totals.gross_total, barber_sales.total_amount) ELSE 0 END), 0)::numeric AS trade_total,
        COALESCE(SUM(barber_sales.change_amount), 0)::numeric AS change_total,
        COUNT(*)::integer AS total_sales
      FROM barber_sales
+     LEFT JOIN LATERAL (
+       SELECT COALESCE(SUM(total_price), 0)::numeric AS gross_total
+       FROM barber_sale_items
+       WHERE barber_sale_items.sale_id = barber_sales.id
+         AND barber_sale_items.company_id = barber_sales.company_id
+     ) item_totals ON true
      WHERE barber_sales.company_id = $1
        AND barber_sales.sale_date_local = $2::date
        AND ${isSaleActiveSql('barber_sales')}`,
@@ -2143,6 +2189,7 @@ async function listCollaborators(companyId, user) {
        barber_collaborators.nickname,
        barber_collaborators.commission_type,
        barber_collaborators.commission_rate,
+       barber_collaborators.can_make_barter,
        barber_collaborators.available_for_booking,
        barber_collaborators.avatar_url,
        barber_collaborators.is_active,
@@ -2188,6 +2235,7 @@ async function listCollaboratorFinancialSummary(companyId, user, query = {}) {
          barber_collaborators.nickname,
          barber_collaborators.commission_type,
          barber_collaborators.commission_rate,
+         barber_collaborators.can_make_barter,
          barber_collaborators.is_active,
          users.name
        FROM barber_collaborators
@@ -2200,7 +2248,8 @@ async function listCollaboratorFinancialSummary(companyId, user, query = {}) {
       SELECT
         barber_sale_items.sale_id,
         COALESCE(SUM(barber_sale_items.total_price), 0)::numeric AS gross_total,
-        COALESCE(SUM(barber_sale_items.commission_amount), 0)::numeric AS commission_total
+        COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'permuta' THEN 0 ELSE barber_sale_items.commission_amount END), 0)::numeric AS normal_commission_total,
+        COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'permuta' THEN barber_sale_items.commission_amount ELSE 0 END), 0)::numeric AS barter_commission_total
       FROM barber_sale_items
        INNER JOIN barber_sales
          ON barber_sales.id = barber_sale_items.sale_id
@@ -2217,11 +2266,20 @@ async function listCollaboratorFinancialSummary(companyId, user, query = {}) {
          COALESCE(SUM(COALESCE(sale_item_agg.gross_total, barber_sales.total_amount)), 0)::numeric AS gross_revenue,
          COALESCE(SUM(
            CASE
-             WHEN sale_item_agg.sale_id IS NOT NULL THEN COALESCE(sale_item_agg.commission_total, 0)
+             WHEN barber_sales.payment_method = 'permuta' THEN 0
+             WHEN sale_item_agg.sale_id IS NOT NULL THEN COALESCE(sale_item_agg.normal_commission_total, 0)
              WHEN filtered_collaborators.commission_type = 'fixed' THEN COALESCE(filtered_collaborators.commission_rate, 0)
              ELSE COALESCE(barber_sales.total_amount, 0) * (COALESCE(filtered_collaborators.commission_rate, 0) / 100.0)
            END
-         ), 0)::numeric AS commission_total,
+         ), 0)::numeric AS normal_commission_total,
+         COALESCE(SUM(
+           CASE
+             WHEN barber_sales.payment_method <> 'permuta' THEN 0
+             WHEN sale_item_agg.sale_id IS NOT NULL THEN COALESCE(sale_item_agg.barter_commission_total, 0)
+             WHEN filtered_collaborators.commission_type = 'fixed' THEN COALESCE(filtered_collaborators.commission_rate, 0)
+             ELSE COALESCE(barber_sales.total_amount, 0) * (COALESCE(filtered_collaborators.commission_rate, 0) / 100.0)
+           END
+         ), 0)::numeric AS barter_commission_total,
          MAX(barber_sales.created_at) AS last_sale_at
        FROM barber_sales
        INNER JOIN filtered_collaborators ON filtered_collaborators.id = barber_sales.collaborator_id
@@ -2249,9 +2307,10 @@ async function listCollaboratorFinancialSummary(companyId, user, query = {}) {
        filtered_collaborators.commission_type,
        COALESCE(filtered_collaborators.commission_rate, 0)::numeric AS commission_rate,
        COALESCE(sale_agg.gross_revenue, 0)::numeric AS gross_revenue,
-       COALESCE(sale_agg.commission_total, 0)::numeric AS commission_total,
+       COALESCE(sale_agg.normal_commission_total, 0)::numeric AS commission_total,
+       COALESCE(sale_agg.barter_commission_total, 0)::numeric AS barter_commission_total,
        COALESCE(advance_agg.advances_total, 0)::numeric AS advances_total,
-       (COALESCE(sale_agg.commission_total, 0) - COALESCE(advance_agg.advances_total, 0))::numeric AS net_to_receive,
+       (COALESCE(sale_agg.normal_commission_total, 0) - COALESCE(sale_agg.barter_commission_total, 0) - COALESCE(advance_agg.advances_total, 0))::numeric AS net_to_receive,
        COALESCE(sale_agg.sales_count, 0)::integer AS sales_count,
        COALESCE(sale_agg.sales_count, 0)::integer AS attendances_count,
        sale_agg.last_sale_at,
@@ -2375,13 +2434,14 @@ async function createCollaborator(companyId, user, data) {
          nickname,
          commission_type,
          commission_rate,
+         can_make_barter,
          available_for_booking,
          avatar_url,
          is_active,
          is_deleted,
          updated_at
        )
-      VALUES ($1, $2, $3, $4, $5, $6, NULL, $7, false, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, $8, false, NOW())
       RETURNING
         id,
         company_id,
@@ -2389,6 +2449,7 @@ async function createCollaborator(companyId, user, data) {
          nickname,
          commission_type,
          commission_rate,
+         can_make_barter,
          available_for_booking,
          is_active,
          is_deleted,
@@ -2400,6 +2461,7 @@ async function createCollaborator(companyId, user, data) {
         payload.nickname || payload.name,
         payload.commissionType,
         payload.commissionRate,
+        payload.canMakeBarter,
         payload.availableForBooking,
         payload.isActive
       ]
@@ -2441,6 +2503,9 @@ async function updateCollaborator(companyId, user, collaboratorId, data) {
 
   const existing = await getCollaboratorRecord(companyId, collaboratorId);
   const payload = normalizeCollaboratorPayload(data);
+  if (data.can_make_barter === undefined && data.canMakeBarter === undefined) {
+    payload.canMakeBarter = Boolean(existing.can_make_barter);
+  }
   validateCollaboratorPayload(payload, { allowMissingPassword: true });
 
   const client = await pool.connect();
@@ -2519,8 +2584,9 @@ async function updateCollaborator(companyId, user, collaboratorId, data) {
        SET nickname = $3,
            commission_type = $4,
            commission_rate = $5,
-           available_for_booking = $6,
-           is_active = $7,
+           can_make_barter = $6,
+           available_for_booking = $7,
+           is_active = $8,
            updated_at = NOW()
       WHERE id = $1
         AND company_id = $2
@@ -2532,6 +2598,7 @@ async function updateCollaborator(companyId, user, collaboratorId, data) {
          nickname,
          commission_type,
          commission_rate,
+         can_make_barter,
          available_for_booking,
          avatar_url,
          is_active,
@@ -2544,6 +2611,7 @@ async function updateCollaborator(companyId, user, collaboratorId, data) {
         payload.nickname || payload.name,
         payload.commissionType,
         payload.commissionRate,
+        payload.canMakeBarter,
         payload.availableForBooking,
         payload.isActive
       ]
@@ -2874,6 +2942,19 @@ async function deleteCollaborator(companyId, user, collaboratorId) {
     );
 
     await client.query(
+      `UPDATE barber_sales
+       SET status = 'canceled',
+           canceled_at = COALESCE(canceled_at, NOW()),
+           canceled_reason = COALESCE(canceled_reason, 'Colaborador excluido'),
+           updated_at = NOW()
+       WHERE company_id = $1
+         AND collaborator_id = $2
+         AND LOWER(TRIM(COALESCE(status, 'active'))) NOT IN ('deleted', 'cancelled', 'canceled', 'removed')
+         AND canceled_at IS NULL`,
+      [companyId, collaboratorId]
+    );
+
+    await client.query(
       `UPDATE barber_collaborators
        SET is_active = false,
            is_deleted = true,
@@ -2968,17 +3049,26 @@ async function getCashDailyDetails(companyId, cashDate, client = pool, options =
          barber_collaborators.id AS collaborator_id,
          barber_collaborators.nickname AS collaborator_name,
          COUNT(barber_sales.id)::integer AS total_sales,
-         COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS gross_total,
-         COALESCE(SUM(COALESCE(sale_commissions.total_commission, 0)), 0)::numeric AS total_commission
+         COALESCE(SUM(COALESCE(sale_commissions.gross_total, barber_sales.total_amount)), 0)::numeric AS gross_total,
+         COALESCE(SUM(COALESCE(sale_commissions.normal_commission, 0)), 0)::numeric AS total_commission,
+         COALESCE(SUM(COALESCE(sale_commissions.barter_commission, 0)), 0)::numeric AS barter_commission,
+         (COALESCE(SUM(COALESCE(sale_commissions.normal_commission, 0)), 0) - COALESCE(SUM(COALESCE(sale_commissions.barter_commission, 0)), 0))::numeric AS net_commission
        FROM barber_sales
        LEFT JOIN barber_collaborators
          ON barber_collaborators.id = barber_sales.collaborator_id
         AND barber_collaborators.company_id = barber_sales.company_id
        LEFT JOIN (
-         SELECT sale_id, SUM(commission_amount) AS total_commission
+         SELECT
+           sale_id,
+           company_id,
+           SUM(total_price) AS gross_total,
+           SUM(CASE WHEN payment_method = 'permuta' OR commission_effect = 'debit' THEN 0 ELSE commission_amount END) AS normal_commission,
+           SUM(CASE WHEN payment_method = 'permuta' OR commission_effect = 'debit' THEN commission_amount ELSE 0 END) AS barter_commission
          FROM barber_sale_items
-         GROUP BY sale_id
-       ) sale_commissions ON sale_commissions.sale_id = barber_sales.id
+         GROUP BY sale_id, company_id
+       ) sale_commissions
+         ON sale_commissions.sale_id = barber_sales.id
+        AND sale_commissions.company_id = barber_sales.company_id
        WHERE barber_sales.company_id = $1
          AND barber_sales.sale_date_local = $2::date
          AND ${isSaleActiveSql('barber_sales')}
@@ -3223,17 +3313,26 @@ async function getCashRangeSummary(companyId, user, range) {
          barber_collaborators.id AS collaborator_id,
          barber_collaborators.nickname AS collaborator_name,
          COUNT(barber_sales.id)::integer AS total_sales,
-         COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS gross_total,
-         COALESCE(SUM(COALESCE(sale_commissions.total_commission, 0)), 0)::numeric AS total_commission
+         COALESCE(SUM(COALESCE(sale_commissions.gross_total, barber_sales.total_amount)), 0)::numeric AS gross_total,
+         COALESCE(SUM(COALESCE(sale_commissions.normal_commission, 0)), 0)::numeric AS total_commission,
+         COALESCE(SUM(COALESCE(sale_commissions.barter_commission, 0)), 0)::numeric AS barter_commission,
+         (COALESCE(SUM(COALESCE(sale_commissions.normal_commission, 0)), 0) - COALESCE(SUM(COALESCE(sale_commissions.barter_commission, 0)), 0))::numeric AS net_commission
        FROM barber_sales
        LEFT JOIN barber_collaborators
          ON barber_collaborators.id = barber_sales.collaborator_id
         AND barber_collaborators.company_id = barber_sales.company_id
        LEFT JOIN (
-         SELECT sale_id, SUM(commission_amount) AS total_commission
+         SELECT
+           sale_id,
+           company_id,
+           SUM(total_price) AS gross_total,
+           SUM(CASE WHEN payment_method = 'permuta' OR commission_effect = 'debit' THEN 0 ELSE commission_amount END) AS normal_commission,
+           SUM(CASE WHEN payment_method = 'permuta' OR commission_effect = 'debit' THEN commission_amount ELSE 0 END) AS barter_commission
          FROM barber_sale_items
-         GROUP BY sale_id
-       ) sale_commissions ON sale_commissions.sale_id = barber_sales.id
+         GROUP BY sale_id, company_id
+       ) sale_commissions
+         ON sale_commissions.sale_id = barber_sales.id
+        AND sale_commissions.company_id = barber_sales.company_id
        WHERE barber_sales.company_id = $1
          AND barber_sales.sale_date_local BETWEEN $2::date AND $3::date
          AND ${isSaleActiveSql('barber_sales')}
@@ -3441,7 +3540,9 @@ async function getDashboard(companyId, user) {
   });
 
   const commissionsResult = await pool.query(
-    `SELECT COALESCE(SUM(barber_sale_items.commission_amount), 0)::numeric AS total_commissions
+    `SELECT
+       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'permuta' THEN 0 ELSE barber_sale_items.commission_amount END), 0)::numeric AS total_commissions,
+       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'permuta' THEN barber_sale_items.commission_amount ELSE 0 END), 0)::numeric AS barter_commissions
      FROM barber_sale_items
      INNER JOIN barber_sales
        ON barber_sales.id = barber_sale_items.sale_id
@@ -3475,21 +3576,30 @@ async function getDashboard(companyId, user) {
        barber_collaborators.id AS collaborator_id,
        barber_collaborators.nickname AS collaborator_name,
        COALESCE(sale_totals.total_sales, 0)::numeric AS total_sales,
-       COALESCE(sale_totals.total_commission, 0)::numeric AS total_commission,
+       COALESCE(sale_totals.normal_commission, 0)::numeric AS total_commission,
+       COALESCE(sale_totals.barter_commission, 0)::numeric AS barter_commission,
        COALESCE(approved_advances.total_advances, 0)::numeric AS total_advances,
-       (COALESCE(sale_totals.total_commission, 0) - COALESCE(approved_advances.total_advances, 0))::numeric AS net_commission
+       (COALESCE(sale_totals.normal_commission, 0) - COALESCE(sale_totals.barter_commission, 0) - COALESCE(approved_advances.total_advances, 0))::numeric AS net_commission
      FROM barber_collaborators
      LEFT JOIN (
        SELECT
          barber_sales.collaborator_id,
-         SUM(barber_sales.total_amount) AS total_sales,
-         SUM(COALESCE(sale_commissions.total_commission, 0)) AS total_commission
+         SUM(COALESCE(sale_commissions.gross_total, barber_sales.total_amount)) AS total_sales,
+         SUM(COALESCE(sale_commissions.normal_commission, 0)) AS normal_commission,
+         SUM(COALESCE(sale_commissions.barter_commission, 0)) AS barter_commission
        FROM barber_sales
        LEFT JOIN (
-         SELECT sale_id, SUM(commission_amount) AS total_commission
+         SELECT
+           sale_id,
+           company_id,
+           SUM(total_price) AS gross_total,
+           SUM(CASE WHEN payment_method = 'permuta' OR commission_effect = 'debit' THEN 0 ELSE commission_amount END) AS normal_commission,
+           SUM(CASE WHEN payment_method = 'permuta' OR commission_effect = 'debit' THEN commission_amount ELSE 0 END) AS barter_commission
          FROM barber_sale_items
-         GROUP BY sale_id
-       ) sale_commissions ON sale_commissions.sale_id = barber_sales.id
+         GROUP BY sale_id, company_id
+       ) sale_commissions
+         ON sale_commissions.sale_id = barber_sales.id
+        AND sale_commissions.company_id = barber_sales.company_id
        WHERE barber_sales.company_id = $1
          AND barber_sales.sale_date_local = $2::date
          AND ${isSaleActiveSql('barber_sales')}
@@ -3517,6 +3627,8 @@ async function getDashboard(companyId, user) {
     totalDebit: session.debit_total,
     totalPermuta: session.trade_total,
     totalCommissions: commissionsResult.rows[0].total_commissions,
+    barterCommissions: commissionsResult.rows[0].barter_commissions,
+    totalBarterCommissions: commissionsResult.rows[0].barter_commissions,
     recentSales: recentSalesResult.rows,
     collaboratorSummary: collaboratorSummaryResult.rows,
     cashSession: session,
@@ -3527,7 +3639,9 @@ async function getDashboard(companyId, user) {
 async function getPersonalCommissionSummary(companyId, collaboratorId, startDate, endDate) {
   const result = await pool.query(
     `SELECT
-       COALESCE(SUM(barber_sale_items.commission_amount), 0)::numeric AS commission,
+       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'permuta' THEN 0 ELSE barber_sale_items.commission_amount END), 0)::numeric AS commission,
+       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'permuta' THEN barber_sale_items.commission_amount ELSE 0 END), 0)::numeric AS barter_commission,
+       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'permuta' THEN barber_sale_items.total_price ELSE 0 END), 0)::numeric AS barter_total,
        COUNT(DISTINCT barber_sales.id)::integer AS sales
      FROM barber_sales
      LEFT JOIN barber_sale_items
@@ -3544,6 +3658,9 @@ async function getPersonalCommissionSummary(companyId, collaboratorId, startDate
 
   return {
     commission: toNumber(result.rows[0]?.commission),
+    barterCommission: toNumber(result.rows[0]?.barter_commission),
+    barterTotal: toNumber(result.rows[0]?.barter_total),
+    netCommission: toNumber(result.rows[0]?.commission) - toNumber(result.rows[0]?.barter_commission),
     appointments: sales,
     sales
   };
@@ -3560,7 +3677,10 @@ async function getMyDashboard(companyId, user) {
   const monthRange = getMonthRange(today);
 
   const commissionsResult = await pool.query(
-    `SELECT COALESCE(SUM(barber_sale_items.commission_amount), 0)::numeric AS total_commission
+    `SELECT
+       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'permuta' THEN 0 ELSE barber_sale_items.commission_amount END), 0)::numeric AS total_commission,
+       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'permuta' THEN barber_sale_items.commission_amount ELSE 0 END), 0)::numeric AS barter_commission,
+       COALESCE(SUM(CASE WHEN barber_sales.payment_method = 'permuta' THEN barber_sale_items.total_price ELSE 0 END), 0)::numeric AS barter_total
      FROM barber_sale_items
      INNER JOIN barber_sales
        ON barber_sales.id = barber_sale_items.sale_id
@@ -3594,7 +3714,10 @@ async function getMyDashboard(companyId, user) {
        COALESCE(barber_sales.status, 'active') AS status,
        COALESCE(barber_sales.customer_name, barber_sales.client_name) AS customer_name,
        sale_item.item_summary AS service_name,
-       COALESCE(sale_item.total_commission, 0)::numeric AS commission_amount
+       barber_sales.payment_method,
+       barber_sales.total_amount,
+       COALESCE(sale_item.total_commission, 0)::numeric AS commission_amount,
+       CASE WHEN barber_sales.payment_method = 'permuta' THEN 'debit' ELSE 'credit' END AS commission_effect
      FROM barber_sales
      LEFT JOIN LATERAL (
        SELECT
@@ -3612,28 +3735,43 @@ async function getMyDashboard(companyId, user) {
   );
 
   const totalCommission = toNumber(commissionsResult.rows[0].total_commission);
+  const barterCommission = toNumber(commissionsResult.rows[0].barter_commission);
+  const barterTotal = toNumber(commissionsResult.rows[0].barter_total);
   const totalAdvances = toNumber(advancesResult.rows[0].total_advances);
+  const netCommission = totalCommission - barterCommission - totalAdvances;
 
   return {
     collaborator: {
       id: collaborator.id,
       nickname: collaborator.nickname,
       commission_type: collaborator.commission_type,
-      commission_rate: collaborator.commission_rate
+      commission_rate: collaborator.commission_rate,
+      can_make_barter: collaborator.can_make_barter
     },
     ownMetrics: {
       totalAttendances: todaySummary.appointments,
       myCommissionTotal: totalCommission,
       myCommissionAccumulated: totalCommission,
       myAdvances: totalAdvances,
-      mySettlementBalance: Math.max(0, totalCommission - totalAdvances),
+      mySettlementBalance: netCommission,
       todayCommission: todaySummary.commission,
+      todayBarterTotal: todaySummary.barterTotal,
+      todayBarterCommission: todaySummary.barterCommission,
+      todayNetCommission: todaySummary.netCommission,
       todayAttendances: todaySummary.appointments,
       totalCommission,
-      netCommission: Math.max(0, totalCommission - totalAdvances),
+      barterCommission,
+      barterTotal,
+      netCommission,
       weekCommission: weekSummary.commission,
+      weekBarterTotal: weekSummary.barterTotal,
+      weekBarterCommission: weekSummary.barterCommission,
+      weekNetCommission: weekSummary.netCommission,
       weekAttendances: weekSummary.appointments,
       monthCommission: monthSummary.commission,
+      monthBarterTotal: monthSummary.barterTotal,
+      monthBarterCommission: monthSummary.barterCommission,
+      monthNetCommission: monthSummary.netCommission,
       monthAttendances: monthSummary.appointments,
       totalAdvances,
       today: todaySummary,
@@ -3860,11 +3998,17 @@ async function calculateSettlement(companyId, collaboratorId, client = pool) {
 
   const salesResult = await client.query(
     `SELECT
-       COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_sales,
-       COALESCE(SUM(COALESCE(sale_commissions.total_commission, 0)), 0)::numeric AS total_commission
+       COALESCE(SUM(COALESCE(sale_commissions.gross_total, barber_sales.total_amount)), 0)::numeric AS total_sales,
+       COALESCE(SUM(COALESCE(sale_commissions.normal_commission, 0)), 0)::numeric AS total_commission,
+       COALESCE(SUM(COALESCE(sale_commissions.barter_commission, 0)), 0)::numeric AS barter_commission
      FROM barber_sales
      LEFT JOIN (
-       SELECT sale_id, company_id, SUM(commission_amount) AS total_commission
+       SELECT
+         sale_id,
+         company_id,
+         SUM(total_price) AS gross_total,
+         SUM(CASE WHEN payment_method = 'permuta' OR commission_effect = 'debit' THEN 0 ELSE commission_amount END) AS normal_commission,
+         SUM(CASE WHEN payment_method = 'permuta' OR commission_effect = 'debit' THEN commission_amount ELSE 0 END) AS barter_commission
        FROM barber_sale_items
        GROUP BY sale_id, company_id
      ) sale_commissions
@@ -3888,14 +4032,16 @@ async function calculateSettlement(companyId, collaboratorId, client = pool) {
 
   const totalSales = toNumber(salesResult.rows[0].total_sales);
   const totalCommission = toNumber(salesResult.rows[0].total_commission);
+  const barterCommission = toNumber(salesResult.rows[0].barter_commission);
   const totalAdvances = toNumber(advancesResult.rows[0].total_advances);
-  const netAmount = Math.max(0, totalCommission - totalAdvances);
+  const netAmount = totalCommission - barterCommission - totalAdvances;
 
   return {
     collaborator_id: collaborator.id,
     collaborator_name: collaborator.nickname,
     total_sales: totalSales.toFixed(2),
     total_commission: totalCommission.toFixed(2),
+    barter_commission: barterCommission.toFixed(2),
     total_advances: totalAdvances.toFixed(2),
     net_amount: netAmount.toFixed(2),
     period_start: periodStart,
@@ -4715,22 +4861,14 @@ async function listSales(companyId, user, query = {}) {
     : null;
   const requestedCollaboratorId = query.collaborator_id || query.collaboratorId || null;
   const collaboratorId = collaborator?.id || requestedCollaboratorId || null;
-  const includeCanceled = String(query.status || '').trim().toLowerCase() === 'all'
-    || String(query.include_canceled || query.includeCanceled || '').trim().toLowerCase() === 'true';
-  const status = String(query.status || '').trim().toLowerCase();
   const { start, end } = buildReportPeriod(query.period, query.startDate || query.start_date, query.endDate || query.end_date);
   const values = [companyId, start, end, collaboratorId];
   const filters = [
     'barber_sales.company_id = $1',
     'barber_sales.sale_date_local BETWEEN $2::date AND $3::date',
-    '($4::uuid IS NULL OR barber_sales.collaborator_id = $4::uuid)'
+    '($4::uuid IS NULL OR barber_sales.collaborator_id = $4::uuid)',
+    isSaleActiveSql('barber_sales')
   ];
-
-  if (status === 'canceled') {
-    filters.push("COALESCE(barber_sales.status, 'active') = 'canceled'");
-  } else if (!includeCanceled) {
-    filters.push(isSaleActiveSql('barber_sales'));
-  }
 
   const result = await pool.query(
     `SELECT
@@ -4757,7 +4895,8 @@ async function listSales(companyId, user, query = {}) {
        barber_sales.updated_at,
        barber_sales.sale_date_local,
        sale_item.item_summary AS service_name,
-       sale_item.total_commission AS item_commission_amount
+       sale_item.total_commission AS item_commission_amount,
+       CASE WHEN barber_sales.payment_method = 'permuta' THEN 'debit' ELSE 'credit' END AS commission_effect
      FROM barber_sales
      LEFT JOIN barber_collaborators
        ON barber_collaborators.id = barber_sales.collaborator_id
@@ -4788,27 +4927,36 @@ async function getSalesSummary(companyId, user, query = {}) {
   const collaboratorId = collaborator?.id || query.collaborator_id || query.collaboratorId || null;
   const period = String(query.period || 'today').trim() || 'today';
   const { start, end } = buildReportPeriod(period, query.startDate || query.start_date, query.endDate || query.end_date);
-  const { startAt, endAt } = buildBusinessTimestampRange(start, end);
   const today = getBusinessDateString();
   const weekRange = getWeekRange();
   const monthRange = getMonthRange();
+  const periodTimestampRange = buildBusinessTimestampRange(start, end);
   const dayTimestampRange = buildBusinessTimestampRange(today, today);
   const weekTimestampRange = buildBusinessTimestampRange(weekRange.start, weekRange.end);
   const monthTimestampRange = buildBusinessTimestampRange(monthRange.start, monthRange.end);
-  const periodValues = [companyId, startAt, endAt, collaboratorId];
+  const periodValues = [companyId, periodTimestampRange.startAt, periodTimestampRange.endAt, collaboratorId];
 
   console.log('[getSalesSummary params]', {
     companyId,
     period,
-    startDate: startAt,
-    endDate: endAt,
-    collaboratorId
+    startDate: periodTimestampRange.startAt,
+    endDate: periodTimestampRange.endAt,
+    collaboratorId,
+    today,
+    dayStartDate: dayTimestampRange.startAt,
+    dayEndDate: dayTimestampRange.endAt,
+    weekRange: weekRange.start,
+    weekStartDate: weekTimestampRange.startAt,
+    weekEndDate: weekTimestampRange.endAt,
+    monthRange: monthRange.start,
+    monthStartDate: monthTimestampRange.startAt,
+    monthEndDate: monthTimestampRange.endAt
   });
 
   const baseWhere = `
     barber_sales.company_id = $1
-    AND ($2::timestamptz IS NULL OR barber_sales.created_at >= $2::timestamptz)
-    AND ($3::timestamptz IS NULL OR barber_sales.created_at < $3::timestamptz)
+    AND ($2::timestamptz IS NULL OR barber_sales.created_at >= ($2::timestamptz AT TIME ZONE 'UTC'))
+    AND ($3::timestamptz IS NULL OR barber_sales.created_at < ($3::timestamptz AT TIME ZONE 'UTC'))
     AND ($4::uuid IS NULL OR barber_sales.collaborator_id = $4::uuid)
     AND ${isSaleActiveSql('barber_sales')}
   `;
@@ -4817,13 +4965,17 @@ async function getSalesSummary(companyId, user, query = {}) {
     pool.query(
       `SELECT
          COUNT(barber_sales.id)::integer AS total_sales,
-         COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_amount,
+         COALESCE(SUM(COALESCE(item_commissions.gross_total, barber_sales.total_amount)), 0)::numeric AS total_amount,
          COALESCE(SUM(barber_sales.commission_amount), 0)::numeric AS sale_commission_amount,
-         COALESCE(SUM(item_commissions.total_commission), 0)::numeric AS item_commission_amount,
+         COALESCE(SUM(item_commissions.normal_commission), 0)::numeric AS item_commission_amount,
+         COALESCE(SUM(item_commissions.barter_commission), 0)::numeric AS barter_commission_amount,
          COALESCE(SUM(barber_sales.discount), 0)::numeric AS total_discount
        FROM barber_sales
        LEFT JOIN LATERAL (
-         SELECT COALESCE(SUM(commission_amount), 0)::numeric AS total_commission
+         SELECT
+           COALESCE(SUM(total_price), 0)::numeric AS gross_total,
+           COALESCE(SUM(CASE WHEN payment_method = 'permuta' OR commission_effect = 'debit' THEN 0 ELSE commission_amount END), 0)::numeric AS normal_commission,
+           COALESCE(SUM(CASE WHEN payment_method = 'permuta' OR commission_effect = 'debit' THEN commission_amount ELSE 0 END), 0)::numeric AS barter_commission
          FROM barber_sale_items
          WHERE barber_sale_items.sale_id = barber_sales.id
            AND barber_sale_items.company_id = barber_sales.company_id
@@ -4833,9 +4985,15 @@ async function getSalesSummary(companyId, user, query = {}) {
     ),
     pool.query(
       `SELECT barber_sales.payment_method,
-              COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_amount,
+              COALESCE(SUM(COALESCE(item_totals.gross_total, barber_sales.total_amount)), 0)::numeric AS total_amount,
               COUNT(barber_sales.id)::integer AS total_sales
        FROM barber_sales
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(total_price), 0)::numeric AS gross_total
+         FROM barber_sale_items
+         WHERE barber_sale_items.sale_id = barber_sales.id
+           AND barber_sale_items.company_id = barber_sales.company_id
+       ) item_totals ON true
        WHERE ${baseWhere}
        GROUP BY barber_sales.payment_method
        ORDER BY total_amount DESC`,
@@ -4845,15 +5003,20 @@ async function getSalesSummary(companyId, user, query = {}) {
       `SELECT barber_sales.collaborator_id,
               COALESCE(users.name, barber_collaborators.nickname, 'Sem colaborador') AS collaborator_name,
               COUNT(barber_sales.id)::integer AS total_sales,
-              COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_amount,
-              COALESCE(SUM(item_commissions.total_commission), 0)::numeric AS total_commission
+              COALESCE(SUM(COALESCE(item_commissions.gross_total, barber_sales.total_amount)), 0)::numeric AS total_amount,
+              COALESCE(SUM(item_commissions.normal_commission), 0)::numeric AS total_commission,
+              COALESCE(SUM(item_commissions.barter_commission), 0)::numeric AS barter_commission,
+              (COALESCE(SUM(item_commissions.normal_commission), 0) - COALESCE(SUM(item_commissions.barter_commission), 0))::numeric AS net_commission
        FROM barber_sales
        LEFT JOIN barber_collaborators
          ON barber_collaborators.id = barber_sales.collaborator_id
         AND barber_collaborators.company_id = barber_sales.company_id
        LEFT JOIN users ON users.id = barber_collaborators.user_id
        LEFT JOIN LATERAL (
-         SELECT COALESCE(SUM(commission_amount), 0)::numeric AS total_commission
+         SELECT
+           COALESCE(SUM(total_price), 0)::numeric AS gross_total,
+           COALESCE(SUM(CASE WHEN payment_method = 'permuta' OR commission_effect = 'debit' THEN 0 ELSE commission_amount END), 0)::numeric AS normal_commission,
+           COALESCE(SUM(CASE WHEN payment_method = 'permuta' OR commission_effect = 'debit' THEN commission_amount ELSE 0 END), 0)::numeric AS barter_commission
          FROM barber_sale_items
          WHERE barber_sale_items.sale_id = barber_sales.id
            AND barber_sale_items.company_id = barber_sales.company_id
@@ -4865,36 +5028,54 @@ async function getSalesSummary(companyId, user, query = {}) {
     ),
     pool.query(
       `SELECT
-         COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_amount,
+         COALESCE(SUM(COALESCE(item_totals.gross_total, barber_sales.total_amount)), 0)::numeric AS total_amount,
          COUNT(barber_sales.id)::integer AS total_sales
        FROM barber_sales
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(total_price), 0)::numeric AS gross_total
+         FROM barber_sale_items
+         WHERE barber_sale_items.sale_id = barber_sales.id
+           AND barber_sale_items.company_id = barber_sales.company_id
+       ) item_totals ON true
        WHERE barber_sales.company_id = $1
-         AND ($2::timestamptz IS NULL OR barber_sales.created_at >= $2::timestamptz)
-         AND ($3::timestamptz IS NULL OR barber_sales.created_at < $3::timestamptz)
+         AND ($2::timestamptz IS NULL OR barber_sales.created_at >= ($2::timestamptz AT TIME ZONE 'UTC'))
+         AND ($3::timestamptz IS NULL OR barber_sales.created_at < ($3::timestamptz AT TIME ZONE 'UTC'))
          AND ($4::uuid IS NULL OR barber_sales.collaborator_id = $4::uuid)
          AND ${isSaleActiveSql('barber_sales')}`,
       [companyId, dayTimestampRange.startAt, dayTimestampRange.endAt, collaboratorId]
     ),
     pool.query(
       `SELECT
-         COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_amount,
+         COALESCE(SUM(COALESCE(item_totals.gross_total, barber_sales.total_amount)), 0)::numeric AS total_amount,
          COUNT(barber_sales.id)::integer AS total_sales
        FROM barber_sales
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(total_price), 0)::numeric AS gross_total
+         FROM barber_sale_items
+         WHERE barber_sale_items.sale_id = barber_sales.id
+           AND barber_sale_items.company_id = barber_sales.company_id
+       ) item_totals ON true
        WHERE barber_sales.company_id = $1
-         AND ($2::timestamptz IS NULL OR barber_sales.created_at >= $2::timestamptz)
-         AND ($3::timestamptz IS NULL OR barber_sales.created_at < $3::timestamptz)
+         AND ($2::timestamptz IS NULL OR barber_sales.created_at >= ($2::timestamptz AT TIME ZONE 'UTC'))
+         AND ($3::timestamptz IS NULL OR barber_sales.created_at < ($3::timestamptz AT TIME ZONE 'UTC'))
          AND ($4::uuid IS NULL OR barber_sales.collaborator_id = $4::uuid)
          AND ${isSaleActiveSql('barber_sales')}`,
       [companyId, weekTimestampRange.startAt, weekTimestampRange.endAt, collaboratorId]
     ),
     pool.query(
       `SELECT
-         COALESCE(SUM(barber_sales.total_amount), 0)::numeric AS total_amount,
+         COALESCE(SUM(COALESCE(item_totals.gross_total, barber_sales.total_amount)), 0)::numeric AS total_amount,
          COUNT(barber_sales.id)::integer AS total_sales
        FROM barber_sales
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(total_price), 0)::numeric AS gross_total
+         FROM barber_sale_items
+         WHERE barber_sale_items.sale_id = barber_sales.id
+           AND barber_sale_items.company_id = barber_sales.company_id
+       ) item_totals ON true
        WHERE barber_sales.company_id = $1
-         AND ($2::timestamptz IS NULL OR barber_sales.created_at >= $2::timestamptz)
-         AND ($3::timestamptz IS NULL OR barber_sales.created_at < $3::timestamptz)
+         AND ($2::timestamptz IS NULL OR barber_sales.created_at >= ($2::timestamptz AT TIME ZONE 'UTC'))
+         AND ($3::timestamptz IS NULL OR barber_sales.created_at < ($3::timestamptz AT TIME ZONE 'UTC'))
          AND ($4::uuid IS NULL OR barber_sales.collaborator_id = $4::uuid)
          AND ${isSaleActiveSql('barber_sales')}`,
       [companyId, monthTimestampRange.startAt, monthTimestampRange.endAt, collaboratorId]
@@ -4902,6 +5083,21 @@ async function getSalesSummary(companyId, user, query = {}) {
   ]);
 
   const totals = totalsResult.rows[0] || {};
+
+  const filteredResult = {
+    totalSales: totals.total_sales,
+    totalAmount: totals.total_amount,
+    paymentMethods: paymentResult.rows.length,
+    collaborators: collaboratorResult.rows.length,
+    dayTotal: dayResult.rows[0]?.total_amount,
+    daySales: dayResult.rows[0]?.total_sales,
+    weekTotal: weekResult.rows[0]?.total_amount,
+    weekSales: weekResult.rows[0]?.total_sales,
+    monthTotal: monthResult.rows[0]?.total_amount,
+    monthSales: monthResult.rows[0]?.total_sales
+  };
+
+  console.log('[getSalesSummary filtered result]', filteredResult);
 
   return {
     period: {
@@ -4912,6 +5108,8 @@ async function getSalesSummary(companyId, user, query = {}) {
     total_sales: Number(totals.total_sales || 0),
     total_amount: toNumber(totals.total_amount),
     total_commission: toNumber(totals.item_commission_amount || totals.sale_commission_amount),
+    barter_commission: toNumber(totals.barter_commission_amount),
+    net_commission: toNumber(totals.item_commission_amount || totals.sale_commission_amount) - toNumber(totals.barter_commission_amount),
     total_discount: toNumber(totals.total_discount),
     total_by_payment_method: paymentResult.rows,
     total_by_collaborator: collaboratorResult.rows,
@@ -4935,8 +5133,11 @@ async function getMySales(companyId, user) {
        barber_sales.sale_date_local,
        COALESCE(barber_sales.status, 'active') AS status,
        COALESCE(barber_sales.customer_name, barber_sales.client_name) AS customer_name,
+       barber_sales.payment_method,
+       barber_sales.total_amount,
        sale_item.item_summary AS service_name,
-       COALESCE(sale_item.total_commission, 0)::numeric AS commission_amount
+       COALESCE(sale_item.total_commission, 0)::numeric AS commission_amount,
+       CASE WHEN barber_sales.payment_method = 'permuta' THEN 'debit' ELSE 'credit' END AS commission_effect
      FROM barber_sales
      LEFT JOIN LATERAL (
        SELECT
@@ -4975,7 +5176,7 @@ async function cancelSale(companyId, user, saleId, data = {}) {
     await client.query('BEGIN');
 
     const saleResult = await client.query(
-      `SELECT id, company_id, collaborator_id, payment_method, total_amount, amount_received, change_amount, client_name, customer_name, customer_phone, notes, created_by, created_at, sale_date_local, status
+      `SELECT id, company_id, collaborator_id, payment_method, total_amount, amount_received, change_amount, client_name, customer_name, customer_phone, notes, created_by, created_at, sale_date_local, status, canceled_at
        FROM barber_sales
        WHERE id = $1 AND company_id = $2
        LIMIT 1`,
@@ -4989,7 +5190,7 @@ async function cancelSale(companyId, user, saleId, data = {}) {
     const sale = saleResult.rows[0];
     const cashDate = normalizeCashDateFromSale(sale);
 
-    if (sale.status === 'canceled') {
+    if (sale.canceled_at || ['canceled', 'cancelled', 'deleted', 'removed'].includes(String(sale.status || '').trim().toLowerCase())) {
       throw createError('Venda ja esta cancelada', 409);
     }
 
@@ -5063,7 +5264,11 @@ function calculateCommission(item, service, collaborator = null) {
   const collaboratorCommissionType = collaborator?.commission_type || collaborator?.commissionType;
   const collaboratorCommissionRate = toNumber(collaborator?.commission_rate ?? collaborator?.commissionRate);
 
-  if (item?.item_type === 'service' && collaboratorCommissionType === 'percentage') {
+  if (item?.item_type === 'service' && COMMISSION_TYPES.includes(collaboratorCommissionType)) {
+    if (collaboratorCommissionType === 'fixed') {
+      return collaboratorCommissionRate * toNumber(item.quantity);
+    }
+
     return toNumber(item.total_price) * (collaboratorCommissionRate / 100);
   }
 
@@ -5125,7 +5330,7 @@ async function createSale(companyId, user, data) {
 
     if (collaboratorId) {
       const collaborator = await client.query(
-        `SELECT id, commission_type, commission_rate
+        `SELECT id, commission_type, commission_rate, can_make_barter
          FROM barber_collaborators
          WHERE id = $1
            AND company_id = $2
@@ -5139,6 +5344,10 @@ async function createSale(companyId, user, data) {
       }
 
       collaboratorRecord = collaborator.rows[0];
+    }
+
+    if (isBarterPayment(paymentMethod) && !collaboratorRecord?.can_make_barter) {
+      throw createError('Este colaborador nao esta autorizado a lancar permuta.', 403);
     }
 
     if (customerId) {
@@ -5171,12 +5380,31 @@ async function createSale(companyId, user, data) {
       }
     }
 
-    const serviceIds = items
-      .filter((item) => (item.item_type || item.itemType || 'service') === 'service' && (item.item_id || item.itemId))
-      .map((item) => item.item_id || item.itemId);
-    const productIds = items
-      .filter((item) => (item.item_type || item.itemType) === 'product' && (item.item_id || item.itemId))
-      .map((item) => item.item_id || item.itemId);
+    const normalizedItems = items.map((item) => {
+      const itemType = getSaleItemType(item);
+      const itemId = getSaleItemId(item, itemType);
+
+      if (!['service', 'product'].includes(itemType)) {
+        throw createError('Tipo de item invalido', 400);
+      }
+
+      if (!itemId) {
+        throw createError(itemType === 'product' ? 'Produto e obrigatorio' : 'Servico e obrigatorio', 400);
+      }
+
+      return {
+        ...item,
+        itemType,
+        itemId
+      };
+    });
+
+    const serviceIds = normalizedItems
+      .filter((item) => item.itemType === 'service')
+      .map((item) => item.itemId);
+    const productIds = normalizedItems
+      .filter((item) => item.itemType === 'product')
+      .map((item) => item.itemId);
 
     const serviceMap = new Map();
     const productMap = new Map();
@@ -5213,17 +5441,15 @@ async function createSale(companyId, user, data) {
       });
     }
 
-    const preparedItems = items.map((item) => {
-      const itemType = item.item_type || item.itemType || 'service';
-      const itemId = item.item_id || item.itemId || null;
+    const preparedItems = normalizedItems.map((item) => {
+      const itemType = item.itemType;
+      const itemId = item.itemId;
       const service = itemType === 'service' ? serviceMap.get(itemId) : null;
       const product = itemType === 'product' ? productMap.get(itemId) : null;
       const sourceItem = service || product || null;
       const description = String(item.description || sourceItem?.name || '').trim();
       const quantity = toNumber(item.quantity || 1);
-      const unitPrice = item.unit_price !== undefined || item.unitPrice !== undefined
-        ? toNumber(item.unit_price || item.unitPrice)
-        : toNumber(service?.price ?? product?.sale_price);
+      const unitPrice = toNumber(service?.price ?? product?.sale_price);
 
       if (!description) {
         throw createError('Descricao do item e obrigatoria', 400);
@@ -5312,7 +5538,7 @@ async function createSale(companyId, user, data) {
         discount,
         totalAmount,
         totalCommission,
-        paymentMethod === 'dinheiro' ? amountReceived : totalAmount,
+        paymentMethod === 'dinheiro' ? amountReceived : (isBarterPayment(paymentMethod) ? 0 : totalAmount),
         changeAmount,
         saleDateLocal,
         clientName,
@@ -5341,14 +5567,16 @@ async function createSale(companyId, user, data) {
            commission_rate_snapshot,
            commission_type,
            commission_rate,
+           payment_method,
+           commission_effect,
            quantity,
            unit_price,
            total_price,
            commission_amount,
            shop_net_amount
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $10, $11, $12, $13, $14, $15, $16)
-         RETURNING id, sale_id, item_type, item_id, company_id, collaborator_id, service_id, product_id, description, item_name_snapshot, commission_type_snapshot, commission_rate_snapshot, commission_type, commission_rate, quantity, unit_price, total_price, commission_amount, shop_net_amount, created_at`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+         RETURNING id, sale_id, item_type, item_id, company_id, collaborator_id, service_id, product_id, description, item_name_snapshot, commission_type_snapshot, commission_rate_snapshot, commission_type, commission_rate, payment_method, commission_effect, quantity, unit_price, total_price, commission_amount, shop_net_amount, created_at`,
         [
           sale.id,
           item.item_type,
@@ -5361,6 +5589,8 @@ async function createSale(companyId, user, data) {
           item.item_name_snapshot,
           item.commission_type_snapshot,
           item.commission_rate_snapshot,
+          paymentMethod,
+          isBarterPayment(paymentMethod) ? 'debit' : 'credit',
           item.quantity,
           item.unit_price,
           item.total_price,
@@ -5409,7 +5639,8 @@ async function getBarberMe(companyId, user) {
        barber_collaborators.nickname,
        barber_collaborators.avatar_url,
        barber_collaborators.commission_type,
-       barber_collaborators.commission_rate
+       barber_collaborators.commission_rate,
+       barber_collaborators.can_make_barter
      FROM users
      LEFT JOIN companies ON companies.id = users.company_id
      LEFT JOIN barber_collaborators
@@ -5447,8 +5678,11 @@ async function getMyReport(companyId, user, query = {}) {
        barber_sales.sale_date_local,
        COALESCE(barber_sales.status, 'active') AS status,
        COALESCE(barber_sales.customer_name, barber_sales.client_name) AS customer_name,
+       barber_sales.payment_method,
+       barber_sales.total_amount,
        sale_item.item_summary AS service_name,
-       sale_item.total_commission AS commission_amount
+       sale_item.total_commission AS commission_amount,
+       CASE WHEN barber_sales.payment_method = 'permuta' THEN 'debit' ELSE 'credit' END AS commission_effect
      FROM barber_sales
      LEFT JOIN LATERAL (
        SELECT
@@ -5468,10 +5702,19 @@ async function getMyReport(companyId, user, query = {}) {
 
   const totals = salesResult.rows.reduce((accumulator, sale) => {
     accumulator.totalCommission += toNumber(sale.commission_amount);
+    if (isBarterPayment(sale.payment_method)) {
+      accumulator.barterCommission += toNumber(sale.commission_amount);
+      accumulator.barterTotal += toNumber(sale.total_amount);
+    } else {
+      accumulator.normalCommission += toNumber(sale.commission_amount);
+    }
     accumulator.attendances += 1;
     return accumulator;
   }, {
     totalCommission: 0,
+    normalCommission: 0,
+    barterCommission: 0,
+    barterTotal: 0,
     attendances: 0
   });
 
@@ -5497,7 +5740,8 @@ async function getMyReport(companyId, user, query = {}) {
       id: collaborator.id,
       nickname: collaborator.nickname,
       commission_type: collaborator.commission_type,
-      commission_rate: collaborator.commission_rate
+      commission_rate: collaborator.commission_rate,
+      can_make_barter: collaborator.can_make_barter
     },
     period: {
       start,
@@ -5506,8 +5750,11 @@ async function getMyReport(companyId, user, query = {}) {
     },
     totals: {
       totalCommission: totals.totalCommission,
+      normalCommission: totals.normalCommission,
+      barterCommission: totals.barterCommission,
+      barterTotal: totals.barterTotal,
       totalAdvances,
-      netCommission: Math.max(0, totals.totalCommission - totalAdvances),
+      netCommission: totals.normalCommission - totals.barterCommission - totalAdvances,
       attendances: totals.attendances
     },
     today,

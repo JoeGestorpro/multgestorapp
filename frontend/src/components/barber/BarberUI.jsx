@@ -83,7 +83,7 @@ export function BarberTable({ columns, children, className = '' }) {
   )
 }
 
-export function BarberModal({ open, title, subtitle, onClose, children }) {
+export function BarberModal({ open, title, subtitle, onClose, children, size = 'large' }) {
   useEffect(() => {
     if (!open) {
       return undefined
@@ -106,7 +106,7 @@ export function BarberModal({ open, title, subtitle, onClose, children }) {
   return (
     <div className="barber-modal-root" role="presentation">
       <button aria-label="Fechar" className="barber-modal-backdrop" onClick={onClose} type="button" />
-      <div aria-modal="true" className="barber-modal" role="dialog">
+      <div aria-modal="true" className={`barber-modal barber-modal--${size}`} role="dialog">
         <div className="barber-modal-header">
           <div>
             <h3>{title}</h3>

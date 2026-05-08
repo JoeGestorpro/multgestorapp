@@ -297,6 +297,7 @@ CREATE TABLE IF NOT EXISTS barber_collaborators (
   nickname TEXT NOT NULL,
   commission_type TEXT DEFAULT 'percentage',
   commission_rate NUMERIC(12, 2) DEFAULT 0,
+  can_make_barter BOOLEAN NOT NULL DEFAULT false,
   is_active BOOLEAN DEFAULT true,
   is_deleted BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT NOW(),
@@ -304,6 +305,7 @@ CREATE TABLE IF NOT EXISTS barber_collaborators (
 );
 
 ALTER TABLE barber_collaborators ADD COLUMN IF NOT EXISTS commission_type TEXT DEFAULT 'percentage';
+ALTER TABLE barber_collaborators ADD COLUMN IF NOT EXISTS can_make_barter BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE barber_collaborators ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false;
 ALTER TABLE barber_collaborators ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
 ALTER TABLE barber_collaborators ADD COLUMN IF NOT EXISTS available_for_booking BOOLEAN NOT NULL DEFAULT false;
@@ -457,6 +459,8 @@ CREATE TABLE IF NOT EXISTS barber_sale_items (
   item_name_snapshot TEXT,
   commission_type_snapshot TEXT,
   commission_rate_snapshot NUMERIC(12, 2) DEFAULT 0,
+  payment_method TEXT,
+  commission_effect TEXT NOT NULL DEFAULT 'credit',
   quantity NUMERIC(12, 2) NOT NULL DEFAULT 1,
   unit_price NUMERIC(12, 2) NOT NULL DEFAULT 0,
   total_price NUMERIC(12, 2) NOT NULL DEFAULT 0,
@@ -475,7 +479,17 @@ ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS commission_type_snapshot 
 ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS commission_rate_snapshot NUMERIC(12, 2) DEFAULT 0;
 ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS commission_type TEXT;
 ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS commission_rate NUMERIC(12, 2) DEFAULT 0;
+ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS payment_method TEXT;
+ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS commission_effect TEXT NOT NULL DEFAULT 'credit';
 ALTER TABLE barber_sale_items ADD COLUMN IF NOT EXISTS shop_net_amount NUMERIC(12, 2) NOT NULL DEFAULT 0;
+
+UPDATE barber_sale_items
+SET payment_method = barber_sales.payment_method,
+    commission_effect = CASE WHEN barber_sales.payment_method = 'permuta' THEN 'debit' ELSE 'credit' END
+FROM barber_sales
+WHERE barber_sale_items.sale_id = barber_sales.id
+  AND barber_sale_items.company_id = barber_sales.company_id
+  AND (barber_sale_items.payment_method IS NULL OR barber_sale_items.commission_effect IS NULL);
 
 UPDATE barber_sale_items
 SET company_id = barber_sales.company_id
@@ -488,6 +502,19 @@ ALTER TABLE barber_cash_sessions
 
 ALTER TABLE barber_sale_items
   ALTER COLUMN company_id SET NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'chk_barber_sale_items_commission_effect'
+  ) THEN
+    ALTER TABLE barber_sale_items
+      ADD CONSTRAINT chk_barber_sale_items_commission_effect
+      CHECK (commission_effect IN ('credit', 'debit'));
+  END IF;
+END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_barber_cash_sessions_company_date_unique
   ON barber_cash_sessions(company_id, cash_date);
@@ -547,18 +574,12 @@ BEGIN
   END IF;
 END $$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_constraint
-    WHERE conname = 'chk_barber_sales_status'
-  ) THEN
-    ALTER TABLE barber_sales
-      ADD CONSTRAINT chk_barber_sales_status
-      CHECK (status IN ('active', 'canceled'));
-  END IF;
-END $$;
+ALTER TABLE barber_sales
+  DROP CONSTRAINT IF EXISTS chk_barber_sales_status;
+
+ALTER TABLE barber_sales
+  ADD CONSTRAINT chk_barber_sales_status
+  CHECK (status IN ('active', 'completed', 'paid', 'finalized', 'canceled'));
 
 DO $$
 BEGIN

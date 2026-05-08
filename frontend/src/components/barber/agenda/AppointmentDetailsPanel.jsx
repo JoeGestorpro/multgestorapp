@@ -38,118 +38,114 @@ export default function AppointmentDetailsPanel({
   onReschedule,
   onClose
 }) {
+  if (!appointment) return null;
+
   return (
-    <aside className={`agenda-details-panel ${appointment ? 'open' : ''}`.trim()}>
-      {appointment ? (
-        <>
-          <div className="agenda-details-header">
-            <div>
-              <span>Agendamento</span>
-              <strong>{appointment.service_name || appointment.reason || 'Detalhes do agendamento'}</strong>
-            </div>
-            <button className="agenda-details-close" onClick={onClose} type="button">
-              Fechar
-            </button>
+    <>
+      <div className="barber-drawer-backdrop" onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 999 }} />
+      <aside className="agenda-details-panel">
+        <div className="agenda-details-header">
+          <div>
+            <span>Agendamento</span>
+            <strong>{appointment.service_name || appointment.reason || 'Detalhes do agendamento'}</strong>
           </div>
-
-          <div className={`agenda-details-status status-${appointment.status || 'scheduled'}`}>
-            <div>
-              <span>Status</span>
-              <strong>{STATUS_LABELS[appointment.status] || appointment.status || 'Agendado'}</strong>
-            </div>
-            <BarberBadge tone={STATUS_TONES[appointment.status] || 'neutral'}>
-              {STATUS_LABELS[appointment.status] || appointment.status || 'Agendado'}
-            </BarberBadge>
-          </div>
-
-          <div className="agenda-details-meta">
-            <div className="agenda-details-meta-row">
-              <span>Data</span>
-              <strong>{infoValue(appointment.appointment_date_label || appointment.appointment_date)}</strong>
-            </div>
-            <div className="agenda-details-meta-row">
-              <span>Horario</span>
-              <strong>{infoValue(appointment.slotLabel)}</strong>
-            </div>
-          </div>
-
-          <div className="agenda-details-client">
-            <CollaboratorAvatar
-              avatarUrl={appointment.customer_avatar_url || ''}
-              className="agenda-details-client-avatar"
-              name={appointment.customer_name || 'Cliente'}
-            />
-            <div>
-              <strong>{infoValue(appointment.customer_name)}</strong>
-              <span>{infoValue(appointment.customer_phone)}</span>
-            </div>
-          </div>
-
-          <div className="agenda-details-section">
-            <div className="agenda-details-meta-row">
-              <span>Servico</span>
-              <strong>{infoValue(appointment.service_name || appointment.reason)}</strong>
-            </div>
-            <div className="agenda-details-meta-row">
-              <span>Profissional</span>
-              <strong>{infoValue(appointment.collaborator_name)}</strong>
-            </div>
-            <div className="agenda-details-meta-row">
-              <span>Valor</span>
-              <strong>{appointment.service_price_label || '-'}</strong>
-            </div>
-            <div className="agenda-details-meta-row">
-              <span>Duracao</span>
-              <strong>{appointment.duration_label || '-'}</strong>
-            </div>
-          </div>
-
-          <div className="agenda-details-section">
-            <span>Observacoes</span>
-            <p>{appointment.notes || appointment.canceled_reason || 'Sem observacoes registradas.'}</p>
-          </div>
-
-          {appointment.status !== 'blocked' && (
-            <div className="agenda-details-actions">
-              {appointment.status === 'scheduled' && (
-                <BarberButton onClick={() => onConfirm(appointment.id)} type="button" variant="secondary">
-                  Confirmar
-                </BarberButton>
-              )}
-              {appointment.status === 'confirmed' && (
-                <BarberButton onClick={() => onArrived(appointment.id)} type="button" variant="secondary">
-                  Chegou
-                </BarberButton>
-              )}
-              {appointment.status === 'arrived' && (
-                <BarberButton onClick={() => onStart(appointment.id)} type="button" variant="primary">
-                  Iniciar
-                </BarberButton>
-              )}
-              {appointment.status === 'in_progress' && (
-                <BarberButton onClick={() => onComplete(appointment.id)} type="button" variant="primary">
-                  Finalizar
-                </BarberButton>
-              )}
-              {!isCollaborator && !['canceled', 'completed', 'no_show'].includes(appointment.status) && (
-                <>
-                  <BarberButton onClick={() => onCancel(appointment)} type="button" variant="danger">
-                    Cancelar
-                  </BarberButton>
-                  <BarberButton onClick={() => onReschedule(appointment)} type="button" variant="ghost">
-                    Remarcar
-                  </BarberButton>
-                </>
-              )}
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="agenda-details-empty">
-          <strong>Selecione um horario</strong>
-          <p>Clique em um agendamento da grade para abrir o painel lateral com os detalhes completos.</p>
+          <button className="agenda-details-close" onClick={onClose} type="button" style={{ background: 'transparent', border: 0, color: 'var(--barber-soft)', fontSize: '14px', cursor: 'pointer' }}>
+            ✕ Fechar
+          </button>
         </div>
-      )}
-    </aside>
+
+        <div className={`agenda-details-status status-${appointment.status || 'scheduled'}`}>
+          <div>
+            <span>Status</span>
+            <strong>{STATUS_LABELS[appointment.status] || appointment.status || 'Agendado'}</strong>
+          </div>
+          <BarberBadge tone={STATUS_TONES[appointment.status] || 'neutral'}>
+            {STATUS_LABELS[appointment.status] || appointment.status || 'Agendado'}
+          </BarberBadge>
+        </div>
+
+        <div className="agenda-details-meta">
+          <div className="agenda-details-meta-row">
+            <span>Data</span>
+            <strong>{infoValue(appointment.appointment_date_label || appointment.appointment_date)}</strong>
+          </div>
+          <div className="agenda-details-meta-row">
+            <span>Horario</span>
+            <strong>{infoValue(appointment.slotLabel)}</strong>
+          </div>
+        </div>
+
+        <div className="agenda-details-client">
+          <CollaboratorAvatar
+            avatarUrl={appointment.customer_avatar_url || ''}
+            className="agenda-details-client-avatar"
+            name={appointment.customer_name || 'Cliente'}
+          />
+          <div>
+            <strong>{infoValue(appointment.customer_name)}</strong>
+            <span>{infoValue(appointment.customer_phone)}</span>
+          </div>
+        </div>
+
+        <div className="agenda-details-section">
+          <div className="agenda-details-meta-row">
+            <span>Servico</span>
+            <strong>{infoValue(appointment.service_name || appointment.reason)}</strong>
+          </div>
+          <div className="agenda-details-meta-row">
+            <span>Profissional</span>
+            <strong>{infoValue(appointment.collaborator_name)}</strong>
+          </div>
+          <div className="agenda-details-meta-row">
+            <span>Valor</span>
+            <strong>{appointment.service_price_label || '-'}</strong>
+          </div>
+          <div className="agenda-details-meta-row">
+            <span>Duracao</span>
+            <strong>{appointment.duration_label || '-'}</strong>
+          </div>
+        </div>
+
+        <div className="agenda-details-section">
+          <span>Observacoes</span>
+          <p style={{ color: 'var(--barber-soft)' }}>{appointment.notes || appointment.canceled_reason || 'Sem observacoes registradas.'}</p>
+        </div>
+
+        {appointment.status !== 'blocked' && (
+          <div className="agenda-details-actions" style={{ display: 'grid', gap: '10px', marginTop: 'auto' }}>
+            {appointment.status === 'scheduled' && (
+              <BarberButton onClick={() => onConfirm(appointment.id)} type="button" variant="secondary">
+                Confirmar
+              </BarberButton>
+            )}
+            {appointment.status === 'confirmed' && (
+              <BarberButton onClick={() => onArrived(appointment.id)} type="button" variant="secondary">
+                Chegou
+              </BarberButton>
+            )}
+            {appointment.status === 'arrived' && (
+              <BarberButton onClick={() => onStart(appointment.id)} type="button" variant="primary">
+                Iniciar
+              </BarberButton>
+            )}
+            {appointment.status === 'in_progress' && (
+              <BarberButton onClick={() => onComplete(appointment.id)} type="button" variant="primary">
+                Finalizar
+              </BarberButton>
+            )}
+            {!isCollaborator && !['canceled', 'completed', 'no_show'].includes(appointment.status) && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <BarberButton onClick={() => onReschedule(appointment)} type="button" variant="ghost">
+                  Remarcar
+                </BarberButton>
+                <BarberButton onClick={() => onCancel(appointment)} type="button" variant="danger">
+                  Cancelar
+                </BarberButton>
+              </div>
+            )}
+          </div>
+        )}
+      </aside>
+    </>
   )
 }

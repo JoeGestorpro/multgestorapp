@@ -2,37 +2,47 @@ import { useState } from 'react'
 import { BarberButton, BarberIcon } from './BarberUI'
 import PlanLock from '../common/PlanLock'
 
-const adminMenuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-  { id: 'appointments', label: 'Agendamentos', icon: 'calendar' },
-  { id: 'customers', label: 'Clientes', icon: 'users' },
-  { id: 'services', label: 'Servicos', icon: 'catalog' },
-  { id: 'products', label: 'Produtos', icon: 'product' },
-  { id: 'sales', label: 'Vendas', icon: 'sales' },
-  { id: 'cashier', label: 'Caixa', icon: 'wallet' },
-  { id: 'team', label: 'Colaboradores', icon: 'users' },
-  { id: 'reports', label: 'Relatorios', icon: 'reports' },
-  { id: 'settings', label: 'Configuracoes', icon: 'settings' }
+const adminMenuGroups = [
+  {
+    title: 'Principal',
+    items: [
+      { id: 'dashboard', label: 'Visao Geral', icon: 'dashboard' },
+      { id: 'sales', label: 'Atendimentos', icon: 'sales' },
+      { id: 'appointments', label: 'Agenda', icon: 'calendar' },
+      { id: 'team', label: 'Colaboradores', icon: 'users' },
+      { id: 'services', label: 'Servicos', icon: 'catalog' },
+      { id: 'products', label: 'Produtos', icon: 'product' },
+      { id: 'cashier', label: 'Caixa', icon: 'wallet' },
+      { id: 'reports', label: 'Relatorios', icon: 'reports' },
+      { id: 'settings', label: 'Configuracoes', icon: 'settings' }
+    ]
+  },
+  {
+    title: 'Relacionamento',
+    items: [
+      { id: 'customers', label: 'Clientes', icon: 'users' }
+    ]
+  }
 ]
 
-function getMenuItems(user, isAdmin) {
+function getMenuGroups(user, isAdmin) {
   if (isAdmin) {
-    return adminMenuItems
+    return adminMenuGroups
   }
 
   const items = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' }
+    { id: 'dashboard', label: 'Visao Geral', icon: 'dashboard' }
   ]
 
   if (user?.can_launch_sales) {
-    items.push({ id: 'sales', label: 'Lancar venda', icon: 'sales' })
+    items.push({ id: 'sales', label: 'Atendimentos', icon: 'sales' })
   }
 
   if (user?.can_view_own_reports) {
-    items.push({ id: 'reports', label: 'Meu relatorio', icon: 'reports' })
+    items.push({ id: 'reports', label: 'Relatorios', icon: 'reports' })
   }
 
-  return items
+  return [{ title: 'Colaborador', items }]
 }
 
 function BarberSidebar({
@@ -48,7 +58,7 @@ function BarberSidebar({
   user,
   planLabel
 }) {
-  const menuItems = getMenuItems(user, isAdmin)
+  const menuGroups = getMenuGroups(user, isAdmin)
 
   return (
     <>
@@ -63,47 +73,49 @@ function BarberSidebar({
         <div className="barber-brand">
           <span className="barber-brand-mark" />
           <div>
-            <strong>BarberGestor</strong>
-            <small>MultGestor premium</small>
+            <strong>Barber Store</strong>
+            <small>Donda Barbearia</small>
           </div>
         </div>
 
         <nav className="barber-nav">
-          <div className="barber-nav-group">
-            <p>{isAdmin ? 'Operacao' : 'Colaborador'}</p>
-            {menuItems.map((item) => {
-              const locked = Boolean(lockedViews[item.id])
-              const lockMessage = lockedViews[item.id]
+          {menuGroups.map((group) => (
+            <div className="barber-nav-group" key={group.title}>
+              <p>{group.title}</p>
+              {group.items.map((item) => {
+                const locked = Boolean(lockedViews[item.id])
+                const lockMessage = lockedViews[item.id]
 
-              return (
-              <button
-                className={`barber-nav-item ${activeView === item.id ? 'active' : ''} ${locked ? 'is-locked' : ''}`.trim()}
-                key={item.id}
-                onClick={() => {
-                  if (locked) {
-                    onLockedFeature?.(lockMessage)
-                    onClose()
-                    return
-                  }
-                  onNavigate(item.id)
-                  onClose()
-                }}
-                type="button"
-              >
-                <BarberIcon name={item.icon} />
-                <span>{item.label}</span>
-                {locked ? <PlanLock label="Plano" /> : null}
-              </button>
-              )
-            })}
-          </div>
+                return (
+                  <button
+                    className={`barber-nav-item ${activeView === item.id ? 'active' : ''} ${locked ? 'is-locked' : ''}`.trim()}
+                    key={item.id}
+                    onClick={() => {
+                      if (locked) {
+                        onLockedFeature?.(lockMessage)
+                        onClose()
+                        return
+                      }
+                      onNavigate(item.id)
+                      onClose()
+                    }}
+                    type="button"
+                  >
+                    <BarberIcon name={item.icon} />
+                    <span>{item.label}</span>
+                    {locked ? <PlanLock label="Plano" /> : null}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
         </nav>
 
         <div className="barber-sidebar-footer">
-          <span>{isAdmin ? 'Admin mode' : 'Colaborador mode'}</span>
-          <strong>{isAdmin ? 'Controle total da barbearia' : 'Sua producao em um so lugar'}</strong>
+          <span>{isAdmin ? 'Admin' : 'Colaborador'}</span>
+          <strong>{isAdmin ? 'Operacao do dia' : 'Seu painel pessoal'}</strong>
           <p>
-            Ambiente premium com foco em leitura rapida, fechamento de caixa e operacao sem atrito.
+            Dados reais, leitura rapida e fechamento organizado sem misturar permissoes.
           </p>
           <div className="barber-plan-pill">Plano atual: {planLabel}</div>
           {modulesCount > 1 && (
