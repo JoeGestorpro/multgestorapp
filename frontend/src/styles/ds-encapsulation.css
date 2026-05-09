@@ -1,0 +1,387 @@
+/**
+ * ============================================
+ * CSS ENCAPSULATION STRATEGY
+ * ============================================
+ * 
+ * Arquivo de regras CSS para garantir que
+ * componentes DS não sejam afetados por
+ * estilos Barber.css durante migração gradual.
+ * 
+ * Regras:
+ * 1. Componentes DS usam .ds-* prefix
+ * 2. Estilos DS são carregados após Barber.css
+ * 3. Especificidade garante DS vencendo
+ * 
+ * ============================================
+ */
+
+/* ============================================
+   1. REGRAS DE ENCAPSULATION
+   
+   Componentes DS com !important para garantir
+   que não sejam sobrescritos por Barber.css
+   ============================================
+*/
+
+/* Card DS - garantir estilos não conflitados */
+.ds-card {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--space-5) !important;
+  box-sizing: border-box;
+}
+
+/* Button DS - garantir estilos não conflitados */
+.ds-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: var(--space-2) !important;
+  font-family: var(--font-family) !important;
+  font-size: var(--font-size-sm) !important;
+  font-weight: var(--font-weight-medium) !important;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid transparent !important;
+  cursor: pointer !important;
+  box-sizing: border-box;
+}
+
+.ds-button--primary {
+  background: var(--accent-primary) !important;
+  color: var(--bg-primary) !important;
+  border-color: var(--accent-primary) !important;
+}
+
+.ds-button--secondary {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-default) !important;
+}
+
+.ds-button--ghost {
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Badge DS */
+.ds-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: var(--space-1) !important;
+  padding: var(--space-1) var(--space-2) !important;
+  font-size: var(--font-size-xs) !important;
+  font-weight: var(--font-weight-medium) !important;
+  border-radius: var(--radius-full) !important;
+  box-sizing: border-box;
+}
+
+.ds-badge--success {
+  background: var(--success-bg) !important;
+  color: var(--success) !important;
+}
+
+.ds-badge--warning {
+  background: var(--warning-bg) !important;
+  color: var(--warning) !important;
+}
+
+.ds-badge--danger {
+  background: var(--danger-bg) !important;
+  color: var(--danger) !important;
+}
+
+.ds-badge--accent {
+  background: var(--accent-muted) !important;
+  color: var(--accent-primary) !important;
+}
+
+/* ============================================
+   2. SHELL E LAYOUT DS
+   ============================================
+*/
+
+.ds-shell {
+  display: flex !important;
+  min-height: 100vh !important;
+  background: var(--bg-primary) !important;
+}
+
+.ds-shell__sidebar {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: var(--sidebar-width) !important;
+  height: 100vh !important;
+  z-index: var(--z-sticky) !important;
+}
+
+.ds-shell__main {
+  flex: 1 !important;
+  margin-left: var(--sidebar-width) !important;
+  min-height: 100vh !important;
+}
+
+@media (max-width: 1024px) {
+  .ds-shell__main {
+    margin-left: 0 !important;
+  }
+}
+
+.ds-shell__content {
+  padding: var(--space-6) !important;
+}
+
+/* ============================================
+   3. SIDEBAR DS
+   ============================================
+*/
+
+.ds-sidebar {
+  background: linear-gradient(180deg, rgba(8, 11, 17, 0.98), rgba(6, 9, 13, 0.96)) !important;
+  border-right: 1px solid var(--border-subtle) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.ds-sidebar__logo-icon {
+  width: 36px !important;
+  height: 36px !important;
+  background: var(--accent-primary) !important;
+  border-radius: var(--radius-md) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--bg-primary) !important;
+}
+
+.ds-sidebar__item {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--space-3) !important;
+  padding: var(--space-3) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--text-muted) !important;
+  font-size: var(--font-size-sm) !important;
+  cursor: pointer !important;
+}
+
+.ds-sidebar__item:hover {
+  background: var(--bg-elevated) !important;
+  color: var(--text-secondary) !important;
+}
+
+.ds-sidebar__item--active {
+  background: var(--accent-muted) !important;
+  color: var(--accent-primary) !important;
+}
+
+.ds-sidebar__item--active::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 3px !important;
+  height: 20px !important;
+  background: var(--accent-primary) !important;
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0 !important;
+}
+
+/* ============================================
+   4. TOPBAR DS
+   ============================================
+*/
+
+.ds-topbar {
+  position: fixed !important;
+  top: 0 !important;
+  left: var(--sidebar-width) !important;
+  right: 0 !important;
+  height: var(--topbar-height) !important;
+  background: var(--bg-glass) !important;
+  backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 var(--space-6) !important;
+  z-index: var(--z-sticky) !important;
+}
+
+.ds-topbar__title {
+  font-size: var(--font-size-lg) !important;
+  font-weight: var(--font-weight-semibold) !important;
+  color: var(--text-primary) !important;
+}
+
+.ds-topbar__search {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--space-2) !important;
+  padding: var(--space-2) var(--space-3) !important;
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--text-muted) !important;
+  cursor: pointer !important;
+}
+
+@media (max-width: 1024px) {
+  .ds-topbar {
+    left: 0 !important;
+  }
+}
+
+/* ============================================
+   5. STAT CARD DS
+   ============================================
+*/
+
+.ds-stat-card {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--space-5) !important;
+}
+
+.ds-stat-card__value {
+  font-size: var(--font-size-3xl) !important;
+  font-weight: var(--font-weight-bold) !important;
+  color: var(--text-primary) !important;
+  line-height: 1 !important;
+}
+
+.ds-stat-card__label {
+  font-size: var(--font-size-sm) !important;
+  color: var(--text-muted) !important;
+}
+
+/* ============================================
+   6. INPUT DS
+   ============================================
+*/
+
+.ds-input {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: 40px !important;
+  padding: 0 var(--space-3) !important;
+  font-size: var(--font-size-sm) !important;
+  color: var(--text-primary) !important;
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-md) !important;
+  box-sizing: border-box !important;
+}
+
+.ds-input__field {
+  flex: 1 !important;
+  width: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  color: inherit !important;
+}
+
+/* ============================================
+   7. SKELETON DS
+   ============================================
+*/
+
+.ds-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--bg-surface) 50%,
+    var(--bg-elevated) 75%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: ds-shimmer 1.5s ease-in-out infinite !important;
+  border-radius: var(--radius-md) !important;
+}
+
+@keyframes ds-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.ds-loading__spinner {
+  width: 24px !important;
+  height: 24px !important;
+  border: 2px solid var(--border-default) !important;
+  border-top-color: var(--accent-primary) !important;
+  border-radius: 50% !important;
+  animation: ds-spin 0.6s linear infinite !important;
+}
+
+@keyframes ds-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   8. EMPTY STATE DS
+   ============================================
+*/
+
+.ds-empty {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: var(--space-10) var(--space-6) !important;
+  text-align: center !important;
+}
+
+.ds-empty__title {
+  font-size: var(--font-size-lg) !important;
+  font-weight: var(--font-weight-semibold) !important;
+  color: var(--text-secondary) !important;
+  margin-bottom: var(--space-2) !important;
+}
+
+.ds-empty__description {
+  font-size: var(--font-size-sm) !important;
+  color: var(--text-muted) !important;
+  max-width: 320px !important;
+}
+
+/* ============================================
+   9. RESPONSIVIDADE
+   ============================================
+*/
+
+@media (max-width: 480px) {
+  .ds-stat-card {
+    padding: var(--space-4) !important;
+  }
+  
+  .ds-stat-card__value {
+    font-size: var(--font-size-2xl) !important;
+  }
+  
+  .ds-sidebar {
+    transform: translateX(-100%) !important;
+  }
+  
+  .ds-sidebar--open {
+    transform: translateX(0) !important;
+  }
+}
+
+/* ============================================
+   10. NOTAS DE DESENVOLVIMENTO
+   
+   Durante migração:
+   - Manter Barber.css importado
+   - Manter DS CSS importado
+   - DS CSS deve vir DEPOIS para vencer
+   - Usar classes .ds-* para novos componentes
+   - Manter classes .barber-* para velhos
+   
+   Após migração completa:
+   - Remover regras !important
+   - Simplificar CSS
+   ============================================
+*/

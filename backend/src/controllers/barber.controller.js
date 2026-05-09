@@ -765,7 +765,11 @@ async function listSettlements(req, res) {
     const settlements = await barberService.listSettlements(
       req.user.company_id,
       req.query.collaboratorId || req.query.collaborator_id,
-      req.user
+      req.user,
+      {
+        startDate: req.query.startDate || req.query.start_date,
+        endDate: req.query.endDate || req.query.end_date
+      }
     );
 
     return res.json({

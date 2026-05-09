@@ -204,6 +204,14 @@ function App() {
         }
       />
       <Route
+        path="/barber/acertos"
+        element={
+          <BarberPrivateRoute>
+            <BarberDashboard />
+          </BarberPrivateRoute>
+        }
+      />
+      <Route
         path="/barber/colaboradores"
         element={
           <BarberPrivateRoute>

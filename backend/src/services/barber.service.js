@@ -3538,6 +3538,8 @@ async function getDashboard(companyId, user) {
     createIfMissing: true,
     userId: user.id
   });
+  const today = getBusinessDateString();
+  const revenueStartDate = addDateDays(today, -6);
 
   const commissionsResult = await pool.query(
     `SELECT
@@ -3559,6 +3561,7 @@ async function getDashboard(companyId, user) {
        barber_collaborators.nickname AS collaborator_name,
        barber_sales.payment_method,
        barber_sales.total_amount,
+       barber_sales.sale_date_local,
        barber_sales.created_at
      FROM barber_sales
      LEFT JOIN barber_collaborators
@@ -3569,6 +3572,26 @@ async function getDashboard(companyId, user) {
      ORDER BY barber_sales.created_at DESC
      LIMIT 10`,
     [companyId]
+  );
+
+  const dailyRevenueResult = await pool.query(
+    `SELECT
+       TO_CHAR(barber_sales.sale_date_local::date, 'YYYY-MM-DD') AS date,
+       COALESCE(SUM(COALESCE(item_totals.gross_total, barber_sales.total_amount)), 0)::numeric AS revenue,
+       COUNT(barber_sales.id)::integer AS total_sales
+     FROM barber_sales
+     LEFT JOIN LATERAL (
+       SELECT COALESCE(SUM(total_price), 0)::numeric AS gross_total
+       FROM barber_sale_items
+       WHERE barber_sale_items.sale_id = barber_sales.id
+         AND barber_sale_items.company_id = barber_sales.company_id
+     ) item_totals ON true
+     WHERE barber_sales.company_id = $1
+       AND barber_sales.sale_date_local::date BETWEEN $2::date AND $3::date
+       AND ${isSaleActiveSql('barber_sales')}
+     GROUP BY barber_sales.sale_date_local::date
+     ORDER BY barber_sales.sale_date_local::date ASC`,
+    [companyId, revenueStartDate, today]
   );
 
   const collaboratorSummaryResult = await pool.query(
@@ -3629,6 +3652,7 @@ async function getDashboard(companyId, user) {
     totalCommissions: commissionsResult.rows[0].total_commissions,
     barterCommissions: commissionsResult.rows[0].barter_commissions,
     totalBarterCommissions: commissionsResult.rows[0].barter_commissions,
+    dailyRevenue: dailyRevenueResult.rows,
     recentSales: recentSalesResult.rows,
     collaboratorSummary: collaboratorSummaryResult.rows,
     cashSession: session,
@@ -3990,14 +4014,18 @@ async function getLastSettlement(companyId, collaboratorId, client = pool) {
   return result.rows[0] || null;
 }
 
-async function calculateSettlement(companyId, collaboratorId, client = pool) {
+async function calculateSettlement(companyId, collaboratorId, client = pool, options = {}) {
   ensureCompany(companyId);
   const collaborator = await getCollaboratorRecord(companyId, collaboratorId, client);
   const lastSettlement = await getLastSettlement(companyId, collaboratorId, client);
-  const periodStart = lastSettlement?.period_end || null;
+  const requestedStartDate = options.startDate || options.start_date || null;
+  const requestedEndDate = options.endDate || options.end_date || null;
+  const periodStart = requestedStartDate ? normalizeDateInput(requestedStartDate) : (lastSettlement?.period_end || null);
+  const periodEnd = requestedEndDate ? normalizeDateInput(requestedEndDate) : null;
 
   const salesResult = await client.query(
     `SELECT
+       COUNT(barber_sales.id)::integer AS total_attendances,
        COALESCE(SUM(COALESCE(sale_commissions.gross_total, barber_sales.total_amount)), 0)::numeric AS total_sales,
        COALESCE(SUM(COALESCE(sale_commissions.normal_commission, 0)), 0)::numeric AS total_commission,
        COALESCE(SUM(COALESCE(sale_commissions.barter_commission, 0)), 0)::numeric AS barter_commission
@@ -4016,9 +4044,14 @@ async function calculateSettlement(companyId, collaboratorId, client = pool) {
       AND sale_commissions.company_id = barber_sales.company_id
      WHERE barber_sales.company_id = $1
        AND barber_sales.collaborator_id = $2
-       AND ($3::timestamp IS NULL OR barber_sales.created_at > $3::timestamp)
+       AND (
+         ($4::date IS NOT NULL AND barber_sales.sale_date_local::date BETWEEN $3::date AND $4::date)
+         OR ($4::date IS NULL AND $3::date IS NOT NULL AND barber_sales.sale_date_local::date >= $3::date)
+         OR ($3::date IS NULL AND $5::timestamp IS NULL)
+         OR ($3::date IS NULL AND $5::timestamp IS NOT NULL AND barber_sales.created_at > $5::timestamp)
+       )
        AND ${isSaleActiveSql('barber_sales')}`,
-    [companyId, collaboratorId, periodStart]
+    [companyId, collaboratorId, requestedStartDate ? periodStart : null, periodEnd, requestedStartDate ? null : periodStart]
   );
 
   const advancesResult = await client.query(
@@ -4026,10 +4059,13 @@ async function calculateSettlement(companyId, collaboratorId, client = pool) {
      FROM barber_advances
      WHERE company_id = $1
        AND collaborator_id = $2
-       AND status = 'approved'`,
-    [companyId, collaboratorId]
+       AND status = 'approved'
+       AND ($3::date IS NULL OR created_at::date >= $3::date)
+       AND ($4::date IS NULL OR created_at::date <= $4::date)`,
+    [companyId, collaboratorId, requestedStartDate ? periodStart : null, periodEnd]
   );
 
+  const totalAttendances = Number(salesResult.rows[0].total_attendances || 0);
   const totalSales = toNumber(salesResult.rows[0].total_sales);
   const totalCommission = toNumber(salesResult.rows[0].total_commission);
   const barterCommission = toNumber(salesResult.rows[0].barter_commission);
@@ -4039,17 +4075,18 @@ async function calculateSettlement(companyId, collaboratorId, client = pool) {
   return {
     collaborator_id: collaborator.id,
     collaborator_name: collaborator.nickname,
+    total_attendances: totalAttendances,
     total_sales: totalSales.toFixed(2),
     total_commission: totalCommission.toFixed(2),
     barter_commission: barterCommission.toFixed(2),
     total_advances: totalAdvances.toFixed(2),
     net_amount: netAmount.toFixed(2),
     period_start: periodStart,
-    period_end: new Date().toISOString()
+    period_end: periodEnd || new Date().toISOString().slice(0, 10)
   };
 }
 
-async function listSettlements(companyId, collaboratorId, user) {
+async function listSettlements(companyId, collaboratorId, user, options = {}) {
   ensureCompany(companyId);
   const userCollaborator = user?.role === 'collaborator'
     ? await getCollaboratorForUser(companyId, user.id)
@@ -4097,7 +4134,7 @@ async function listSettlements(companyId, collaboratorId, user) {
   };
 
   if (effectiveCollaboratorId) {
-    response.preview = await calculateSettlement(companyId, effectiveCollaboratorId);
+    response.preview = await calculateSettlement(companyId, effectiveCollaboratorId, pool, options);
   }
 
   return response;
@@ -4118,8 +4155,11 @@ async function createSettlement(companyId, user, data) {
   try {
     await client.query('BEGIN');
 
-    const preview = await calculateSettlement(companyId, collaboratorId, client);
-    const periodEnd = new Date();
+    const preview = await calculateSettlement(companyId, collaboratorId, client, {
+      startDate: data.startDate || data.start_date,
+      endDate: data.endDate || data.end_date
+    });
+    const periodEnd = data.endDate || data.end_date ? normalizeDateInput(data.endDate || data.end_date) : new Date();
 
     const result = await client.query(
       `INSERT INTO barber_settlements (
@@ -4155,8 +4195,16 @@ async function createSettlement(companyId, user, data) {
            settlement_id = $3
        WHERE company_id = $1
          AND collaborator_id = $2
-         AND status = 'approved'`,
-      [companyId, collaboratorId, result.rows[0].id]
+         AND status = 'approved'
+         AND ($4::date IS NULL OR created_at::date >= $4::date)
+         AND ($5::date IS NULL OR created_at::date <= $5::date)`,
+      [
+        companyId,
+        collaboratorId,
+        result.rows[0].id,
+        data.startDate || data.start_date || null,
+        data.endDate || data.end_date || null
+      ]
     );
 
     await client.query('COMMIT');

@@ -1,0 +1,71 @@
+.ds-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--bg-surface) 50%,
+    var(--bg-elevated) 75%
+  );
+  background-size: 200% 100%;
+  animation: ds-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+@keyframes ds-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.ds-skeleton--text {
+  height: 16px;
+  width: 100%;
+}
+
+.ds-skeleton--title {
+  height: 24px;
+  width: 60%;
+}
+
+.ds-skeleton--avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+}
+
+.ds-skeleton--card {
+  height: 120px;
+  width: 100%;
+}
+
+.ds-skeleton--button {
+  height: 36px;
+  width: 100px;
+  border-radius: var(--radius-md);
+}
+
+.ds-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.ds-loading__spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-default);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: ds-spin 0.6s linear infinite;
+}
+
+.ds-loading--sm .ds-loading__spinner {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+.ds-loading--lg .ds-loading__spinner {
+  width: 40px;
+  height: 40px;
+  border-width: 3px;
+}

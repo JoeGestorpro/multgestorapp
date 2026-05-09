@@ -13,6 +13,7 @@ const adminMenuGroups = [
       { id: 'services', label: 'Servicos', icon: 'catalog' },
       { id: 'products', label: 'Produtos', icon: 'product' },
       { id: 'cashier', label: 'Caixa', icon: 'wallet' },
+      { id: 'settlements', label: 'Acertos', icon: 'money' },
       { id: 'reports', label: 'Relatorios', icon: 'reports' },
       { id: 'settings', label: 'Configuracoes', icon: 'settings' }
     ]

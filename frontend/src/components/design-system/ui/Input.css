@@ -1,0 +1,114 @@
+.ds-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ds-input-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+}
+
+.ds-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.ds-input::placeholder {
+  color: var(--text-disabled);
+}
+
+.ds-input:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.ds-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+.ds-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ds-input--error {
+  border-color: var(--danger);
+}
+
+.ds-input--error:focus {
+  box-shadow: 0 0 0 3px var(--danger-bg);
+}
+
+.ds-input--sm {
+  height: 32px;
+  font-size: var(--font-size-xs);
+}
+
+.ds-input--lg {
+  height: 48px;
+  font-size: var(--font-size-md);
+}
+
+.ds-input__icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.ds-input__icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ds-input__field {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+  font-size: inherit;
+}
+
+.ds-input__field::placeholder {
+  color: var(--text-disabled);
+}
+
+.ds-input__suffix {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+}
+
+.ds-input__error {
+  font-size: var(--font-size-xs);
+  color: var(--danger);
+}
+
+.ds-textarea {
+  min-height: 100px;
+  padding: var(--space-3);
+  resize: vertical;
+}
+
+.ds-select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: var(--space-8);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237a8a9b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+}

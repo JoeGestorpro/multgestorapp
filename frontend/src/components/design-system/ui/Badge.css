@@ -1,0 +1,54 @@
+.ds-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.ds-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+.ds-badge--success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.ds-badge--warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.ds-badge--danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.ds-badge--info {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.ds-badge--neutral {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+.ds-badge--accent {
+  background: var(--accent-muted);
+  color: var(--accent-primary);
+}
+
+.ds-badge--dot::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}

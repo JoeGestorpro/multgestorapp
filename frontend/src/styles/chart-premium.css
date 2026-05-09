@@ -1,0 +1,627 @@
+/**
+ * ============================================
+ * CHART PREMIUM STYLES
+ * ============================================
+ * Premium visualization components for dashboard charts
+ * Inspired by Stripe, Vercel, Linear Analytics
+ * 
+ * Created: 2026-05-09
+ * ============================================
+ */
+
+/* ============================================
+   CHART CARD - Main chart container
+   ============================================ */
+
+.ds-chart-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  transition: all var(--transition-fast);
+  overflow: hidden;
+}
+
+.ds-chart-card:hover {
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-md);
+}
+
+/* Header section */
+.ds-chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ds-chart-header__content {
+  flex: 1;
+}
+
+.ds-chart-header__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-1);
+  line-height: 1.3;
+}
+
+.ds-chart-header__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.ds-chart-header__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.ds-chart-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.ds-chart-stat__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.ds-chart-stat__badge--success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.ds-chart-stat__badge--warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.ds-chart-stat__badge--info {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.ds-chart-stat__badge--accent {
+  background: var(--accent-muted);
+  color: var(--accent-primary);
+}
+
+.ds-chart-stat__badge--cash {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.ds-chart-stat__value {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Chart body */
+.ds-chart-body {
+  flex: 1;
+  position: relative;
+  min-height: 280px;
+}
+
+/* Recharts container styling - direct class names */
+.ds-chart-body .recharts-wrapper {
+  font-family: var(--font-family);
+}
+
+.ds-chart-body .recharts-cartesian-grid-horizontal line,
+.ds-chart-body .recharts-cartesian-grid-vertical line {
+  stroke: var(--border-subtle);
+  stroke-dasharray: 0;
+}
+
+.ds-chart-body .recharts-xAxis,
+.ds-chart-body .recharts-yAxis {
+  font-size: var(--font-size-xs);
+}
+
+.ds-chart-body .recharts-xAxis text,
+.ds-chart-body .recharts-yAxis text {
+  fill: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+/* ============================================
+   PREMIUM TOOLTIP
+   ============================================ */
+
+.ds-chart-tooltip {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-subtle);
+  backdrop-filter: blur(8px);
+  min-width: 140px;
+}
+
+.ds-chart-tooltip__label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-1);
+}
+
+.ds-chart-tooltip__value {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.ds-chart-tooltip__value-currency {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.ds-chart-tooltip__detail {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+}
+
+/* Tooltip indicator dot */
+.ds-chart-tooltip__indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  display: inline-block;
+  margin-right: var(--space-2);
+}
+
+/* ============================================
+   CHART FOOTER / LEGEND
+   ============================================ */
+
+.ds-chart-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ds-chart-legend__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.ds-chart-legend__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.ds-chart-legend__dot--success {
+  background: var(--success);
+}
+
+.ds-chart-legend__dot--info {
+  background: var(--info);
+}
+
+.ds-chart-legend__dot--warning {
+  background: var(--warning);
+}
+
+.ds-chart-legend__dot--accent {
+  background: var(--accent-primary);
+}
+
+/* ============================================
+   EMPTY STATE FOR CHARTS
+   ============================================ */
+
+.ds-chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10);
+  text-align: center;
+  min-height: 280px;
+}
+
+.ds-chart-empty__icon {
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--space-4);
+  color: var(--text-disabled);
+  opacity: 0.5;
+}
+
+.ds-chart-empty__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.ds-chart-empty__description {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  max-width: 280px;
+}
+
+/* ============================================
+   LOADING STATE
+   ============================================ */
+
+.ds-chart-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10);
+  min-height: 280px;
+}
+
+.ds-chart-loading__spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--border-default);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.ds-chart-loading__text {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   BAR CHART SPECIFIC
+   ============================================ */
+
+.ds-bar-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.ds-bar-chart__bar {
+  transition: opacity var(--transition-fast);
+}
+
+.ds-bar-chart__bar:hover {
+  opacity: 0.9;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 768px) {
+  .ds-chart-card {
+    padding: var(--space-4);
+  }
+
+  .ds-chart-header {
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+  }
+
+  .ds-chart-header__meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ds-chart-body {
+    min-height: 240px;
+  }
+
+  .ds-chart-stat {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .ds-chart-stat__value {
+    font-size: var(--font-size-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .ds-chart-card {
+    padding: var(--space-3);
+    border-radius: var(--radius-lg);
+  }
+
+  .ds-chart-header__title {
+    font-size: var(--font-size-md);
+  }
+
+  .ds-chart-header__subtitle {
+    font-size: var(--font-size-xs);
+  }
+
+  .ds-chart-body {
+    min-height: 200px;
+  }
+
+  .ds-chart-tooltip {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .ds-chart-tooltip__value {
+    font-size: var(--font-size-lg);
+  }
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+.ds-chart-card {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Bar entry animation */
+.ds-chart-body .recharts-bar-rectangle {
+  animation: barGrow 0.5s ease-out;
+}
+
+@keyframes barGrow {
+  from {
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+  to {
+    transform: scaleY(1);
+    transform-origin: bottom;
+  }
+}
+
+/* Stagger animation for bars */
+.ds-chart-body .recharts-bar-rectangle:nth-child(1) { animation-delay: 0ms; }
+.ds-chart-body .recharts-bar-rectangle:nth-child(2) { animation-delay: 50ms; }
+.ds-chart-body .recharts-bar-rectangle:nth-child(3) { animation-delay: 100ms; }
+.ds-chart-body .recharts-bar-rectangle:nth-child(4) { animation-delay: 150ms; }
+.ds-chart-body .recharts-bar-rectangle:nth-child(5) { animation-delay: 200ms; }
+.ds-chart-body .recharts-bar-rectangle:nth-child(6) { animation-delay: 250ms; }
+.ds-chart-body .recharts-bar-rectangle:nth-child(7) { animation-delay: 300ms; }
+
+/* ============================================
+   ACTIVITY LIST STYLES
+   ============================================ */
+
+.ds-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ds-activity-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.ds-activity-item:hover {
+  background: var(--bg-surface);
+  transform: translateX(4px);
+}
+
+.ds-activity-item__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  flex-shrink: 0;
+}
+
+.ds-activity-item__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.ds-activity-item__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ds-activity-item__meta {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ds-activity-item__value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.ds-activity-item__amount {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-activity-item__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-full);
+  text-transform: capitalize;
+}
+
+/* ============================================
+   RANKING LIST STYLES
+   ============================================ */
+
+.ds-ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ds-ranking-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.ds-ranking-item:hover {
+  background: var(--bg-surface);
+}
+
+.ds-ranking-item__index {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-muted);
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  flex-shrink: 0;
+}
+
+.ds-ranking-item:nth-child(1) .ds-ranking-item__index {
+  background: linear-gradient(135deg, rgba(244, 200, 108, 0.2), rgba(244, 200, 108, 0.1));
+  color: #f4c86c;
+}
+
+.ds-ranking-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ds-ranking-item__name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.ds-ranking-item__detail {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ds-ranking-item__value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* ============================================
+   MOBILE RESPONSIVE
+   ============================================ */
+
+@media (max-width: 600px) {
+  .ds-activity-item {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .ds-activity-item__avatar {
+    width: 36px;
+    height: 36px;
+    font-size: var(--font-size-xs);
+  }
+
+  .ds-activity-item__value {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-left: calc(36px + var(--space-3));
+  }
+
+  .ds-ranking-item {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .ds-ranking-item__value {
+    width: 100%;
+    text-align: right;
+    margin-left: calc(32px + var(--space-3));
+  }
+}

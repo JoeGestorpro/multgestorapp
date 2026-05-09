@@ -1,0 +1,439 @@
+/**
+ * ============================================
+ * STATCARD PREMIUM STYLES
+ * ============================================
+ * Polished dashboard stat cards with SaaS-quality
+ * visuals inspired by Stripe, Linear, Vercel
+ * 
+ * Created: 2026-05-09
+ * ============================================
+ */
+
+/* ============================================
+   BASE STAT CARD - Premium Foundation
+   ============================================ */
+
+.ds-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Subtle gradient overlay for premium feel */
+.ds-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* Hover effect - smooth lift with glow */
+.ds-stat-card:hover {
+  border-color: var(--border-default);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md), 0 0 0 1px var(--border-subtle);
+}
+
+/* Icon container - premium alignment */
+.ds-stat-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+}
+
+.ds-stat-card__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  transition: transform var(--transition-fast);
+}
+
+/* Icon subtle animation on card hover */
+.ds-stat-card:hover .ds-stat-card__icon {
+  transform: scale(1.05);
+}
+
+.ds-stat-card__icon svg {
+  width: 22px;
+  height: 22px;
+  transition: transform var(--transition-fast);
+}
+
+/* Icon variants - refined colors */
+.ds-stat-card__icon--accent {
+  background: var(--accent-muted);
+  color: var(--accent-primary);
+}
+
+.ds-stat-card__icon--accent::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent-primary), transparent);
+  opacity: 0.15;
+  z-index: -1;
+}
+
+.ds-stat-card__icon--success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.ds-stat-card__icon--warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.ds-stat-card__icon--danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.ds-stat-card__icon--info {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+/* Trend indicator */
+.ds-stat-card__trend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ds-stat-card__trend--up {
+  color: var(--success);
+  background: var(--success-bg);
+}
+
+.ds-stat-card__trend--down {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.ds-stat-card__trend svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Value - large, bold, readable */
+.ds-stat-card__value {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Label - subtle but readable */
+.ds-stat-card__label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Footer - trend label with subtle separator */
+.ds-stat-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  margin-top: auto;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ds-stat-card__footer-text {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ============================================
+   COMPACT VARIANT - Smaller cards
+   ============================================ */
+
+.ds-stat-card--compact {
+  padding: var(--space-4);
+  gap: var(--space-2);
+}
+
+.ds-stat-card--compact .ds-stat-card__header {
+  min-height: 32px;
+}
+
+.ds-stat-card--compact .ds-stat-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+}
+
+.ds-stat-card--compact .ds-stat-card__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ds-stat-card--compact .ds-stat-card__value {
+  font-size: var(--font-size-xl);
+}
+
+.ds-stat-card--compact .ds-stat-card__label {
+  font-size: var(--font-size-xs);
+}
+
+.ds-stat-card--compact .ds-stat-card__footer {
+  padding-top: var(--space-2);
+}
+
+.ds-stat-card--compact .ds-stat-card__footer-text {
+  font-size: 10px;
+}
+
+/* ============================================
+   PRIMARY VARIANT - Featured card
+   ============================================ */
+
+.ds-stat-card--primary {
+  background: linear-gradient(
+    135deg,
+    rgba(163, 255, 18, 0.08) 0%,
+    var(--bg-elevated) 60%
+  );
+  border-color: rgba(163, 255, 18, 0.2);
+}
+
+.ds-stat-card--primary::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(163, 255, 18, 0.3) 50%,
+    transparent 100%
+  );
+}
+
+.ds-stat-card--primary:hover {
+  border-color: rgba(163, 255, 18, 0.4);
+  box-shadow: 0 8px 32px rgba(163, 255, 18, 0.15);
+}
+
+/* ============================================
+   TREND CARDS - With trend line
+   ============================================ */
+
+.ds-stat-card--trend .ds-stat-card__value {
+  position: relative;
+}
+
+.ds-stat-card--trend .ds-stat-card__value::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--accent-primary);
+  opacity: 0.3;
+  border-radius: var(--radius-full);
+}
+
+/* ============================================
+   INTERACTIVE STATES
+   ============================================ */
+
+/* Press effect */
+.ds-stat-card:active {
+  transform: translateY(0) scale(0.99);
+  transition-duration: 0.1s;
+}
+
+/* Focus state for accessibility */
+.ds-stat-card:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Loading skeleton variant */
+.ds-stat-card--loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.ds-stat-card--loading .ds-stat-card__icon {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ============================================
+   DENSITY VARIANTS
+   ============================================ */
+
+.ds-stat-card--dense {
+  padding: var(--space-3);
+  gap: var(--space-2);
+}
+
+.ds-stat-card--dense .ds-stat-card__value {
+  font-size: var(--font-size-lg);
+}
+
+.ds-stat-card--dense .ds-stat-card__label {
+  font-size: var(--font-size-xs);
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 1024px) {
+  .ds-stat-card {
+    padding: var(--space-4);
+  }
+
+  .ds-stat-card__icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .ds-stat-card__icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .ds-stat-card__value {
+    font-size: var(--font-size-xl);
+  }
+}
+
+@media (max-width: 768px) {
+  .ds-stat-card {
+    padding: var(--space-4);
+    gap: var(--space-2);
+  }
+
+  .ds-stat-card::before {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .ds-stat-card {
+    padding: var(--space-3);
+  }
+
+  .ds-stat-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .ds-stat-card__icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .ds-stat-card__value {
+    font-size: var(--font-size-lg);
+  }
+
+  .ds-stat-card__label {
+    font-size: var(--font-size-xs);
+  }
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+/* Entry animation */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ds-stat-card {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Staggered animation for grid */
+.ds-stat-card:nth-child(1) { animation-delay: 0ms; }
+.ds-stat-card:nth-child(2) { animation-delay: 50ms; }
+.ds-stat-card:nth-child(3) { animation-delay: 100ms; }
+.ds-stat-card:nth-child(4) { animation-delay: 150ms; }
+.ds-stat-card:nth-child(5) { animation-delay: 200ms; }
+.ds-stat-card:nth-child(6) { animation-delay: 250ms; }
+.ds-stat-card:nth-child(7) { animation-delay: 300ms; }
+.ds-stat-card:nth-child(8) { animation-delay: 350ms; }
+.ds-stat-card:nth-child(9) { animation-delay: 400ms; }
+
+/* Glow effect on hover */
+.ds-stat-card--glow:hover {
+  box-shadow: 
+    var(--shadow-lg),
+    0 0 40px var(--accent-glow);
+}
+
+/* ============================================
+   CUSTOM ICON SHAPES
+   ============================================ */
+
+/* Circular icon */
+.ds-stat-card__icon--circle {
+  border-radius: var(--radius-full);
+}
+
+/* Rounded square icon */
+.ds-stat-card__icon--square {
+  border-radius: var(--radius-sm);
+}
+
+/* Pill icon */
+.ds-stat-card__icon--pill {
+  border-radius: var(--radius-full);
+  padding: 0 var(--space-3);
+  width: auto;
+  height: 28px;
+}

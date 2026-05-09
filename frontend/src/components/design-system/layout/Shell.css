@@ -1,0 +1,52 @@
+.ds-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-primary);
+}
+
+.ds-shell__sidebar {
+  flex-shrink: 0;
+}
+
+.ds-shell__main {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-shell__topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+
+.ds-shell__content {
+  flex: 1;
+  padding: var(--space-6);
+}
+
+.ds-shell__content--full {
+  padding: 0;
+}
+
+@media (max-width: 1024px) {
+  .ds-shell__main {
+    margin-left: 0;
+  }
+}
+
+.ds-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--bg-overlay);
+  z-index: calc(var(--z-sticky) - 1);
+}
+
+@media (max-width: 1024px) {
+  .ds-overlay--visible {
+    display: block;
+  }
+}

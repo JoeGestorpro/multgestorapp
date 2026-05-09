@@ -1,0 +1,209 @@
+.ds-topbar {
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-width);
+  right: 0;
+  height: var(--topbar-height);
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+  z-index: var(--z-sticky);
+}
+
+.ds-topbar__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.ds-topbar__menu-btn {
+  display: none;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ds-topbar__menu-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.ds-topbar__menu-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+@media (max-width: 1024px) {
+  .ds-topbar__menu-btn {
+    display: flex;
+  }
+
+  .ds-topbar {
+    left: 0;
+  }
+}
+
+.ds-topbar__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.ds-topbar__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.ds-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ds-topbar__search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ds-topbar__search:hover {
+  border-color: var(--border-default);
+}
+
+.ds-topbar__search svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ds-topbar__search-shortcut {
+  font-size: var(--font-size-xs);
+  padding: 2px 6px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+}
+
+.ds-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ds-topbar__action-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ds-topbar__action-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.ds-topbar__action-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ds-topbar__action-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background: var(--danger);
+  border-radius: 50%;
+  border: 2px solid var(--bg-primary);
+}
+
+.ds-topbar__user-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ds-topbar__user-btn:hover {
+  background: var(--bg-elevated);
+}
+
+.ds-topbar__user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+  overflow: hidden;
+}
+
+.ds-topbar__user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ds-topbar__user-info {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .ds-topbar__user-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ds-topbar__user-name {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+  }
+
+  .ds-topbar__user-role {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+  }
+}
+
+.ds-topbar__dropdown-icon {
+  color: var(--text-muted);
+}
+
+.ds-topbar__dropdown-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (min-width: 768px) {
+  .ds-topbar__user-btn .ds-topbar__dropdown-icon {
+    display: block;
+  }
+}

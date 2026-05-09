@@ -122,11 +122,39 @@ export function BarberModal({ open, title, subtitle, onClose, children, size = '
   )
 }
 
-export function BarberEmptyState({ title, description }) {
+export function BarberEmptyState({ title, description, icon = 'catalog', action, actionLabel }) {
   return (
     <div className="barber-empty-state">
+      <div className="barber-empty-icon">
+        <BarberIcon name={icon} />
+      </div>
       <strong>{title}</strong>
       <p>{description}</p>
+      {action && actionLabel && (
+        <button className="barber-button barber-button-ghost" onClick={action} type="button">
+          <span>{actionLabel}</span>
+        </button>
+      )}
     </div>
+  )
+}
+
+export function BarberLoadingState({ message = 'Carregando...' }) {
+  return (
+    <div className="barber-loading-state">
+      <div className="barber-loading-spinner">
+        <BarberIcon name="refresh" />
+      </div>
+      <span>{message}</span>
+    </div>
+  )
+}
+
+export function BarberSkeleton({ width = '100%', height = '20px', rounded = 'md' }) {
+  return (
+    <div 
+      className={`barber-skeleton barber-skeleton-${rounded}`} 
+      style={{ width, height }}
+    />
   )
 }

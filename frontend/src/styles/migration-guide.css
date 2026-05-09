@@ -1,0 +1,156 @@
+/**
+ * ============================================
+ * CSS MIGRATION GUIDE
+ * ============================================
+ * 
+ * Guia de migração do Barber.css para Design System
+ * Last Updated: 2026-05-09
+ * 
+ * ============================================
+ */
+
+# BARBERGESTOR CSS MIGRATION GUIDE
+
+## Princípios Fundamentais
+
+### 1. Coexistência Segura
+- Barber.css e Design System coexistem durante migração
+- Prefix `.barber-*` para código legado
+- Prefix `.ds-*` para código novo
+- Ambos carregados, DS vem depois para vencer
+
+### 2. Import Order
+```javascript
+// Em main.jsx ou App.jsx:
+import './styles/compatibility.css'   // 1. Tokens unificados
+import './pages/Barber.css'           // 2. Estilos legacy
+import './styles/ds-encapsulation.css' // 3. Encapsulation DS
+import './components/design-system/**/'; // 4. CSS DS
+```
+
+### 3. CSS Variables
+- Unificadas em compatibility.css
+- Barber usa --barber-*
+- DS usa --text-*, --bg-*, --accent-*
+- Compatibilidade garantida
+
+## Arquivos
+
+| Arquivo | Propósito |
+|---------|-----------|
+| `globals.css` | Reset e estilos base |
+| `compatibility.css` | Tokens unificados e convivência |
+| `ds-encapsulation.css` | CSS isolation para DS |
+| `conflict-map.js` | Documentação de conflitos |
+| `migration-guide.css` | Este arquivo |
+
+## Checklist de Migração
+
+### Antes de Migrar Componente
+- [ ] Verificar conflicts em conflict-map.js
+- [ ] Garantir que !important está no lugar (se necessário)
+- [ ] Testar em viewport mobile
+- [ ] Testar em viewport desktop
+
+### Após Migrar Componente
+- [ ] Rodar npm run build
+- [ ] Verificar console
+- [ ] Testar interações
+- [ ] Documentar mudanças
+
+## Progresso de Migração
+
+| Componente | Status | Conflitos |
+|------------|--------|-----------|
+| Shell/Layout | ✅ Completo | Nenhum |
+| Sidebar | ✅ Completo | Nenhum |
+| Topbar | ✅ Completo | Nenhum |
+| KPI Cards | ⏳ Pendente | border-radius, background |
+| Charts | ⏳ Pendente | Nenhum |
+| Lists | ⏳ Pendente | Nenhum |
+| Services | ⏳ Pendente | TBD |
+| Products | ⏳ Pendente | TBD |
+| Modals | ⏳ Pendente | TBD |
+
+## Classes para Substituir
+
+### Cards
+```css
+/* ANTES */
+.barber-card { }
+
+/* DEPOIS */
+.ds-card { }
+```
+
+### Buttons
+```css
+/* ANTES */
+.barber-button { }
+
+/* DEPOIS */
+.ds-button { }
+```
+
+### Badges
+```css
+/* ANTES */
+.barber-badge { }
+
+/* DEPOIS */
+.ds-badge { }
+```
+
+### Inputs
+```css
+/* ANTES */
+.barber-input { }
+
+/* DEPOIS */
+.ds-input { }
+```
+
+### Empty States
+```css
+/* ANTES */
+.barber-empty-state { }
+
+/* DEPOIS */
+.ds-empty { }
+```
+
+## Estratégia de Teste
+
+### Build
+```bash
+npm run build
+# Deve compilar sem erros
+```
+
+### Visual
+1. Login como admin
+2. Verificar Dashboard
+3. Navegar para cada seção
+4. Testar em mobile
+
+### Console
+```javascript
+// Deve ver: NENHUM erro
+// Warnings aceitáveis
+```
+
+## Rollback
+
+Se algo quebrar:
+
+1. Desabilitar componente DS
+2. Voltar para implementação antiga
+3. Documentar problema
+4. Corrigir antes de tentar novamente
+
+## Notas
+
+- Design System é isolado de Barber.css
+- Componentes DS não herdam estilos .barber-*
+- Encapsulamento garante previsibilidade
+- Migração gradual é mais segura que big bang

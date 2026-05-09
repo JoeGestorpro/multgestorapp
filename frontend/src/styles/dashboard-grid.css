@@ -1,0 +1,361 @@
+/**
+ * ============================================
+ * DASHBOARD PREMIUM GRID
+ * ============================================
+ * Responsive grid system for dashboard cards
+ * with premium spacing and visual hierarchy
+ * 
+ * Created: 2026-05-09
+ * ============================================
+ */
+
+/* ============================================
+   MAIN KPI GRID - Primary dashboard cards
+   ============================================ */
+
+.barber-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Primary card takes more space */
+.barber-kpi-grid > .ds-stat-card--primary {
+  grid-column: span 1;
+}
+
+/* ============================================
+   SECONDARY KPI GRID - Smaller cards
+   ============================================ */
+
+.barber-secondary-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+/* Large screens - more columns */
+@media (min-width: 1400px) {
+  .barber-kpi-grid {
+    grid-template-columns: repeat(5, minmax(200px, 1fr));
+  }
+
+  .barber-secondary-kpis {
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+  }
+}
+
+/* Desktop */
+@media (max-width: 1200px) {
+  .barber-kpi-grid {
+    grid-template-columns: repeat(3, minmax(200px, 1fr));
+  }
+
+  .barber-secondary-kpis {
+    grid-template-columns: repeat(3, minmax(160px, 1fr));
+  }
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  .barber-kpi-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+    gap: var(--space-3);
+  }
+
+  .barber-secondary-kpis {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+    gap: var(--space-3);
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .barber-kpi-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+
+  .barber-secondary-kpis {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-2);
+  }
+}
+
+/* Small mobile */
+@media (max-width: 400px) {
+  .barber-secondary-kpis {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   VISUAL ENHANCEMENTS
+   ============================================ */
+
+/* Card entrance animation */
+.barber-kpi-grid .ds-stat-card {
+  animation: cardEnter 0.4s ease-out backwards;
+}
+
+.barber-kpi-grid .ds-stat-card:nth-child(1) { animation-delay: 0ms; }
+.barber-kpi-grid .ds-stat-card:nth-child(2) { animation-delay: 50ms; }
+.barber-kpi-grid .ds-stat-card:nth-child(3) { animation-delay: 100ms; }
+.barber-kpi-grid .ds-stat-card:nth-child(4) { animation-delay: 150ms; }
+.barber-kpi-grid .ds-stat-card:nth-child(5) { animation-delay: 200ms; }
+.barber-kpi-grid .ds-stat-card:nth-child(6) { animation-delay: 250ms; }
+.barber-kpi-grid .ds-stat-card:nth-child(7) { animation-delay: 300ms; }
+.barber-kpi-grid .ds-stat-card:nth-child(8) { animation-delay: 350ms; }
+.barber-kpi-grid .ds-stat-card:nth-child(9) { animation-delay: 400ms; }
+
+.barber-secondary-kpis .ds-stat-card {
+  animation: cardEnter 0.4s ease-out backwards;
+}
+
+.barber-secondary-kpis .ds-stat-card:nth-child(1) { animation-delay: 150ms; }
+.barber-secondary-kpis .ds-stat-card:nth-child(2) { animation-delay: 200ms; }
+.barber-secondary-kpis .ds-stat-card:nth-child(3) { animation-delay: 250ms; }
+.barber-secondary-kpis .ds-stat-card:nth-child(4) { animation-delay: 300ms; }
+
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hover interaction - subtle lift */
+.barber-kpi-grid .ds-stat-card:hover,
+.barber-secondary-kpis .ds-stat-card:hover {
+  z-index: 1;
+}
+
+/* Grid gap consistency */
+.barber-kpi-grid,
+.barber-secondary-kpis {
+  align-items: stretch;
+}
+
+/* Ensure cards fill their grid cell */
+.barber-kpi-grid > *,
+.barber-secondary-kpis > * {
+  min-height: 0;
+  width: 100%;
+}
+
+/* ============================================
+   HERO GRID - Dashboard intro section
+   ============================================ */
+
+.barber-hero-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .barber-hero-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   TWO COLUMN GRID - Charts and lists
+   ============================================ */
+
+.barber-grid-two {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-5);
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .barber-grid-two {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1400px) {
+  .barber-grid-two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-6);
+  }
+}
+
+/* ============================================
+   SECTION SPACING
+   ============================================ */
+
+.barber-page {
+  display: grid;
+  gap: var(--space-5);
+  padding-top: var(--space-5);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Consistent section headers */
+.barber-chart-header,
+.barber-list-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.barber-chart-header h2,
+.barber-list-header h2 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-1);
+}
+
+.barber-chart-header p,
+.barber-list-header p {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ============================================
+   COMPACT GRID - For dense sections
+   ============================================ */
+
+.barber-grid-compact {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-2);
+}
+
+@media (max-width: 600px) {
+  .barber-grid-compact {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-2);
+  }
+}
+
+/* ============================================
+   CARD VISUAL ENHANCEMENTS
+   ============================================ */
+
+.barber-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.barber-card:hover {
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-md);
+}
+
+/* Chart and list containers */
+.barber-chart-body,
+.barber-activity-list,
+.barber-ranking-list {
+  margin-top: var(--space-4);
+}
+
+/* Activity items */
+.barber-activity-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  margin-bottom: var(--space-2);
+  transition: background var(--transition-fast);
+}
+
+.barber-activity-item:hover {
+  background: var(--bg-surface);
+}
+
+/* Ranking items */
+.barber-ranking-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.barber-ranking-index {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-muted);
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+}
+
+/* ============================================
+   MOBILE OPTIMIZATIONS
+   ============================================ */
+
+@media (max-width: 600px) {
+  /* Reduce padding on mobile */
+  .barber-card {
+    padding: var(--space-4);
+  }
+
+  /* Stack header elements on mobile */
+  .barber-chart-header,
+  .barber-list-header {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  /* Larger touch targets on mobile */
+  .ds-stat-card {
+    min-height: 100px;
+  }
+
+  /* Activity and ranking items stack on mobile */
+  .barber-activity-item,
+  .barber-ranking-item {
+    flex-wrap: wrap;
+  }
+
+  .barber-activity-value,
+  .barber-ranking-item > strong {
+    margin-left: auto;
+    text-align: right;
+  }
+}
