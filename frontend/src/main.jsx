@@ -5,14 +5,17 @@ import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './contexts/AuthContext.jsx'
 import { BookingAuthProvider } from './contexts/BookingAuthContext.jsx'
+import { ThemeProvider } from './contexts/ThemeContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <BookingAuthProvider>
-          <App />
-        </BookingAuthProvider>
+        <ThemeProvider>
+          <BookingAuthProvider>
+            <App />
+          </BookingAuthProvider>
+        </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,

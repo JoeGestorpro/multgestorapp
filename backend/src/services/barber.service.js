@@ -6001,5 +6001,161 @@ module.exports = {
   cancelSale,
   deleteSale,
   getBarberMe,
-  getMyReport
+  getMyReport,
+  getCompanyTheme,
+  updateCompanyTheme,
+  getOnboardingStatus,
+  saveOnboardingSetup
 };
+
+const DEFAULT_THEME = {
+  primary_color: '#a3ff12',
+  secondary_color: '#0c1017',
+  accent_color: '#7fe11e',
+  onboarding_completed: false,
+  setup_progress: 0
+};
+
+async function getCompanyTheme(companyId) {
+  const result = await pool.query(
+    `SELECT 
+      id as company_id,
+      name as company_name,
+      logo_url,
+      primary_color,
+      secondary_color,
+      accent_color,
+      wallpaper_url,
+      onboarding_completed,
+      setup_progress
+    FROM companies
+    WHERE id = $1
+    LIMIT 1`,
+    [companyId]
+  );
+
+  if (result.rowCount === 0) {
+    return {
+      company_id: companyId,
+      company_name: 'Barbearia',
+      ...DEFAULT_THEME
+    };
+  }
+
+  const company = result.rows[0];
+  return {
+    company_id: company.company_id,
+    company_name: company.company_name || 'Barbearia',
+    logo_url: company.logo_url || null,
+    primary_color: company.primary_color || DEFAULT_THEME.primary_color,
+    secondary_color: company.secondary_color || DEFAULT_THEME.secondary_color,
+    accent_color: company.accent_color || DEFAULT_THEME.accent_color,
+    wallpaper_url: company.wallpaper_url || null,
+    onboarding_completed: company.onboarding_completed || false,
+    setup_progress: company.setup_progress || 0
+  };
+}
+
+async function updateCompanyTheme(companyId, updates) {
+  const allowedFields = ['logo_url', 'primary_color', 'secondary_color', 'accent_color', 'wallpaper_url'];
+  const setClauses = [];
+  const values = [];
+  let paramIndex = 1;
+
+  for (const field of allowedFields) {
+    if (updates[field] !== undefined) {
+      let value = updates[field];
+
+      if (field === 'primary_color' || field === 'secondary_color' || field === 'accent_color') {
+        if (typeof value === 'string' && !/^#[0-9A-Fa-f]{6}$/.test(value)) {
+          value = DEFAULT_THEME[field] || null;
+        }
+      }
+
+      setClauses.push(`${field} = $${paramIndex}`);
+      values.push(value);
+      paramIndex++;
+    }
+  }
+
+  if (setClauses.length === 0) {
+    return getCompanyTheme(companyId);
+  }
+
+  values.push(companyId);
+
+  await pool.query(
+    `UPDATE companies SET ${setClauses.join(', ')} WHERE id = $${paramIndex}`,
+    values
+  );
+
+  return getCompanyTheme(companyId);
+}
+
+async function getOnboardingStatus(companyId) {
+  const result = await pool.query(
+    `SELECT onboarding_completed, setup_progress FROM companies WHERE id = $1`,
+    [companyId]
+  );
+
+  if (result.rowCount === 0) {
+    return { onboarding_completed: false, setup_progress: 0 };
+  }
+
+  return {
+    onboarding_completed: result.rows[0].onboarding_completed || false,
+    setup_progress: result.rows[0].setup_progress || 0
+  };
+}
+
+async function saveOnboardingSetup(companyId, data) {
+  const allowedFields = [
+    'company_name', 'logo_url', 'primary_color', 'secondary_color', 'accent_color',
+    'phone', 'whatsapp', 'address'
+  ];
+
+  const setClauses = [];
+  const values = [];
+  let paramIndex = 1;
+
+  for (const field of allowedFields) {
+    if (data[field] !== undefined) {
+      let value = data[field];
+
+      if (field === 'primary_color' || field === 'secondary_color' || field === 'accent_color') {
+        if (typeof value === 'string' && !/^#[0-9A-Fa-f]{6}$/.test(value)) {
+          continue;
+        }
+      }
+
+      setClauses.push(`${field} = $${paramIndex}`);
+      values.push(value);
+      paramIndex++;
+    }
+  }
+
+  if (data.onboarding_completed !== undefined) {
+    setClauses.push(`onboarding_completed = $${paramIndex}`);
+    values.push(data.onboarding_completed);
+    paramIndex++;
+  }
+
+  if (data.setup_progress !== undefined) {
+    setClauses.push(`setup_progress = $${paramIndex}`);
+    values.push(data.setup_progress);
+    paramIndex++;
+  }
+
+  if (setClauses.length === 0) {
+    return getCompanyTheme(companyId);
+  }
+
+  values.push(companyId);
+
+  await pool.query(
+    `UPDATE companies SET ${setClauses.join(', ')} WHERE id = $${paramIndex}`,
+    values
+  );
+
+  return getCompanyTheme(companyId);
+}

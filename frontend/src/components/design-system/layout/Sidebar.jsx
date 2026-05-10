@@ -61,12 +61,19 @@ export default function Sidebar({
   activeItem = 'dashboard',
   onNavigate,
   companyName = 'Barbearia',
+  logoUrl = null,
+  primaryColor = null,
   planName = 'Premium',
   user,
   collapsed = false,
   className = '',
   ...props
 }) {
+  const logoStyle = primaryColor ? {
+    background: primaryColor,
+    color: '#07090d'
+  } : {}
+
   return (
     <aside
       className={['ds-sidebar', className].filter(Boolean).join(' ')}
@@ -74,8 +81,12 @@ export default function Sidebar({
     >
       <div className="ds-sidebar__header">
         <div className="ds-sidebar__logo">
-          <div className="ds-sidebar__logo-icon">
-            <Scissors />
+          <div className="ds-sidebar__logo-icon" style={logoStyle}>
+            {logoUrl ? (
+              <img src={logoUrl} alt={companyName} className="ds-sidebar__logo-img" />
+            ) : (
+              <Scissors />
+            )}
           </div>
           <div className="ds-sidebar__logo-text">
             <span className="ds-sidebar__brand">{companyName}</span>

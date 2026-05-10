@@ -1,0 +1,7 @@
+export { default as WelcomeScreen } from './WelcomeScreen'
+export { default as SetupWizard } from './SetupWizard'
+export { default as ProgressBar } from './ProgressBar'
+export { default as StepBrand } from './StepBrand'
+export { default as StepAddress } from './StepAddress'
+export { default as StepComplete } from './StepComplete'
+export { default as VideoPlayer } from './VideoPlayer'

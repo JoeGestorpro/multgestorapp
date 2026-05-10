@@ -98,3 +98,11 @@ h1, h2, h3, h4, h5, h6 {
   white-space: nowrap;
   border: 0;
 }
+
+.has-wallpaper body {
+  background: linear-gradient(135deg, rgba(7, 9, 13, 0.92), rgba(7, 9, 13, 0.85)),
+              var(--theme-wallpaper);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}

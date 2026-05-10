@@ -1,0 +1,207 @@
+.hero-welcome {
+  position: relative;
+  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-surface) 100%);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.hero-welcome__background {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 100%;
+  background: radial-gradient(ellipse at center right, var(--hero-accent, var(--accent-primary)) 0%, transparent 70%);
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+.hero-welcome__content {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-welcome__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.hero-welcome__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.hero-welcome__logo {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  object-fit: contain;
+  background: var(--bg-surface);
+  padding: 4px;
+}
+
+.hero-welcome__logo-fallback {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background: var(--hero-accent, var(--accent-primary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bg-primary);
+}
+
+.hero-welcome__logo-fallback svg {
+  width: 24px;
+  height: 24px;
+}
+
+.hero-welcome__brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-welcome__company {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.hero-welcome__date {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.hero-welcome__greeting {
+  text-align: right;
+}
+
+.hero-welcome__greeting h1 {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.hero-welcome__greeting p {
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+
+.hero-welcome__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.hero-welcome__stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  animation: statFadeIn 0.4s ease var(--delay, 0s) both;
+}
+
+@keyframes statFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-welcome__stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--hero-accent, var(--accent-primary)) 15%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--hero-accent, var(--accent-primary));
+  flex-shrink: 0;
+}
+
+.hero-welcome__stat-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.hero-welcome__stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-welcome__stat-value {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.hero-welcome__stat-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.hero-welcome__action {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.hero-welcome__btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  background: var(--btn-bg, var(--accent-primary));
+  color: var(--bg-primary);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.hero-welcome__btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hero-welcome__btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--btn-bg, var(--accent-primary)) 30%, transparent);
+}
+
+@media (max-width: 768px) {
+  .hero-welcome__header {
+    flex-direction: column;
+  }
+
+  .hero-welcome__greeting {
+    text-align: left;
+  }
+
+  .hero-welcome__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-welcome__greeting h1 {
+    font-size: var(--font-size-xl);
+  }
+}

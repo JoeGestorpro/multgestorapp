@@ -1,0 +1,118 @@
+.custom-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10);
+  text-align: center;
+  animation: emptyFadeIn 0.4s ease;
+}
+
+@keyframes emptyFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.custom-empty--compact {
+  padding: var(--space-6);
+}
+
+.custom-empty__icon {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-xl);
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-5);
+  color: var(--text-muted);
+}
+
+.custom-empty--compact .custom-empty__icon {
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--space-4);
+}
+
+.custom-empty__icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.custom-empty--compact .custom-empty__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.custom-empty__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.custom-empty--compact .custom-empty__title {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--space-1);
+}
+
+.custom-empty__description {
+  font-size: var(--font-size-md);
+  color: var(--text-muted);
+  max-width: 320px;
+  line-height: var(--line-height-relaxed);
+  margin-bottom: var(--space-6);
+}
+
+.custom-empty--compact .custom-empty__description {
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-4);
+}
+
+.custom-empty__action {
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.custom-empty__action--primary {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border: none;
+}
+
+.custom-empty__action--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(163, 255, 18, 0.3);
+}
+
+.custom-empty__action--secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+}
+
+.custom-empty__action--secondary:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+}
+
+.custom-empty__action--ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+}
+
+.custom-empty__action--ghost:hover {
+  color: var(--text-primary);
+}

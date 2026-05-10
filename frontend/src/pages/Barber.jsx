@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Shell, StatCard, ChartCard, ChartTooltip, HeroCard, SummaryCard, SummaryItem, Card, Badge, Empty, Button, RankingItem } from '../components/design-system'
+import { Shell, StatCard, ChartCard, ChartTooltip, HeroCard, SummaryCard, SummaryItem, Card, Badge, Empty, Button } from '../components/design-system'
+import { HeroWelcomeCard, ModernRankingCard } from '../components/barber'
+import { SkeletonLoader, CustomEmptyState } from '../components/common'
+import { ProgressReport } from '../components/reports'
+import { TutorialSpotlight } from '../components/tutorial'
+import { BottomNav, QuickActionsFAB } from '../components/mobile'
+import { useTenantTheme } from '../hooks/useTenantTheme'
 import {
   DollarSign,
   CalendarCheck,
@@ -776,6 +782,7 @@ function Barber() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, modules, logout, planLoading } = useAuth()
+  const { primaryColor, companyName: themeCompanyName, logoUrl } = useTenantTheme()
   const [activeView, setActiveView] = useState(() => getInitialBarberView(window.location.pathname))
   const [dashboard, setDashboard] = useState(emptyDashboard)
   const [appointmentsOverview, setAppointmentsOverview] = useState(emptyAppointmentsOverview)
@@ -2991,17 +2998,15 @@ function Barber() {
     return (
       <>
         <section className="barber-hero-grid barber-overview-intro">
-          <HeroCard
-              overline="Barber Store"
-              title="Visao geral do dia da barbearia"
-              description="Painel diario com dados reais de atendimentos, caixa, pagamentos, comissoes e permutas, sem misturar relatorios semanais ou mensais."
-              stats={[
-                `${todaySalesCount} atendimentos hoje`,
-                `${money(dashboard.totalDaySales)} faturados hoje`,
-                `${money(dashboard.totalPermuta)} em permutas`,
-                `${collaborators.filter((collaborator) => collaborator.is_active).length} colaboradores ativos`
-              ]}
-            />
+          <HeroWelcomeCard
+            userName={user?.name}
+            todayStats={{
+              attendances: todaySalesCount,
+              revenue: dashboard.totalDaySales,
+              teamSize: collaborators.filter((c) => c.is_active).length
+            }}
+            onQuickAction={() => setSaleModalOpen(true)}
+          />
 
           <ChartCard
             title="Ranking do dia"
@@ -3010,27 +3015,24 @@ function Barber() {
             badgeVariant="info"
           >
             {ranking.length > 0 ? (
-              <div className="ds-ranking-list">
-                {ranking.map((item, index) => (
-                  <RankingItem
-                    key={item.collaborator_id || item.collaborator_name}
-                    index={index + 1}
-                    name={item.collaborator_name}
-                    detail={`${money(item.total_commission)} em comissao acumulada`}
-                    value={money(item.total_sales)}
-                  />
-                ))}
-              </div>
+              <ModernRankingCard
+                title=""
+                items={ranking.map((item) => ({
+                  ...item,
+                  id: item.collaborator_id,
+                  name: item.collaborator_name,
+                  value: item.total_sales
+                }))}
+                metric="value"
+                metricLabel="R$"
+              />
             ) : (
-              <div className="ds-chart-empty">
-                <div className="ds-chart-empty__icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48 }}>
-                    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-                <h3 className="ds-chart-empty__title">Sem ranking disponivel</h3>
-                <p className="ds-chart-empty__description">As vendas do periodo vao preencher o ranking automaticamente.</p>
-              </div>
+              <CustomEmptyState
+                icon="team"
+                title="Sem ranking disponível"
+                description="As vendas do período vão preencher o ranking automaticamente."
+                compact
+              />
             )}
           </ChartCard>
         </section>
@@ -6594,7 +6596,9 @@ function renderActiveView() {
         sidebarProps={{
           activeItem: currentView,
           onNavigate: navigateView,
-          companyName: user?.company_name || user?.companyName || 'Barbearia',
+          companyName: themeCompanyName || user?.company_name || user?.companyName || 'Barbearia',
+          logoUrl: logoUrl || settingsData.company?.logo_url || null,
+          primaryColor: primaryColor || settingsData.company?.primary_color || null,
           planName: planLabel,
           user: sidebarUser
         }}
@@ -7237,6 +7241,25 @@ function renderActiveView() {
           </div>
         </div>
       </BarberModal>
+
+      <BottomNav
+        activeItem={currentView}
+        onNavigate={navigateView}
+        show={!isMobileViewport || currentView !== 'settings'}
+      />
+
+      <QuickActionsFAB
+        mainAction={() => {
+          if (isAdmin) {
+            setSaleModalOpen(true)
+          } else {
+            setSaleForm(buildEmptySaleForm(loggedInCollaboratorId))
+            setSaleModalOpen(true)
+          }
+        }}
+        mainActionLabel="Novo atendimento"
+        show={!isMobileViewport || currentView !== 'settings'}
+      />
     </>
   )
 }

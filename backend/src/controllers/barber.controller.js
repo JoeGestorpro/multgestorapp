@@ -1065,30 +1065,71 @@ async function createSale(req, res) {
 
 async function deleteSale(req, res) {
   try {
-    await barberService.cancelSale(req.user.company_id, req.user, req.params.id, req.body);
+    const sale = await barberService.deleteSale(req.user.company_id, req.params.id);
 
     return res.json({
       success: true,
-      message: 'Venda cancelada com seguranca'
+      data: sale
     });
   } catch (error) {
-    console.error('Erro ao cancelar venda barber:', error);
-    return sendError(res, error, 'Erro ao cancelar venda');
+    console.error('Erro ao deletar venda:', error);
+    return sendError(res, error, 'Erro ao deletar venda');
   }
 }
 
-async function cancelSale(req, res) {
+async function getCompanyTheme(req, res) {
   try {
-    const sale = await barberService.cancelSale(req.user.company_id, req.user, req.params.id, req.body);
+    const theme = await barberService.getCompanyTheme(req.user.company_id);
 
     return res.json({
       success: true,
-      data: sale,
-      message: 'Venda cancelada com seguranca'
+      data: theme
     });
   } catch (error) {
-    console.error('Erro ao cancelar venda barber:', error);
-    return sendError(res, error, 'Erro ao cancelar venda');
+    console.error('Erro ao carregar tema da empresa:', error);
+    return sendError(res, error, 'Erro ao carregar tema');
+  }
+}
+
+async function updateCompanyTheme(req, res) {
+  try {
+    const theme = await barberService.updateCompanyTheme(req.user.company_id, req.body);
+
+    return res.json({
+      success: true,
+      data: theme
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar tema da empresa:', error);
+    return sendError(res, error, 'Erro ao atualizar tema');
+  }
+}
+
+async function getOnboardingStatus(req, res) {
+  try {
+    const status = await barberService.getOnboardingStatus(req.user.company_id);
+
+    return res.json({
+      success: true,
+      data: status
+    });
+  } catch (error) {
+    console.error('Erro ao carregar status de onboarding:', error);
+    return sendError(res, error, 'Erro ao carregar status');
+  }
+}
+
+async function saveOnboardingSetup(req, res) {
+  try {
+    const data = await barberService.saveOnboardingSetup(req.user.company_id, req.body);
+
+    return res.json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error('Erro ao salvar setup de onboarding:', error);
+    return sendError(res, error, 'Erro ao salvar setup');
   }
 }
 
@@ -1167,5 +1208,9 @@ module.exports = {
   getSalesSummary,
   createSale,
   cancelSale,
-  deleteSale
+  deleteSale,
+  getCompanyTheme,
+  updateCompanyTheme,
+  getOnboardingStatus,
+  saveOnboardingSetup
 };

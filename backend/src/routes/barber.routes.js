@@ -75,6 +75,10 @@ router.use(requireCompany);
 router.use(requireBarberModule);
 
 router.get('/me', barberController.barberMe);
+router.get('/company/theme', barberController.getCompanyTheme);
+router.put('/company/theme', barberController.updateCompanyTheme);
+router.get('/company/onboarding-status', barberController.getOnboardingStatus);
+router.put('/company/setup', barberController.saveOnboardingSetup);
 router.get('/company/plan', barberController.getCompanyPlan);
 router.get('/settings', barberController.getSettings);
 router.patch('/settings', barberController.updateSettings);

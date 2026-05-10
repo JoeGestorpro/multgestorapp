@@ -126,4 +126,13 @@
   --bp-lg: 1024px;
   --bp-xl: 1280px;
   --bp-2xl: 1536px;
+
+  /* ─── Tenant Theme (Dynamic) ─── */
+  --theme-primary: #a3ff12;
+  --theme-secondary: #0c1017;
+  --theme-accent: #7fe11e;
+  --theme-glow: rgba(163, 255, 18, 0.2);
+  --theme-border: rgba(163, 255, 18, 0.2);
+  --theme-muted: rgba(163, 255, 18, 0.1);
+  --theme-wallpaper: none;
 }

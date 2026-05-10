@@ -1,0 +1,113 @@
+.video-player {
+  position: relative;
+  width: 100%;
+  background: #000;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.video-player video {
+  display: block;
+  width: 100%;
+  cursor: pointer;
+}
+
+.video-player__controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  padding: var(--space-4);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.video-player:hover .video-player__controls {
+  opacity: 1;
+}
+
+.video-player__controls--visible {
+  opacity: 1;
+}
+
+.video-player__progress {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  margin-bottom: var(--space-3);
+}
+
+.video-player__progress-fill {
+  height: 100%;
+  background: var(--video-accent, var(--accent-primary));
+  border-radius: var(--radius-full);
+  transition: width 0.1s linear;
+}
+
+.video-player__buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.video-player__buttons button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.video-player__buttons button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.video-player__buttons button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.video-player__buttons button:first-child svg {
+  width: 24px;
+  height: 24px;
+}
+
+.video-player__title {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  color: rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.video-player__play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  border: none;
+  cursor: pointer;
+}
+
+.video-player__play-overlay svg {
+  width: 64px;
+  height: 64px;
+  color: #fff;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+  transition: transform 0.2s ease;
+}
+
+.video-player__play-overlay:hover svg {
+  transform: scale(1.1);
+}

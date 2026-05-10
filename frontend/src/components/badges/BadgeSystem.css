@@ -1,0 +1,70 @@
+.badge-system {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.badge-system__tier {
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--tier-color, var(--accent-primary)) 10%, var(--bg-elevated));
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--tier-color, var(--accent-primary)) 30%, transparent);
+}
+
+.badge-system__tier-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.badge-system__tier-name {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--tier-color, var(--accent-primary));
+}
+
+.badge-system__tier-progress {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.badge-system__tier-bar {
+  height: 6px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.badge-system__tier-fill {
+  height: 100%;
+  background: var(--tier-color, var(--accent-primary));
+  border-radius: var(--radius-full);
+  transition: width 0.6s ease;
+}
+
+.badge-system__tier-hint {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-3);
+}
+
+.badge-grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+@media (max-width: 480px) {
+  .badge-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .badge-grid--compact {
+    grid-template-columns: 1fr;
+  }
+}

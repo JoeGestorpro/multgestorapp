@@ -1,0 +1,68 @@
+.swipeable-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.swipeable-card--disabled {
+  pointer-events: none;
+}
+
+.swipeable-card__content {
+  background: var(--bg-surface);
+  transition: transform 0.2s ease;
+  touch-action: pan-y;
+}
+
+.swipeable-card__content--dragging {
+  transition: none;
+}
+
+.swipeable-card__action {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--action-color, var(--success));
+  transition: transform 0.2s ease;
+}
+
+.swipeable-card__action--left {
+  left: 0;
+}
+
+.swipeable-card__action--right {
+  right: 0;
+}
+
+.swipeable-card__action-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: var(--font-size-xl);
+}
+
+.swipeable-card__action-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+@media (min-width: 1024px) {
+  .swipeable-card {
+    overflow: visible;
+  }
+
+  .swipeable-card__action {
+    display: none;
+  }
+
+  .swipeable-card__content {
+    transform: none !important;
+  }
+}
