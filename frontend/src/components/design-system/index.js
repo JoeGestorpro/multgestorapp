@@ -1,6 +1,8 @@
 export { default as Button } from './ui/Button'
 export { default as Card, CardHeader, CardTitle, CardSubtitle, CardBody, CardFooter } from './ui/Card'
 export { default as StatCard } from './ui/StatCard'
+export { default as SummaryCard, SummaryItem } from './ui/SummaryCard'
+export { default as HeroCard } from './ui/HeroCard'
 export { default as Badge } from './ui/Badge'
 export { default as Input, Textarea, Select } from './ui/Input'
 export { default as Empty } from './feedback/Empty'
