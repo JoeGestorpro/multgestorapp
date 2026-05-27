@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+.booking-flow {
+  --bf-bg: #0a0a0f;
+  --bf-bg-2: #111118;
+  --bf-bg-3: #181820;
+  --bf-surface: #12121a;
+  --bf-surface-glass: rgba(18, 18, 26, 0.85);
+  --bf-surface-glass-solid: #16161e;
+  --bf-border: rgba(255, 255, 255, 0.06);
+  --bf-border-hover: rgba(255, 255, 255, 0.10);
+  --bf-border-active: rgba(255, 255, 255, 0.14);
+  --bf-border-accent: rgba(212, 168, 83, 0.2);
+  --bf-text: #e8e4de;
+  --bf-text-secondary: #c0b8ae;
+  --bf-text-soft: #9a9086;
+  --bf-muted: #766e64;
+  --bf-muted-2: #5a524a;
+  --bf-accent: #d4a853;
+  --bf-accent-hover: #c49a42;
+  --bf-accent-subtle: rgba(212, 168, 83, 0.06);
+  --bf-accent-bg: rgba(212, 168, 83, 0.1);
+  --bf-green: #5a9e6f;
+  --bf-green-bg: rgba(90, 158, 111, 0.08);
+  --bf-green-border: rgba(90, 158, 111, 0.2);
+  --bf-red: #c44a5a;
+  --bf-red-bg: rgba(196, 74, 90, 0.08);
+  --bf-red-border: rgba(196, 74, 90, 0.2);
+  --bf-gold: #d4a853;
+  --bf-radius-xs: 6px;
+  --bf-radius-sm: 8px;
+  --bf-radius-md: 12px;
+  --bf-radius-lg: 16px;
+  --bf-radius-xl: 20px;
+  --bf-radius-pill: 9999px;
+  --bf-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --bf-font-weight-light: 300;
+  --bf-font-weight-regular: 400;
+  --bf-font-weight-medium: 500;
+  --bf-font-weight-semibold: 600;
+  --bf-font-weight-bold: 700;
+  --bf-tracking-display: -0.015em;
+  --bf-tracking-heading: -0.01em;
+  --bf-tracking-body: -0.005em;
+  --bf-tracking-caption: 0.03em;
+
+  --bf-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --bf-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --bf-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --bf-duration-fast: 120ms;
+  --bf-duration-normal: 200ms;
+  --bf-duration-slow: 300ms;
+
+  --bf-space-4: 4px;
+  --bf-space-8: 8px;
+  --bf-space-12: 12px;
+  --bf-space-16: 16px;
+  --bf-space-20: 20px;
+  --bf-space-24: 24px;
+  --bf-space-28: 28px;
+  --bf-space-32: 32px;
+  --bf-space-40: 40px;
+  --bf-space-48: 48px;
+  --bf-space-56: 56px;
+  --bf-space-64: 64px;
+
+  --bf-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --bf-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --bf-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --bf-shadow-xl: 0 8px 32px rgba(0, 0, 0, 0.35);
+
+  --bf-z-dropdown: 10;
+  --bf-z-sticky: 50;
+  --bf-z-footer: 40;
+  --bf-z-fab: 80;
+  --bf-z-sheet: 100;
+
+  background: var(--bf-bg);
+  color: var(--bf-text);
+  font-family: var(--bf-font);
+  font-weight: var(--bf-font-weight-regular);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  position: relative;
+}

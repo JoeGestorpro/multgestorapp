@@ -1,0 +1,69 @@
+/* ============================================
+   WATERMARK BACKGROUND — Premium Ambient Logo
+   ============================================ */
+
+.ds-watermark {
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-width);
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  animation: ds-watermark-enter 1.2s ease-out both;
+}
+
+@keyframes ds-watermark-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ds-watermark__img {
+  max-width: 50%;
+  max-height: 50%;
+  object-fit: contain;
+  opacity: 0.035;
+  filter: blur(4px) saturate(0.3);
+  transform: scale(1.5);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.ds-watermark__text {
+  font-size: clamp(120px, 25vw, 280px);
+  font-weight: 800;
+  color: var(--text-primary);
+  opacity: 0.025;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  user-select: none;
+  text-shadow: 0 0 60px var(--accent-glow);
+}
+
+.ds-watermark__icon {
+  position: absolute;
+  bottom: 48px;
+  right: 48px;
+  opacity: 0.035;
+  color: var(--text-muted);
+}
+
+@media (max-width: 1024px) {
+  .ds-watermark {
+    left: 0;
+  }
+
+  .ds-watermark__icon {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .ds-watermark {
+    display: none;
+  }
+}

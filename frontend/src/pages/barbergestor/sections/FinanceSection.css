@@ -1,0 +1,108 @@
+.bl-finance {
+  padding: var(--space-section) 0;
+  background: var(--brand-dark-900);
+  color: var(--on-dark);
+}
+
+.bl-finance .bl-section-title__h {
+  color: var(--on-dark);
+}
+
+.bl-finance .bl-section-title__sub {
+  color: rgba(255,255,255,0.6);
+}
+
+.bl-finance .bl-section-title__label {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.8);
+}
+
+.bl-finance__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-huge);
+  align-items: center;
+}
+
+.bl-finance__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.bl-finance__list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  font: var(--text-body-md);
+  color: rgba(255,255,255,0.7);
+}
+
+.bl-finance__list-item svg {
+  color: var(--success);
+  flex-shrink: 0;
+}
+
+.bl-finance__visual {
+  position: relative;
+}
+
+.bl-finance__mockup {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.bl-finance__screenshot {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.bl-finance__stats-overlay {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+  margin-top: var(--space-xl);
+}
+
+.bl-finance__stat-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg) var(--space-md);
+  text-align: center;
+}
+
+.bl-finance__stat-val {
+  display: block;
+  font: var(--text-heading-sm);
+  color: var(--on-dark);
+  margin-bottom: 2px;
+}
+
+.bl-finance__stat-lbl {
+  font: var(--text-micro);
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+@media (max-width: 1024px) {
+  .bl-finance__grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-xxl);
+  }
+}
+
+@media (max-width: 640px) {
+  .bl-finance {
+    padding: var(--space-section-mobile) 0;
+  }
+  .bl-finance__stats-overlay {
+    grid-template-columns: 1fr;
+  }
+}

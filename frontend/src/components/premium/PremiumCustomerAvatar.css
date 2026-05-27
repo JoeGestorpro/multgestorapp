@@ -1,0 +1,43 @@
+.pm-avatar-wrapper {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  border-radius: var(--pm-radius-full);
+  overflow: hidden;
+}
+
+.pm-avatar-clickable {
+  cursor: pointer;
+}
+
+.pm-avatar-clickable:hover {
+  outline: 2px solid var(--pm-border-accent);
+  outline-offset: 2px;
+}
+
+.pm-avatar-img {
+  object-fit: cover;
+  border-radius: var(--pm-radius-full);
+}
+
+.pm-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: var(--pm-text);
+  background: linear-gradient(135deg, var(--pm-surface-hover), var(--pm-surface-elevated));
+  border-radius: var(--pm-radius-full);
+  border: 1px solid var(--pm-border);
+}
+
+.pm-avatar-status {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--pm-radius-full);
+  border: 2px solid var(--pm-bg-soft);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}

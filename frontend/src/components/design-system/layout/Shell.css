@@ -14,6 +14,17 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  /* Cinema-grade layered background — no flat blacks */
+  background:
+    /* Noise texture */
+    url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj4KICA8ZmlsdGVyIGlkPSJuIj4KICAgIDxmZVR1cmJ1bGVuY2UgdHlwZT0iZnJhY3RhbE5vaXNlIiBiYXNlRnJlcXVlbmN5PSIwLjY1IiBudW1PY3RhdmVzPSIzIiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+CiAgICA8ZmVDb2xvck1hdHJpeCB0eXBlPSJzYXR1cmF0ZSIgdmFsdWVzPSIwIi8+CiAgPC9maWx0ZXI+CiAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbHRlcj0idXJsKCNuKSIgb3BhY2l0eT0iMC41Ii8+Cjwvc3ZnPg==") repeat 0 0 / 200px 200px,
+    /* Cinematic top glow — adapts to brand color via --brand-accent-rgb */
+    radial-gradient(ellipse 70% 35% at 50% -8%, rgba(var(--brand-accent-rgb, 163, 255, 18), 0.04), transparent),
+    /* Secondary cool glow for depth */
+    radial-gradient(ellipse 45% 25% at 80% 0%, rgba(59, 130, 246, 0.03), transparent),
+    /* Base dark */
+    var(--bg-primary);
+  background-blend-mode: overlay, normal, normal, normal;
 }
 
 .ds-shell__topbar {
@@ -49,4 +60,20 @@
   .ds-overlay--visible {
     display: block;
   }
+}
+
+/* ============================================
+   DYNAMIC BRANDING — Adaptive Environment
+   These respond to BrandingEngine CSS custom
+   properties set based on tenant assets.
+   ============================================ */
+
+/* Wallpaper present → blend with noise */
+.brand-has-wallpaper body {
+  background:
+    linear-gradient(135deg, rgba(7, 9, 13, 0.88), rgba(7, 9, 13, 0.78)),
+    var(--theme-wallpaper);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }

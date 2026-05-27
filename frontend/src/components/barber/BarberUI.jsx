@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-export function BarberIcon({ name, className = '' }) {
+export function BarberIcon({ name, className = '', size = 18, style = {} }) {
   const icons = {
     menu: 'M4 7h16M4 12h16M4 17h16',
     dashboard: 'M4 4h7v7H4zM13 4h7v5h-7zM13 11h7v9h-7zM4 13h7v7H4z',
@@ -28,16 +28,38 @@ export function BarberIcon({ name, className = '' }) {
     settings: 'M12 3l1.7 2.1 2.7-.3.9 2.6 2.5 1.1-1.1 2.5 1.1 2.5-2.5 1.1-.9 2.6-2.7-.3L12 21l-1.7-2.1-2.7.3-.9-2.6-2.5-1.1 1.1-2.5-1.1-2.5 2.5-1.1.9-2.6 2.7.3L12 3zm0 5.2A3.8 3.8 0 1012 16a3.8 3.8 0 000-7.8z',
     arrowLeft: 'M15 6l-6 6 6 6M9 12h12',
     chevronRight: 'M9 6l6 6-6 6',
+    chevronDown: 'M6 9l6 6 6-6',
     mail: 'M4 6h16v12H4zM4 7l8 6 8-6',
     lock: 'M7 11V8a5 5 0 0110 0v3M6 11h12v9H6z',
     phone: 'M7 4l3 3-2 2a12 12 0 007 7l2-2 3 3-2 3c-1 1-8-1-12-5S1 5 4 3z',
     home: 'M4 11l8-7 8 7v9h-5v-6H9v6H4z',
-    download: 'M12 4v10M8 10l4 4 4-4M5 20h14'
+    download: 'M12 4v10M8 10l4 4 4-4M5 20h14',
+    building: 'M3 21h18M3 7v14M21 7v14M6 7h4v14H6zM14 7h4v14h-4zM9 3h6v4H9z',
+    palette: 'M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.7-.1 2.5-.3.5-.1.9-.5.9-1v-2c0-.4-.2-.7-.5-.9-.6-.2-1.1-.3-1.7-.3-2.2 0-4-1.8-4-4 0-1.6 1-3 2.4-3.6.3-.1.5-.4.5-.7V6c0-.6.4-1 1-1s1 .4 1 1v2.3c1.4-.7 3-1.3 5-1.3z',
+    layout: 'M4 4h16v16H4zM4 4v16M20 4v16M4 9h16M4 14h16M9 4v16M14 4v16',
+    image: 'M4 5h16v14H4zM4 5l5 5 5-5 4 4v4H4v-4l4-4 5-5zm8 2a2 2 0 110 4 2 2 0 010-4z',
+    upload: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12',
+    save: 'M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2zM12 10v6M9 13h6',
+    eye: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 100 6 3 3 0 000-6z',
+    mapPin: 'M12 2C8 2 4 5 4 9c0 5 8 13 8 13s8-8 8-13c0-4-4-7-8-7zm0 9a3 3 0 110-6 3 3 0 010 6z',
+    star: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'
+  }
+
+  const iconPath = icons[name]
+  if (!iconPath) {
+    return null
   }
 
   return (
-    <svg aria-hidden="true" className={`barber-icon ${className}`.trim()} viewBox="0 0 24 24">
-      <path d={icons[name]} />
+    <svg 
+      aria-hidden="true" 
+      className={`barber-icon ${className}`.trim()} 
+      viewBox="0 0 24 24" 
+      width={size} 
+      height={size}
+      style={style}
+    >
+      <path d={iconPath} />
     </svg>
   )
 }

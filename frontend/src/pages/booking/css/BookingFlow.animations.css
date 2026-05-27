@@ -1,0 +1,105 @@
+@keyframes bf-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes bf-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes bf-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bf-fade-down {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bf-fade-left {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes bf-fade-right {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes bf-scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes bf-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bf-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes bf-slide-down {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booking-flow,
+  .booking-flow *,
+  .booking-flow *::before,
+  .booking-flow *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.booking-fade-in {
+  animation: bf-fade-in var(--bf-duration-slow) var(--bf-ease-out) both;
+}
+
+.booking-fade-up {
+  animation: bf-fade-up var(--bf-duration-slow) var(--bf-ease-out) both;
+}
+
+.booking-fade-left {
+  animation: bf-fade-left var(--bf-duration-slow) var(--bf-ease-out) both;
+}
+
+.booking-fade-right {
+  animation: bf-fade-right var(--bf-duration-slow) var(--bf-ease-out) both;
+}
+
+.booking-scale-in {
+  animation: bf-scale-in var(--bf-duration-slow) var(--bf-ease-out) both;
+}
+
+.booking-stagger > * {
+  opacity: 0;
+  animation: bf-fade-up var(--bf-duration-slow) var(--bf-ease-out) forwards;
+}
+
+.booking-stagger > *:nth-child(1) { animation-delay: 30ms; }
+.booking-stagger > *:nth-child(2) { animation-delay: 60ms; }
+.booking-stagger > *:nth-child(3) { animation-delay: 90ms; }
+.booking-stagger > *:nth-child(4) { animation-delay: 120ms; }
+.booking-stagger > *:nth-child(5) { animation-delay: 150ms; }
+.booking-stagger > *:nth-child(6) { animation-delay: 180ms; }
+.booking-stagger > *:nth-child(7) { animation-delay: 210ms; }
+.booking-stagger > *:nth-child(8) { animation-delay: 240ms; }
+
+.booking-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bf-bg-2) 0%,
+    var(--bf-bg-3) 40%,
+    var(--bf-bg-2) 80%
+  );
+  background-size: 200% 100%;
+  animation: bf-shimmer 1.5s ease-in-out infinite;
+}

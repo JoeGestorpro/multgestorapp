@@ -1,0 +1,123 @@
+.choose-plan-page {
+  min-height: 100vh;
+  background: #f4f6f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.choose-plan-container {
+  max-width: 960px;
+  width: 100%;
+  text-align: center;
+}
+
+.choose-plan-title {
+  font-size: 2rem;
+  color: #1f2933;
+  margin-bottom: 0.5rem;
+}
+
+.choose-plan-subtitle {
+  color: #667085;
+  margin-bottom: 2rem;
+}
+
+.choose-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.choose-plan-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.choose-plan-name {
+  font-size: 1.25rem;
+  color: #0f766e;
+  margin-bottom: 0.25rem;
+}
+
+.choose-plan-desc {
+  font-size: 0.875rem;
+  color: #667085;
+  margin-bottom: 1rem;
+}
+
+.choose-plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.choose-plan-currency {
+  font-size: 1rem;
+  color: #1f2933;
+}
+
+.choose-plan-amount {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2933;
+}
+
+.choose-plan-period {
+  font-size: 0.875rem;
+  color: #667085;
+}
+
+.choose-plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  text-align: left;
+  width: 100%;
+}
+
+.choose-plan-feature {
+  padding: 0.4rem 0;
+  font-size: 0.9rem;
+  color: #1f2933;
+  border-bottom: 1px solid #f4f6f8;
+}
+
+.choose-plan-cta {
+  display: inline-block;
+  background: #0f766e;
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.choose-plan-cta:hover {
+  background: #115e59;
+}
+
+.choose-plan-back {
+  background: transparent;
+  border: none;
+  color: #667085;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: underline;
+}
+
+.choose-plan-loader,
+.choose-plan-error {
+  color: #1f2933;
+  font-size: 1.1rem;
+}

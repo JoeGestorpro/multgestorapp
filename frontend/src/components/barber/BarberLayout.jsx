@@ -21,7 +21,7 @@ const adminMenuGroups = [
   {
     title: 'Relacionamento',
     items: [
-      { id: 'customers', label: 'Clientes', icon: 'users' }
+      { id: 'customers', label: 'CRM', icon: 'users' }
     ]
   }
 ]

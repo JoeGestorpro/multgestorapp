@@ -8,18 +8,22 @@ import {
   BarberModal
 } from '../../components/barber/BarberUI'
 import ServiceIcon from '../../components/barber/ServiceIcon'
-import { SERVICE_ICON_OPTIONS, normalizeServiceIcon } from '../../components/barber/ServiceIcon.utils'
+import SmartServiceForm from '../../components/barber/SmartServiceForm'
+import {
+  SERVICE_ICON_OPTIONS,
+  normalizeServiceIcon,
+  getServiceCategory,
+  getCategoryConfig
+} from '../../components/barber/ServiceIcon.utils'
+import { Copy } from 'lucide-react'
 
-function getServiceTypeLabel(type) {
-  if (type === 'combo') {
-    return 'Combo'
-  }
-
-  if (type === 'product') {
-    return 'Produto'
-  }
-
-  return 'Servico'
+function CategoryBadge({ category }) {
+  const config = getCategoryConfig(category)
+  return (
+    <span className={`barber-category-badge ${category}`}>
+      {config.label}
+    </span>
+  )
 }
 
 function Servicos({
@@ -46,28 +50,79 @@ function Servicos({
   onOpenCreate,
   onSubmit,
   onToggleStatus,
+  onDuplicate,
+  onSaveAndContinue,
   services
 }) {
   const [iconCategory, setIconCategory] = useState('all')
+  const [activeCategory, setActiveCategory] = useState('all')
 
   const visibleIcons = useMemo(() => {
-    if (iconCategory === 'all') {
-      return SERVICE_ICON_OPTIONS
-    }
-
+    if (iconCategory === 'all') return SERVICE_ICON_OPTIONS
     return SERVICE_ICON_OPTIONS.filter((option) => option.category === iconCategory)
   }, [iconCategory])
 
+  const categoryCounts = useMemo(() => {
+    const counts = { all: services.length }
+    services.forEach((service) => {
+      const cat = getServiceCategory(service)
+      counts[cat] = (counts[cat] || 0) + 1
+    })
+    return counts
+  }, [services])
+
+  const filteredServices = useMemo(() => {
+    let result = services
+    if (activeCategory !== 'all') {
+      result = result.filter((s) => getServiceCategory(s) === activeCategory)
+    }
+    if (filters.status === 'active') {
+      result = result.filter((s) => s.is_active)
+    } else if (filters.status === 'inactive') {
+      result = result.filter((s) => !s.is_active)
+    }
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase()
+      result = result.filter(
+        (s) =>
+          s.name.toLowerCase().includes(searchLower) ||
+          (s.description && s.description.toLowerCase().includes(searchLower))
+      )
+    }
+    return result
+  }, [services, activeCategory, filters.status, filters.search])
+
   const totalServices = services.length
-  const activeServices = services.filter((service) => service.is_active).length
-  const averageDuration = services.filter((service) => service.estimated_time_minutes).length
+  const activeServices = services.filter((s) => s.is_active).length
+  const averageDuration = services.filter((s) => s.estimated_time_minutes).length
     ? Math.round(
-      services
-        .filter((service) => service.estimated_time_minutes)
-        .reduce((sum, service) => sum + Number(service.estimated_time_minutes || 0), 0)
-      / services.filter((service) => service.estimated_time_minutes).length
-    )
+        services
+          .filter((s) => s.estimated_time_minutes)
+          .reduce((sum, s) => sum + Number(s.estimated_time_minutes || 0), 0) /
+          services.filter((s) => s.estimated_time_minutes).length
+      )
     : null
+
+  const categoryTabs = [
+    { key: 'all', label: 'Todos' },
+    { key: 'corte', label: 'Corte' },
+    { key: 'barba', label: 'Barba' },
+    { key: 'combo', label: 'Combo' },
+    { key: 'estetica', label: 'Estetica' },
+    { key: 'coloracao', label: 'Coloracao' },
+    { key: 'quimica', label: 'Quimica' },
+    { key: 'premium', label: 'Premium' },
+    { key: 'infantil', label: 'Infantil' },
+    { key: 'spa', label: 'Spa' }
+  ]
+
+  const handleDuplicate = (service) => {
+    if (onDuplicate) {
+      onDuplicate(service)
+    } else {
+      onEdit(service.id)
+    }
+  }
 
   return (
     <>
@@ -133,65 +188,98 @@ function Servicos({
             </div>
 
             <div className="barber-services-toolbar-summary">
-              <BarberBadge tone="admin">{totalServices} itens</BarberBadge>
+              <BarberBadge tone="admin">{filteredServices.length} itens</BarberBadge>
             </div>
+          </div>
+
+          <div className="barber-services-category-tabs">
+            {categoryTabs.map((tab) => {
+              const count = categoryCounts[tab.key] || 0
+              if (count === 0 && tab.key !== 'all') return null
+              return (
+                <button
+                  key={tab.key}
+                  className={`barber-category-tab ${activeCategory === tab.key ? 'active' : ''}`}
+                  onClick={() => setActiveCategory(tab.key)}
+                  type="button"
+                  data-category={tab.key}
+                >
+                  {tab.label}
+                  <span className="barber-category-tab-count">{count}</span>
+                </button>
+              )
+            })}
           </div>
         </BarberCard>
 
         <BarberCard className="barber-services-list-card">
-          {services.length > 0 ? (
+          {filteredServices.length > 0 ? (
             <div className="barber-services-grid">
-              {services.map((service) => (
-                <article className="barber-service-premium-card" key={service.id}>
-                  <div className="barber-service-premium-top">
-                    <span className="barber-service-card-icon">
-                      <ServiceIcon icon={service.icon} serviceName={service.name} />
-                    </span>
-                    <div className="barber-service-premium-copy">
-                      <div className="barber-service-premium-title">
-                        <strong>{service.name}</strong>
-                        <BarberBadge tone={service.is_active ? 'success' : 'danger'}>
-                          {service.is_active ? 'Ativo' : 'Inativo'}
-                        </BarberBadge>
+              {filteredServices.map((service) => {
+                const category = getServiceCategory(service)
+                return (
+                  <article
+                    className="barber-service-premium-card"
+                    data-category={category}
+                    key={service.id}
+                  >
+                    <div className="barber-service-premium-top">
+                      <span className="barber-service-card-icon">
+                        <ServiceIcon icon={service.icon} serviceName={service.name} size={28} />
+                      </span>
+                      <div className="barber-service-premium-copy">
+                        <div className="barber-service-premium-title">
+                          <strong>{service.name}</strong>
+                          <BarberBadge tone={service.is_active ? 'success' : 'danger'}>
+                            {service.is_active ? 'Ativo' : 'Inativo'}
+                          </BarberBadge>
+                        </div>
+                        <span className="barber-service-category-line">
+                          <CategoryBadge category={category} />
+                          {service.estimated_time_minutes && (
+                            <span className="barber-service-duration">{service.estimated_time_minutes} min</span>
+                          )}
+                        </span>
                       </div>
-                      <span>{service.description || 'Sem descricao cadastrada'}</span>
                     </div>
-                  </div>
 
-                  <div className="barber-service-premium-meta">
-                    <div>
-                      <small>Preco</small>
-                      <strong>{money(service.price)}</strong>
+                    <div className="barber-service-premium-price">
+                      <span className="barber-service-price-label">Preco</span>
+                      <strong className="barber-service-price-value">{money(service.price)}</strong>
                     </div>
-                    <div>
-                      <small>Tempo</small>
-                      <strong>{service.estimated_time_minutes ? `${service.estimated_time_minutes} min` : '-'}</strong>
-                    </div>
-                    <div>
-                      <small>Tipo</small>
-                      <strong>{getServiceTypeLabel(service.service_type)}</strong>
-                    </div>
-                  </div>
 
-                  {isAdmin && (
-                    <div className="barber-service-premium-actions">
-                      <BarberButton onClick={() => onEdit(service.id)} type="button" variant="ghost">
-                        Editar
-                      </BarberButton>
-                      <BarberButton
-                        onClick={() => onToggleStatus(service)}
-                        type="button"
-                        variant={service.is_active ? 'secondary' : 'primary'}
-                      >
-                        {service.is_active ? 'Desativar' : 'Ativar'}
-                      </BarberButton>
-                      <BarberButton onClick={() => onDelete(service.id)} type="button" variant="danger">
-                        Excluir
-                      </BarberButton>
-                    </div>
-                  )}
-                </article>
-              ))}
+                    {service.description && (
+                      <p className="barber-service-description">{service.description}</p>
+                    )}
+
+                    {isAdmin && (
+                      <div className="barber-service-premium-actions">
+                        <button
+                          className="barber-service-duplicate-btn"
+                          onClick={() => handleDuplicate(service)}
+                          type="button"
+                        >
+                          <Copy size={12} />
+                          Duplicar
+                        </button>
+                        <BarberButton onClick={() => onEdit(service.id)} type="button" variant="ghost">
+                          Editar
+                        </BarberButton>
+                        <BarberButton
+                          onClick={() => onToggleStatus(service)}
+                          type="button"
+                          variant={service.is_active ? 'secondary' : 'primary'}
+                        >
+                          {service.is_active ? 'Desativar' : 'Ativar'}
+                        </BarberButton>
+                        <BarberButton onClick={() => onDelete(service.id)} type="button" variant="danger">
+                          Excluir
+                        </BarberButton>
+                      </div>
+                    )}
+                  </article>
+                )
+              })}
             </div>
           ) : (
             <BarberEmptyState
@@ -223,164 +311,24 @@ function Servicos({
                 </button>
               </div>
 
-              <form className="barber-services-drawer-form" onSubmit={onSubmit}>
-                <div className="barber-form-grid">
-                  <div className="barber-form-block barber-form-block-full">
-                    <label htmlFor="service-name">Nome</label>
-                    <input
-                      className="barber-input"
-                      id="service-name"
-                      name="name"
-                      onChange={onFormChange}
-                      required
-                      value={form.name}
-                    />
-                  </div>
-
-                  <div className="barber-form-block">
-                    <label htmlFor="service-price">Preco</label>
-                    <input
-                      className="barber-input"
-                      id="service-price"
-                      min="0"
-                      name="price"
-                      onChange={onFormChange}
-                      required
-                      step="0.01"
-                      type="number"
-                      value={form.price}
-                    />
-                  </div>
-
-                  <div className="barber-form-block">
-                    <label htmlFor="estimated-time-minutes">Tempo (min)</label>
-                    <input
-                      className="barber-input"
-                      id="estimated-time-minutes"
-                      min="0"
-                      name="estimatedTimeMinutes"
-                      onChange={onFormChange}
-                      step="1"
-                      type="number"
-                      value={form.estimatedTimeMinutes}
-                    />
-                  </div>
-
-                  <div className="barber-form-block">
-                    <label htmlFor="service-type">Tipo</label>
-                    <select
-                      className="barber-select"
-                      id="service-type"
-                      name="serviceType"
-                      onChange={onFormChange}
-                      value={form.serviceType}
-                    >
-                      <option value="service">Servico</option>
-                      <option value="product">Produto</option>
-                      <option value="combo">Combo</option>
-                    </select>
-                  </div>
-
-                  <div className="barber-form-block">
-                    <label htmlFor="service-status">Status</label>
-                    <select
-                      className="barber-select"
-                      id="service-status"
-                      name="isActive"
-                      onChange={onFormChange}
-                      value={String(form.isActive)}
-                    >
-                      <option value="true">Ativo</option>
-                      <option value="false">Inativo</option>
-                    </select>
-                  </div>
-
-                  <div className="barber-form-block barber-form-block-full">
-                    <label htmlFor="service-description">Descricao</label>
-                    <textarea
-                      className="barber-textarea"
-                      id="service-description"
-                      name="description"
-                      onChange={onFormChange}
-                      placeholder="Diferenciais, observacoes ou o que esta incluso."
-                      rows="4"
-                      value={form.description}
-                    />
-                  </div>
-
-                  <div className="barber-form-block barber-form-block-full">
-                    <div className="barber-services-icon-header">
-                      <div>
-                        <label>Icone</label>
-                        <span>Escolha uma representacao visual para o servico.</span>
-                      </div>
-                      <span className="barber-service-card-icon">
-                        <ServiceIcon icon={form.icon} serviceName={form.name} />
-                      </span>
-                    </div>
-
-                    <div className="barber-icon-picker">
-                      <div className="barber-icon-picker-tabs">
-                        {[
-                          { key: 'all', label: 'Todos' },
-                          { key: 'corte', label: 'Corte' },
-                          { key: 'barba', label: 'Barba' },
-                          { key: 'estetica', label: 'Estetica' },
-                          { key: 'coloracao', label: 'Coloracao' },
-                          { key: 'outros', label: 'Outros' }
-                        ].map((category) => (
-                          <button
-                            className={`barber-icon-filter ${iconCategory === category.key ? 'active' : ''}`}
-                            key={category.key}
-                            onClick={() => setIconCategory(category.key)}
-                            type="button"
-                          >
-                            {category.label}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="barber-icon-grid">
-                        {visibleIcons.map((option) => {
-                          const active = normalizeServiceIcon(form.icon, form.name) === option.key
-
-                          return (
-                            <button
-                              className={`barber-icon-option ${active ? 'active' : ''}`}
-                              key={option.key}
-                              onClick={() => onFormChange({ target: { name: 'icon', value: option.key } })}
-                              type="button"
-                            >
-                              <span className="barber-icon-option-check">{active ? '✓' : ''}</span>
-                              <div className="barber-icon-preview">
-                                <ServiceIcon icon={option.key} />
-                              </div>
-                              <strong>{option.label}</strong>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="barber-drawer-actions">
-                  <BarberButton onClick={onCloseDrawer} type="button" variant="ghost">
-                    Cancelar
-                  </BarberButton>
-                  <BarberButton disabled={isSaving} type="submit" variant="primary">
-                    <BarberIcon name="catalog" />
-                    <span>{isSaving ? 'Salvando...' : isEditing ? 'Salvar alteracoes' : 'Salvar servico'}</span>
-                  </BarberButton>
-                </div>
-              </form>
+              <SmartServiceForm
+                form={form}
+                isEditing={isEditing}
+                isSaving={isSaving}
+                onClose={onCloseDrawer}
+                onDuplicate={onDuplicate}
+                onFormChange={onFormChange}
+                onSaveAndContinue={onSaveAndContinue}
+                onSubmit={onSubmit}
+                services={services}
+              />
             </aside>
           </div>
 
           <BarberModal
             onClose={onCloseDelete}
             open={deleteOpen}
-            subtitle={deleteTarget ? `${deleteTarget.name} • ${money(deleteTarget.price)}` : ''}
+            subtitle={deleteTarget ? `${deleteTarget.name} - ${money(deleteTarget.price)}` : ''}
             title="Confirmar exclusao do servico"
           >
             <div className="barber-modal-content">

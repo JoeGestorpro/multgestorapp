@@ -1,0 +1,117 @@
+/* ============================================
+   AMBIENT BACKGROUNDS — Module Atmospheres
+   Each module gets a subtle ambient glow that
+   creates visual identity without distraction.
+   ============================================ */
+
+.barber-page {
+  position: relative;
+}
+
+.barber-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.barber-page[data-module]::before {
+  opacity: 1;
+}
+
+/* Dashboard — green growth atmosphere */
+.barber-page[data-module="dashboard"]::before {
+  background:
+    radial-gradient(ellipse 60% 30% at 30% 5%, rgba(163, 255, 18, 0.05), transparent),
+    radial-gradient(ellipse 40% 20% at 70% 10%, rgba(59, 130, 246, 0.03), transparent);
+}
+
+/* Appointments — temporal blue, organized */
+.barber-page[data-module="appointments"]::before,
+.barber-page[data-module="appointments-history"]::before,
+.barber-page[data-module="appointments-crm"]::before,
+.barber-page[data-module="appointments-blocks"]::before {
+  background:
+    radial-gradient(ellipse 50% 35% at 40% 0%, rgba(59, 130, 246, 0.06), transparent),
+    radial-gradient(ellipse 30% 20% at 80% 5%, rgba(99, 102, 241, 0.03), transparent);
+}
+
+/* Sales / Attendances — warm amber, financial */
+.barber-page[data-module="sales"]::before {
+  background:
+    radial-gradient(ellipse 55% 30% at 50% 0%, rgba(244, 200, 108, 0.06), transparent),
+    radial-gradient(ellipse 35% 20% at 20% 8%, rgba(251, 191, 36, 0.03), transparent);
+}
+
+/* Cashier — gold, operational wealth */
+.barber-page[data-module="cashier"]::before {
+  background:
+    radial-gradient(ellipse 50% 35% at 60% 0%, rgba(244, 200, 108, 0.07), transparent),
+    radial-gradient(ellipse 30% 20% at 30% 5%, rgba(245, 158, 11, 0.03), transparent);
+}
+
+/* Team — cool collaborative blue */
+.barber-page[data-module="team"]::before {
+  background:
+    radial-gradient(ellipse 50% 30% at 50% 0%, rgba(99, 102, 241, 0.06), transparent),
+    radial-gradient(ellipse 35% 20% at 70% 5%, rgba(59, 130, 246, 0.03), transparent);
+}
+
+/* Services — purple, creative */
+.barber-page[data-module="services"]::before,
+.barber-page[data-module="services-top"]::before,
+.barber-page[data-module="services-favorites"]::before,
+.barber-page[data-module="services-commissions"]::before {
+  background:
+    radial-gradient(ellipse 50% 30% at 40% 0%, rgba(167, 139, 250, 0.06), transparent),
+    radial-gradient(ellipse 30% 20% at 70% 5%, rgba(192, 132, 252, 0.03), transparent);
+}
+
+/* Products — teal, commercial */
+.barber-page[data-module="products"]::before {
+  background:
+    radial-gradient(ellipse 50% 30% at 50% 0%, rgba(45, 212, 191, 0.06), transparent),
+    radial-gradient(ellipse 30% 20% at 30% 5%, rgba(20, 184, 166, 0.03), transparent);
+}
+
+/* Customers — indigo, relationship */
+.barber-page[data-module="customers"]::before,
+.barber-page[data-module="customers-crm"]::before,
+.barber-page[data-module="customers-birthdays"]::before,
+.barber-page[data-module="customers-inactive"]::before,
+.barber-page[data-module="customers-vip"]::before {
+  background:
+    radial-gradient(ellipse 50% 30% at 50% 0%, rgba(129, 140, 248, 0.06), transparent),
+    radial-gradient(ellipse 30% 20% at 60% 5%, rgba(99, 102, 241, 0.03), transparent);
+}
+
+/* Reports — analytical, cool slate */
+.barber-page[data-module="reports"]::before {
+  background:
+    radial-gradient(ellipse 45% 30% at 50% 0%, rgba(148, 163, 184, 0.05), transparent),
+    radial-gradient(ellipse 30% 20% at 40% 5%, rgba(100, 116, 139, 0.03), transparent);
+}
+
+/* Settlements — calm neutral */
+.barber-page[data-module="settlements"]::before {
+  background:
+    radial-gradient(ellipse 45% 25% at 50% 0%, rgba(148, 163, 184, 0.04), transparent);
+}
+
+/* Settings — minimal, clean */
+.barber-page[data-module="settings"]::before {
+  background:
+    radial-gradient(ellipse 40% 25% at 50% 0%, rgba(148, 163, 184, 0.03), transparent);
+}
+
+/* Ensure content renders above ambient glow */
+.barber-page > * {
+  position: relative;
+  z-index: 1;
+}

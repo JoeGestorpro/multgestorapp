@@ -1,0 +1,74 @@
+@keyframes bl-fade-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bl-fade-in-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes bl-fade-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes bl-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes bl-glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes bl-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes bl-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.barber-landing .bl-reveal {
+  opacity: 0;
+}
+
+.barber-landing .bl-reveal.visible {
+  animation: bl-fade-in 0.6s ease-out forwards;
+}
+
+.barber-landing .bl-reveal-left.visible {
+  animation: bl-fade-in-left 0.6s ease-out forwards;
+}
+
+.barber-landing .bl-reveal-right.visible {
+  animation: bl-fade-in-right 0.6s ease-out forwards;
+}
+
+.barber-landing .bl-reveal-scale.visible {
+  animation: bl-scale-in 0.5s ease-out forwards;
+}
+
+.barber-landing .stagger-1 { animation-delay: 0.05s; }
+.barber-landing .stagger-2 { animation-delay: 0.1s; }
+.barber-landing .stagger-3 { animation-delay: 0.15s; }
+.barber-landing .stagger-4 { animation-delay: 0.2s; }
+.barber-landing .stagger-5 { animation-delay: 0.25s; }
+.barber-landing .stagger-6 { animation-delay: 0.3s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .barber-landing .bl-reveal,
+  .barber-landing .bl-reveal-left,
+  .barber-landing .bl-reveal-right,
+  .barber-landing .bl-reveal-scale {
+    opacity: 1;
+    animation: none;
+  }
+  .barber-landing * {
+    animation-duration: 0.01ms !important;
+  }
+}

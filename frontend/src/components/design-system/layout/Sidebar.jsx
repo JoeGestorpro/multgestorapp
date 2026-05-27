@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   LayoutDashboard,
   Calendar,
@@ -8,7 +9,9 @@ import {
   BarChart3,
   Lock,
   Settings,
-  Crown
+  Crown,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 import Badge from '../ui/Badge'
 import './Sidebar.css'
@@ -19,13 +22,33 @@ const NAV_ITEMS = [
     items: [
       { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard },
       { id: 'sales', label: 'Atendimentos', icon: Scissors },
-      { id: 'appointments', label: 'Agenda', icon: Calendar },
+      {
+        id: 'appointments',
+        label: 'Agenda',
+        icon: Calendar,
+        subItems: [
+          { id: 'appointments', label: 'Agenda do dia' },
+          { id: 'appointments-history', label: 'Histórico' },
+          { id: 'appointments-crm', label: 'CRM da agenda' },
+          { id: 'appointments-blocks', label: 'Bloqueios e horários' },
+        ]
+      },
     ]
   },
   {
     section: 'Operações',
     items: [
-      { id: 'services', label: 'Serviços', icon: Scissors },
+      {
+        id: 'services',
+        label: 'Serviços',
+        icon: Scissors,
+        subItems: [
+          { id: 'services', label: 'Todos os serviços' },
+          { id: 'services-top', label: 'Mais vendidos' },
+          { id: 'services-favorites', label: 'Favoritos' },
+          { id: 'services-commissions', label: 'Comissões' },
+        ]
+      },
       { id: 'products', label: 'Produtos', icon: Package },
       { id: 'team', label: 'Equipe', icon: Users },
       { id: 'cashier', label: 'Caixa', icon: Wallet },
@@ -34,7 +57,18 @@ const NAV_ITEMS = [
   {
     section: 'Relacionamento',
     items: [
-      { id: 'customers', label: 'Clientes', icon: Users },
+      {
+        id: 'customers',
+        label: 'Clientes',
+        icon: Users,
+        subItems: [
+          { id: 'customers', label: 'Todos os clientes' },
+          { id: 'customers-crm', label: 'Histórico e CRM' },
+          { id: 'customers-birthdays', label: 'Aniversariantes' },
+          { id: 'customers-inactive', label: 'Inativos' },
+          { id: 'customers-vip', label: 'VIP / Fidelidade' },
+        ]
+      },
     ]
   },
   {
@@ -69,6 +103,25 @@ export default function Sidebar({
   className = '',
   ...props
 }) {
+  const getInitialExpanded = () => {
+    const expanded = {}
+    NAV_ITEMS.forEach(section => {
+      section.items.forEach(item => {
+        if (item.subItems) {
+          const hasActiveSub = item.subItems.some(si => si.id === activeItem)
+          if (hasActiveSub) expanded[item.id] = true
+        }
+      })
+    })
+    return expanded
+  }
+
+  const [expandedSections, setExpandedSections] = useState(getInitialExpanded)
+
+  const toggleSection = (id) => {
+    setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
   const logoStyle = primaryColor ? {
     background: primaryColor,
     color: '#07090d'
@@ -85,7 +138,7 @@ export default function Sidebar({
             {logoUrl ? (
               <img src={logoUrl} alt={companyName} className="ds-sidebar__logo-img" />
             ) : (
-              <Scissors />
+              <span className="ds-sidebar__logo-initials">{getInitials(companyName)}</span>
             )}
           </div>
           <div className="ds-sidebar__logo-text">
@@ -103,23 +156,64 @@ export default function Sidebar({
               {section.items.map((item) => {
                 const Icon = item.icon
                 const isActive = activeItem === item.id
+                const hasSubItems = item.subItems && item.subItems.length > 0
+                const isExpanded = expandedSections[item.id]
+                const isParentActive = hasSubItems && item.subItems.some(si => si.id === activeItem)
+
                 return (
-                  <div
-                    key={item.id}
-                    className={['ds-sidebar__item', isActive && 'ds-sidebar__item--active'].filter(Boolean).join(' ')}
-                    onClick={() => onNavigate?.(item.id)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && onNavigate?.(item.id)}
-                  >
-                    <span className="ds-sidebar__item-icon">
-                      <Icon />
-                    </span>
-                    <span>{item.label}</span>
-                    {item.badge && (
-                      <span className="ds-sidebar__item-badge">
-                        <Badge variant="accent" size="sm">{item.badge}</Badge>
+                  <div key={item.id} className="ds-sidebar__item-wrapper">
+                    <div
+                      className={[
+                        'ds-sidebar__item',
+                        hasSubItems && 'ds-sidebar__item--parent',
+                        (isActive || isParentActive) && 'ds-sidebar__item--active'
+                      ].filter(Boolean).join(' ')}
+                      onClick={() => {
+                        if (hasSubItems) toggleSection(item.id)
+                        onNavigate?.(item.id)
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && onNavigate?.(item.id)}
+                    >
+                      <span className="ds-sidebar__item-icon">
+                        <Icon />
                       </span>
+                      <span>{item.label}</span>
+                      {hasSubItems && (
+                        <span className="ds-sidebar__item-chevron">
+                          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </span>
+                      )}
+                      {item.badge && (
+                        <span className="ds-sidebar__item-badge">
+                          <Badge variant="accent" size="sm">{item.badge}</Badge>
+                        </span>
+                      )}
+                    </div>
+
+                    {hasSubItems && isExpanded && (
+                      <div className="ds-sidebar__sub-items">
+                        {item.subItems.map((sub) => {
+                          const isSubActive = activeItem === sub.id
+                          return (
+                            <div
+                              key={sub.id}
+                              className={[
+                                'ds-sidebar__sub-item',
+                                isSubActive && 'ds-sidebar__sub-item--active'
+                              ].filter(Boolean).join(' ')}
+                              onClick={() => onNavigate?.(sub.id)}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => e.key === 'Enter' && onNavigate?.(sub.id)}
+                            >
+                              <span className="ds-sidebar__sub-item-dot" />
+                              <span>{sub.label}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
                     )}
                   </div>
                 )

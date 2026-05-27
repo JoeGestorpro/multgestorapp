@@ -1,4 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef, memo } from 'react'
+
+function darken(hex, amount = 20) {
+  if (!hex || typeof hex !== 'string') return hex
+  const num = parseInt(hex.replace('#', ''), 16)
+  if (Number.isNaN(num)) return hex
+  const r = Math.max(0, (num >> 16) - amount)
+  const g = Math.max(0, ((num >> 8) & 0x00ff) - amount)
+  const b = Math.max(0, (num & 0x0000ff) - amount)
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
+}
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BarberIcon } from '../../components/barber/BarberUI'
 import ServiceIcon from '../../components/barber/ServiceIcon'
@@ -7,7 +17,11 @@ import { BarberBadge } from '../../components/barber/BarberUI'
 import api from '../../services/api'
 import { anyCollaboratorValue, draftBookingKey, savePendingBooking } from './pendingBooking'
 import { getStoredToken } from '../../services/authStorage'
-import './BookingFlow.css'
+import { buildCompanyData } from './BookingLanding.data'
+import BookingDesktopLayout from './BookingDesktopLayout'
+import BookingMobileLayout from './BookingMobileLayout'
+import { BookingSkeletonPage, SkeletonBlock } from './BookingSkeleton'
+import './css/BookingFlow.index.css'
 
 const STEPS = {
   SERVICE: 1,
@@ -54,7 +68,7 @@ function formatDate(value) {
 
 function formatShortDate(value) {
   if (!value) return ''
-  return new Intl.DateTimeFormat('pt-BT', {
+  return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
     month: 'short'
   }).format(new Date(value))
@@ -120,7 +134,7 @@ function BookingHeader({ company, currentStep, onBack, showBack }) {
   )
 }
 
-function ServiceCard({ service, selected, onSelect }) {
+const ServiceCard = memo(function ServiceCard({ service, selected, onSelect }) {
   return (
     <button
       className={`booking-service-card ${selected ? 'selected' : ''}`}
@@ -146,9 +160,9 @@ function ServiceCard({ service, selected, onSelect }) {
       </div>
     </button>
   )
-}
+})
 
-function ProfessionalCard({ collaborator, selected, onSelect, allowAny }) {
+const ProfessionalCard = memo(function ProfessionalCard({ collaborator, selected, onSelect, allowAny }) {
   const isAny = collaborator.id === anyCollaboratorValue || collaborator.isAny
 
   return (
@@ -177,14 +191,32 @@ function ProfessionalCard({ collaborator, selected, onSelect, allowAny }) {
       </div>
     </button>
   )
-}
+})
 
-function Calendar({ selectedDate, onSelect, minDate }) {
+const MONTHS_SHORT = [
+  'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+  'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+]
+
+const Calendar = memo(function Calendar({ selectedDate, onSelect, minDate }) {
   const [viewDate, setViewDate] = useState(() => {
     const d = new Date()
     d.setDate(1)
     return d
   })
+  const [showMonthPicker, setShowMonthPicker] = useState(false)
+  const calendarRef = useRef(null)
+
+  useEffect(() => {
+    if (!showMonthPicker) return
+    function handleClick(e) {
+      if (calendarRef.current && !calendarRef.current.contains(e.target)) {
+        setShowMonthPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showMonthPicker])
 
   const days = useMemo(() => {
     const year = viewDate.getFullYear()
@@ -220,6 +252,15 @@ function Calendar({ selectedDate, onSelect, minDate }) {
     })
   }
 
+  function handleMonthSelect(month) {
+    setViewDate(d => new Date(d.getFullYear(), month, 1))
+    setShowMonthPicker(false)
+  }
+
+  function handleYearChange(delta) {
+    setViewDate(d => new Date(d.getFullYear() + delta, d.getMonth(), 1))
+  }
+
   function isToday(date) {
     if (!date) return false
     const today = new Date()
@@ -243,19 +284,64 @@ function Calendar({ selectedDate, onSelect, minDate }) {
     return date.toISOString().slice(0, 10)
   }
 
+  const currentMonth = viewDate.getMonth()
+  const currentYear = viewDate.getFullYear()
+
   return (
-    <div className="booking-calendar">
+    <div className="booking-calendar" ref={calendarRef}>
       <div className="booking-calendar-header">
         <button type="button" onClick={prevMonth} className="booking-calendar-nav">
           <BarberIcon name="arrowLeft" />
         </button>
-        <span>
-          {viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-        </span>
+        <div className="booking-calendar-header-center">
+          <button
+            type="button"
+            className={`booking-calendar-header-label ${showMonthPicker ? 'active' : ''}`}
+            onClick={() => setShowMonthPicker(p => !p)}
+          >
+            {viewDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+            <BarberIcon name="chevronDown" />
+          </button>
+        </div>
         <button type="button" onClick={nextMonth} className="booking-calendar-nav">
           <BarberIcon name="chevronRight" />
         </button>
       </div>
+
+      {showMonthPicker && (
+        <div className="booking-month-picker">
+          <div className="booking-month-picker-header">
+            <button
+              type="button"
+              className="booking-month-picker-nav"
+              onClick={() => handleYearChange(-1)}
+            >
+              <BarberIcon name="arrowLeft" />
+            </button>
+            <span>{currentYear}</span>
+            <button
+              type="button"
+              className="booking-month-picker-nav"
+              onClick={() => handleYearChange(1)}
+            >
+              <BarberIcon name="chevronRight" />
+            </button>
+          </div>
+          <div className="booking-month-picker-grid">
+            {MONTHS_SHORT.map((m, i) => (
+              <button
+                key={i}
+                type="button"
+                className={`booking-month-picker-month ${i === currentMonth ? 'current' : ''}`}
+                onClick={() => handleMonthSelect(i)}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="booking-calendar-weekdays">
         {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
           <span key={i}>{d}</span>
@@ -276,9 +362,9 @@ function Calendar({ selectedDate, onSelect, minDate }) {
       </div>
     </div>
   )
-}
+})
 
-function TimeSlots({ slots, selected, onSelect, loading }) {
+const TimeSlots = memo(function TimeSlots({ slots, selected, onSelect, loading }) {
   if (loading) {
     return (
       <div className="booking-slots-loading">
@@ -328,9 +414,9 @@ function TimeSlots({ slots, selected, onSelect, loading }) {
       )}
     </div>
   )
-}
+})
 
-function BookingSummary({ form, service, collaborator, company, onConfirm, loading }) {
+const BookingSummary = memo(function BookingSummary({ form, service, collaborator, company, onConfirm, loading }) {
   const dateLabel = form.appointmentDate ? formatDate(form.appointmentDate) : ''
   const collaboratorName = collaborator?.name || collaborator?.nickname || 'A definir'
 
@@ -422,9 +508,9 @@ function BookingSummary({ form, service, collaborator, company, onConfirm, loadi
       </div>
     </div>
   )
-}
+})
 
-function AuthForm({ onSubmit, loading, error, onBack }) {
+const AuthForm = memo(function AuthForm({ onSubmit, loading, error, onBack }) {
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -546,16 +632,19 @@ function AuthForm({ onSubmit, loading, error, onBack }) {
       </div>
     </div>
   )
-}
+})
 
-function SuccessScreen({ form, service, collaborator, company, onDone }) {
+const SuccessScreen = memo(function SuccessScreen({ form, service, collaborator, company, onDone }) {
   return (
     <div className="booking-success">
       <div className="booking-success-icon">
-        <BarberIcon name="check" />
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
       </div>
-      <h2>Agendamento confirmado!</h2>
-      <p>Seu horario foi reservado com sucesso</p>
+
+      <h2 className="booking-fade-up">Agendamento confirmado!</h2>
+      <p className="booking-fade-up" style={{ animationDelay: '0.15s' }}>Seu horario foi reservado com sucesso</p>
 
       <div className="booking-success-card">
         <div className="booking-success-row">
@@ -600,6 +689,146 @@ function SuccessScreen({ form, service, collaborator, company, onDone }) {
       </div>
     </div>
   )
+})
+
+// Componente que renderiza as etapas do agendamento
+// Reutilizado tanto no DesktopLayout quanto no MobileLayout
+function BookingFlowSteps({
+  currentStep, services, collaboratorsWithAny, settings, form,
+  selectedService, selectedCollaborator, slots, slotsLoading,
+  submitting, authError, company,
+  onSelectService, onSelectProfessional, onSelectDate, onSelectTime,
+  onGoNext, onGoBack, onConfirm, onAuth, onSuccessDone,
+  showFooter, showHeader
+}) {
+  const canProceed = (() => {
+    switch (currentStep) {
+      case STEPS.SERVICE: return !!form.serviceId
+      case STEPS.PROFESSIONAL: return true
+      case STEPS.DATETIME: return !!form.appointmentDate && !!form.appointmentTime
+      case STEPS.SUMMARY: return true
+      default: return false
+    }
+  })()
+
+  const stepDir = useRef(1)
+
+  function getStepAnimation() {
+    return stepDir.current > 0 ? 'booking-fade-right' : 'booking-fade-left'
+  }
+
+  return (
+    <>
+      {showHeader && currentStep !== STEPS.SUCCESS && (
+        <BookingHeader
+          company={company}
+          currentStep={currentStep}
+          showBack={currentStep > STEPS.SERVICE}
+          onBack={() => { stepDir.current = -1; onGoBack() }}
+        />
+      )}
+
+      <main className="booking-content">
+        {currentStep === STEPS.SERVICE && (
+          <div className={`booking-step ${getStepAnimation()}`}>
+            <div className="booking-step-header">
+              <h1>Escolha o servico</h1>
+              <p>Selecione o atendimento desejado</p>
+            </div>
+            <div className="booking-services booking-stagger">
+              {services.map(service => (
+                <ServiceCard
+                  key={service.id}
+                  service={service}
+                  selected={form.serviceId === service.id}
+                  onSelect={onSelectService}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {currentStep === STEPS.PROFESSIONAL && (
+          <div className={`booking-step ${getStepAnimation()}`}>
+            <div className="booking-step-header">
+              <h1>Escolha o profissional</h1>
+              <p>Ou deixe-nos escolher o primeiro disponivel</p>
+            </div>
+            <div className="booking-professionals booking-stagger">
+              {collaboratorsWithAny.map(collab => (
+                <ProfessionalCard
+                  key={collab.id}
+                  collaborator={collab}
+                  selected={form.collaboratorId === collab.id}
+                  onSelect={onSelectProfessional}
+                  allowAny={settings?.allow_any_collaborator !== false}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {currentStep === STEPS.DATETIME && (
+          <div className={`booking-step ${getStepAnimation()}`}>
+            <div className="booking-step-header">
+              <h1>Escolha data e hora</h1>
+              <p>Horarios considerando agenda e bloqueios</p>
+            </div>
+            <Calendar selectedDate={form.appointmentDate} onSelect={onSelectDate} />
+            {form.appointmentDate && (
+              <TimeSlots
+                slots={slots}
+                selected={form.appointmentTime}
+                onSelect={onSelectTime}
+                loading={slotsLoading}
+              />
+            )}
+          </div>
+        )}
+
+        {currentStep === STEPS.SUMMARY && (
+          <BookingSummary
+            form={form}
+            service={selectedService}
+            collaborator={selectedCollaborator}
+            company={company}
+            onConfirm={onConfirm}
+            loading={submitting}
+          />
+        )}
+
+        {currentStep === STEPS.AUTH && (
+          <AuthForm
+            onSubmit={onAuth}
+            loading={submitting}
+            error={authError}
+            onBack={onGoBack}
+          />
+        )}
+
+        {currentStep === STEPS.SUCCESS && (
+          <SuccessScreen
+            form={form}
+            service={selectedService}
+            collaborator={selectedCollaborator}
+            company={company}
+            onDone={onSuccessDone}
+          />
+        )}
+      </main>
+
+      {showFooter && currentStep !== STEPS.AUTH && currentStep !== STEPS.SUCCESS && currentStep !== STEPS.SUMMARY && (
+        <footer className="booking-footer">
+          <button type="button" className="booking-next-btn" onClick={() => { stepDir.current = 1; onGoNext() }} disabled={!canProceed}>
+            <span>Continuar</span>
+            <span className="booking-btn-arrow">
+              <BarberIcon name="chevronRight" />
+            </span>
+          </button>
+        </footer>
+      )}
+    </>
+  )
 }
 
 function BookingFlow() {
@@ -617,6 +846,11 @@ function BookingFlow() {
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [authError, setAuthError] = useState('')
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024)
+  const flowRef = useRef(null)
+  const touchStart = useRef(0)
+  const stepDir = useRef(1)
+  const prevStep = useRef(STEPS.SERVICE)
 
   const selectedService = useMemo(() =>
     services.find(s => s.id === form.serviceId),
@@ -635,6 +869,50 @@ function BookingFlow() {
     }
     return list
   }, [collaborators, settings])
+
+  const landingCompany = useMemo(() => buildCompanyData(company), [company])
+
+  useEffect(() => {
+    const root = document.querySelector('.booking-flow')
+    if (!root || !landingCompany?.colors) return
+    const c = landingCompany.colors
+    const primary = c.primary || '#d4a853'
+    root.style.setProperty('--bf-accent', primary)
+    root.style.setProperty('--bf-accent-hover', darken(primary, 15))
+    root.style.setProperty('--bf-accent-subtle', primary + '0f')
+    root.style.setProperty('--bf-accent-bg', primary + '1a')
+    root.style.setProperty('--bf-border-accent', primary + '33')
+    if (c.accent) {
+      root.style.setProperty('--bf-gold', c.accent)
+    }
+  }, [landingCompany])
+
+  useEffect(() => {
+    function handleResize() {
+      setIsDesktop(window.innerWidth >= 1024)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    const el = flowRef.current
+    if (!el || isDesktop) return
+    function handleTouchStart(e) { touchStart.current = e.touches[0].clientX }
+    function handleTouchEnd(e) {
+      const dx = e.changedTouches[0].clientX - touchStart.current
+      if (Math.abs(dx) > 60) {
+        if (dx > 0) { stepDir.current = -1; goBack() }
+        else { stepDir.current = 1; goNext() }
+      }
+    }
+    el.addEventListener('touchstart', handleTouchStart, { passive: true })
+    el.addEventListener('touchend', handleTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [isDesktop, goNext, goBack])
 
   const canProceed = useMemo(() => {
     switch (currentStep) {
@@ -703,40 +981,34 @@ function BookingFlow() {
     loadSlots()
   }, [form.serviceId, form.appointmentDate, form.collaboratorId, slug])
 
-  function selectService(serviceId) {
+  const selectService = useCallback((serviceId) => {
     setForm(f => ({ ...f, serviceId, appointmentTime: '' }))
-  }
+  }, [])
 
-  function selectProfessional(collaboratorId) {
+  const selectProfessional = useCallback((collaboratorId) => {
     setForm(f => ({ ...f, collaboratorId, appointmentTime: '' }))
-  }
+  }, [])
 
-  function selectDate(date) {
+  const selectDate = useCallback((date) => {
     setForm(f => ({ ...f, appointmentDate: date, appointmentTime: '' }))
-  }
+  }, [])
 
-  function selectTime(time) {
+  const selectTime = useCallback((time) => {
     setForm(f => ({ ...f, appointmentTime: time }))
-  }
+  }, [])
 
-  function goNext() {
+  const goNext = useCallback(() => {
     if (!canProceed) return
+    stepDir.current = 1
     setCurrentStep(s => Math.min(s + 1, STEPS.SUMMARY))
-  }
+  }, [canProceed])
 
-  function goBack() {
+  const goBack = useCallback(() => {
+    stepDir.current = -1
     setCurrentStep(s => Math.max(s - 1, STEPS.SERVICE))
-  }
+  }, [])
 
-  function handleConfirm() {
-    if (isLogged()) {
-      submitAppointment()
-    } else {
-      setCurrentStep(STEPS.AUTH)
-    }
-  }
-
-  async function submitAppointment() {
+  const submitAppointment = useCallback(async () => {
     try {
       setSubmitting(true)
       setError('')
@@ -757,9 +1029,17 @@ function BookingFlow() {
     } finally {
       setSubmitting(false)
     }
-  }
+  }, [form, company, slug])
 
-  async function handleAuth(formData, mode) {
+  const handleConfirm = useCallback(() => {
+    if (isLogged()) {
+      submitAppointment()
+    } else {
+      setCurrentStep(STEPS.AUTH)
+    }
+  }, [submitAppointment])
+
+  const handleAuth = useCallback(async (formData, mode) => {
     try {
       setAuthError('')
       setSubmitting(true)
@@ -784,18 +1064,17 @@ function BookingFlow() {
     } finally {
       setSubmitting(false)
     }
-  }
+  }, [slug, submitAppointment])
 
-  function handleSuccessDone() {
+  const handleSuccessDone = useCallback(() => {
     setForm(emptyForm)
     setCurrentStep(STEPS.SERVICE)
-  }
+  }, [])
 
   if (loading) {
     return (
-      <div className="booking-flow booking-loading">
-        <div className="booking-loading-spinner" />
-        <p>Carregando barbearia...</p>
+      <div className="booking-flow">
+        <BookingSkeletonPage />
       </div>
     )
   }
@@ -803,129 +1082,69 @@ function BookingFlow() {
   if (error && !company) {
     return (
       <div className="booking-flow booking-error">
-        <BarberIcon name="close" />
-        <h2>Ops!</h2>
+        <div className="booking-error-icon">
+          <BarberIcon name="close" />
+        </div>
+        <h2>Nao foi possivel carregar</h2>
         <p>{error}</p>
-        <Link to="/" className="booking-error-btn">Voltar ao inicio</Link>
+        <div className="booking-error-actions">
+          <button type="button" className="booking-error-btn" onClick={() => window.location.reload()}>
+            Tentar novamente
+          </button>
+          <Link to="/" className="booking-error-link">Voltar ao inicio</Link>
+        </div>
       </div>
     )
   }
 
+  // Props compartilhadas para os steps
+  const stepsProps = {
+    currentStep, services, collaboratorsWithAny, settings, form,
+    selectedService, selectedCollaborator, slots, slotsLoading,
+    submitting, authError, company,
+    onSelectService: selectService,
+    onSelectProfessional: selectProfessional,
+    onSelectDate: selectDate,
+    onSelectTime: selectTime,
+    onGoNext: goNext,
+    onGoBack: goBack,
+    onConfirm: handleConfirm,
+    onAuth: handleAuth,
+    onSuccessDone: handleSuccessDone,
+  }
+
   return (
-    <div className="booking-flow">
-      {currentStep !== STEPS.SUCCESS && (
-        <BookingHeader
-          company={company}
-          currentStep={currentStep}
-          showBack={currentStep > STEPS.SERVICE}
-          onBack={goBack}
-        />
-      )}
-
-      <main className="booking-content">
-        {currentStep === STEPS.SERVICE && (
-          <div className="booking-step">
-            <div className="booking-step-header">
-              <h1>Escolha o servico</h1>
-              <p>Selecione o atendimento desejado</p>
-            </div>
-            <div className="booking-services">
-              {services.map(service => (
-                <ServiceCard
-                  key={service.id}
-                  service={service}
-                  selected={form.serviceId === service.id}
-                  onSelect={selectService}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {currentStep === STEPS.PROFESSIONAL && (
-          <div className="booking-step">
-            <div className="booking-step-header">
-              <h1>Escolha o profissional</h1>
-              <p>Ou deixe-nos escolher o primeiro disponivel</p>
-            </div>
-            <div className="booking-professionals">
-              {collaboratorsWithAny.map(collab => (
-                <ProfessionalCard
-                  key={collab.id}
-                  collaborator={collab}
-                  selected={form.collaboratorId === collab.id}
-                  onSelect={selectProfessional}
-                  allowAny={settings?.allow_any_collaborator !== false}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {currentStep === STEPS.DATETIME && (
-          <div className="booking-step">
-            <div className="booking-step-header">
-              <h1>Escolha data e hora</h1>
-              <p>Horarios considerando agenda e bloqueios</p>
-            </div>
-            <Calendar
-              selectedDate={form.appointmentDate}
-              onSelect={selectDate}
+    <div className="booking-flow" ref={flowRef}>
+      {isDesktop ? (
+        <BookingDesktopLayout
+          company={landingCompany}
+          services={services}
+          collaborators={collaborators}
+          settings={settings}
+          flowState={{ currentStep }}
+          stepsChildren={
+            <BookingFlowSteps
+              {...stepsProps}
+              showFooter={true}
+              showHeader={true}
             />
-            {form.appointmentDate && (
-              <TimeSlots
-                slots={slots}
-                selected={form.appointmentTime}
-                onSelect={selectTime}
-                loading={slotsLoading}
-              />
-            )}
-          </div>
-        )}
-
-        {currentStep === STEPS.SUMMARY && (
-          <BookingSummary
-            form={form}
-            service={selectedService}
-            collaborator={selectedCollaborator}
-            company={company}
-            onConfirm={handleConfirm}
-            loading={submitting}
-          />
-        )}
-
-        {currentStep === STEPS.AUTH && (
-          <AuthForm
-            onSubmit={handleAuth}
-            loading={submitting}
-            error={authError}
-            onBack={goBack}
-          />
-        )}
-
-        {currentStep === STEPS.SUCCESS && (
-          <SuccessScreen
-            form={form}
-            service={selectedService}
-            collaborator={selectedCollaborator}
-            company={company}
-            onDone={handleSuccessDone}
-          />
-        )}
-      </main>
-
-      {currentStep !== STEPS.AUTH && currentStep !== STEPS.SUCCESS && currentStep !== STEPS.SUMMARY && (
-        <footer className="booking-footer">
-          <button
-            type="button"
-            className="booking-next-btn"
-            onClick={goNext}
-            disabled={!canProceed}
-          >
-            <span>Continuar</span>
-            <BarberIcon name="chevronRight" />
-          </button>
-        </footer>
+          }
+        />
+      ) : (
+        <BookingMobileLayout
+          company={landingCompany}
+          services={services}
+          collaborators={collaborators}
+          settings={settings}
+          flowState={{ currentStep }}
+          stepsChildren={
+            <BookingFlowSteps
+              {...stepsProps}
+              showFooter={true}
+              showHeader={true}
+            />
+          }
+        />
       )}
     </div>
   )

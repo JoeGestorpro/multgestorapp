@@ -8,7 +8,7 @@ import {
   getPendingSummary,
   readPendingBooking
 } from './booking/pendingBooking'
-import './Barber.css'
+import './booking/css/BookingFlow.index.css'
 
 const emptyForm = {
   name: '',
@@ -121,68 +121,77 @@ function PublicBookingSignup() {
   }
 
   if (loading) {
-    return <main className="barber-public-shell"><div className="barber-public-loading">Carregando cadastro...</div></main>
+    return (
+      <div className="booking-page-auth">
+        <div className="booking-flow booking-loading">
+          <div className="booking-loading-spinner" />
+          <p>Carregando cadastro...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <main className="barber-figma-page">
-      <header className="barber-figma-top-hero">
-        <div className="barber-figma-grid-texture" aria-hidden="true" />
-        <Link className="barber-figma-round-button" to={`/agendar/${slug}/login`} aria-label="Voltar ao login">
-          <BarberIcon name="arrowLeft" />
-        </Link>
-        <div className="barber-figma-hero-title">
-          <h1>BarberGestor</h1>
-          <p>Crie sua conta</p>
+    <div className="booking-page-auth">
+      <header className="booking-auth-hero">
+        <div className="booking-auth-hero-content">
+          <Link className="booking-auth-hero-back" to={`/agendar/${slug}/login`} aria-label="Voltar ao login">
+            <BarberIcon name="arrowLeft" />
+          </Link>
+          <div className="booking-auth-hero-title">
+            <h1>BarberGestor</h1>
+            <p>Crie sua conta</p>
+          </div>
         </div>
       </header>
 
-      <section className="barber-figma-content">
-        <div className="barber-figma-form-card">
+      <section className="booking-auth-content booking-auth-centered">
+        <div className="booking-auth-form-card">
           {registrationStarted ? (
-            <div className="barber-public-success-state">
-              <div className="barber-public-success-icon" aria-hidden="true">
-                <span />
+            <div className="booking-success-state">
+              <div className="booking-success-state-icon">
+                <BarberIcon name="check" />
               </div>
+              <h2>Cadastro iniciado</h2>
+              <p>Enviamos um link de confirmacao para o seu e-mail.</p>
+              <strong>{registeredEmail}</strong>
+              <p>
+                Abra sua caixa de entrada e clique no link para confirmar sua conta. Depois da confirmacao, voce podera acessar sua area de agendamento.
+              </p>
 
-              <div className="barber-public-success-copy">
-                <h1>Cadastro iniciado</h1>
-                <p className="barber-public-success-lead">Enviamos um link de confirmacao para o seu e-mail.</p>
-                <strong>{registeredEmail}</strong>
-                <p>
-                  Abra sua caixa de entrada e clique no link para confirmar sua conta. Depois da confirmacao, voce podera acessar sua area de agendamento.
-                </p>
-              </div>
+              {error && <div className="booking-auth-error-box">{error}</div>}
+              {success && <div className="booking-auth-success-box">{success}</div>}
 
-              {error && <div className="error-message">{error}</div>}
-              {success && <div className="barber-public-success-hint">{success}</div>}
-
-              <div className="barber-public-success-actions">
-                <a className="barber-button barber-button-primary barber-public-mail-link" href={`mailto:${registeredEmail}`}>
-                  Abrir meu e-mail
+              <div className="booking-action-stack">
+                <a className="booking-action-primary" href={`mailto:${registeredEmail}`}>
+                  <BarberIcon name="mail" />
+                  <span>Abrir meu e-mail</span>
                 </a>
                 <button
-                  className="barber-button barber-button-secondary"
+                  className="booking-action-secondary"
                   type="button"
                   disabled={!registeredEmail || resending}
                   onClick={resendConfirmation}
                 >
-                  {resending ? 'Reenviando...' : 'Reenviar confirmacao'}
+                  <span>{resending ? 'Reenviando...' : 'Reenviar confirmacao'}</span>
                 </button>
               </div>
 
-              <Link className="barber-public-back-link" to={`/agendar/${slug}/login?redirect=${encodeURIComponent(`/agendar/${slug}`)}`}>
-                Voltar para o login
-              </Link>
+              <div className="booking-auth-links">
+                <Link className="booking-auth-link-btn" to={`/agendar/${slug}/login?redirect=${encodeURIComponent(`/agendar/${slug}`)}`}>
+                  <BarberIcon name="arrowLeft" />
+                  <span>Voltar para o login</span>
+                </Link>
+              </div>
             </div>
           ) : (
             <>
-              <span className="barber-overline">{booking?.company?.name || 'BarberGestor'}</span>
+              <span className="booking-overline">{booking?.company?.name || 'BarberGestor'}</span>
               <h2>Criar conta</h2>
               <p>Cadastre-se rapidamente para confirmar seu horario</p>
 
               {pendingSummary && (
-                <div className="barber-booking-pending-summary barber-figma-summary-card">
+                <div className="booking-auth-pending">
                   <span>Resumo do horario</span>
                   <strong>{pendingSummary.serviceName}</strong>
                   <div>
@@ -192,37 +201,47 @@ function PublicBookingSignup() {
                 </div>
               )}
 
-              {error && <div className="error-message">{error}</div>}
+              {error && <div className="booking-auth-error-box">{error}</div>}
 
-              <form onSubmit={handleSubmit} className="barber-figma-form">
-                <label htmlFor="signup-name">Nome</label>
-                <div className="barber-figma-input-wrap">
-                  <BarberIcon name="users" />
-                  <input id="signup-name" name="name" value={form.name} onChange={handleChange} placeholder="Joao Silva" required />
+              <form onSubmit={handleSubmit} className="booking-auth-form-wrap">
+                <div className="booking-field">
+                  <label htmlFor="signup-name">Nome</label>
+                  <div className="booking-input-wrap">
+                    <BarberIcon name="users" />
+                    <input id="signup-name" name="name" value={form.name} onChange={handleChange} placeholder="Joao Silva" required />
+                  </div>
                 </div>
 
-                <label htmlFor="signup-phone">Telefone</label>
-                <div className="barber-figma-input-wrap">
-                  <BarberIcon name="phone" />
-                  <input id="signup-phone" name="phone" value={form.phone} onChange={handleChange} placeholder="(11) 99999-9999" required />
+                <div className="booking-field">
+                  <label htmlFor="signup-phone">Telefone</label>
+                  <div className="booking-input-wrap">
+                    <BarberIcon name="phone" />
+                    <input id="signup-phone" name="phone" value={form.phone} onChange={handleChange} placeholder="(11) 99999-9999" required />
+                  </div>
                 </div>
 
-                <label htmlFor="signup-email">E-mail</label>
-                <div className="barber-figma-input-wrap">
-                  <BarberIcon name="mail" />
-                  <input id="signup-email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="seu@email.com" required />
+                <div className="booking-field">
+                  <label htmlFor="signup-email">E-mail</label>
+                  <div className="booking-input-wrap">
+                    <BarberIcon name="mail" />
+                    <input id="signup-email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="seu@email.com" required />
+                  </div>
                 </div>
 
-                <label htmlFor="signup-password">Senha</label>
-                <div className="barber-figma-input-wrap">
-                  <BarberIcon name="lock" />
-                  <input id="signup-password" name="password" type="password" value={form.password} onChange={handleChange} placeholder="********" required />
+                <div className="booking-field">
+                  <label htmlFor="signup-password">Senha</label>
+                  <div className="booking-input-wrap">
+                    <BarberIcon name="lock" />
+                    <input id="signup-password" name="password" type="password" value={form.password} onChange={handleChange} placeholder="********" required />
+                  </div>
                 </div>
 
-                <label htmlFor="signup-confirm-password">Confirmar senha</label>
-                <div className="barber-figma-input-wrap">
-                  <BarberIcon name="lock" />
-                  <input id="signup-confirm-password" name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} placeholder="********" required />
+                <div className="booking-field">
+                  <label htmlFor="signup-confirm-password">Confirmar senha</label>
+                  <div className="booking-input-wrap">
+                    <BarberIcon name="lock" />
+                    <input id="signup-confirm-password" name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} placeholder="********" required />
+                  </div>
                 </div>
 
                 <button type="submit" disabled={submitting}>
@@ -231,17 +250,14 @@ function PublicBookingSignup() {
                 </button>
               </form>
 
-              <div className="barber-public-inline-actions">
-                <button className="button-secondary" type="button" disabled={!form.email || resending} onClick={resendConfirmation}>
-                  {resending ? 'Reenviando...' : 'Reenviar confirmacao'}
-                </button>
+              <div className="booking-auth-links">
                 <Link to={`/agendar/${slug}/login`}>Ja tenho conta</Link>
               </div>
             </>
           )}
         </div>
       </section>
-    </main>
+    </div>
   )
 }
 

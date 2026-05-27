@@ -26,15 +26,13 @@ function parseDateMinutes(dateValue) {
 function computeEndMinutes(appointment, startMinutes) {
   const fromEndsAt = parseDateMinutes(appointment.ends_at)
   if (typeof fromEndsAt === 'number') return fromEndsAt
-  const fromTime = parseMinutes(appointment.appointment_end_time)
-  if (typeof fromTime === 'number') return fromTime
   return startMinutes + 40
 }
 
 function normalizeAppointments(appointments) {
   return appointments
     .map((appointment) => {
-      const startMinutes = parseMinutes(appointment.appointment_time) ?? parseDateMinutes(appointment.starts_at)
+      const startMinutes = parseDateMinutes(appointment.starts_at)
       if (typeof startMinutes !== 'number') return null
 
       const endMinutes = Math.max(computeEndMinutes(appointment, startMinutes), startMinutes + 20)
@@ -132,6 +130,7 @@ export default function AgendaGrid({
               onSelectAppointment={onSelectAppointment}
               onSelectSlot={onSelectSlot}
               pixelsPerMinute={PIXELS_PER_MINUTE}
+              selectedDate={selectedDate}
               workingDay={workingHoursByCollaborator?.[collaborator.id] || null}
             />
           ))}

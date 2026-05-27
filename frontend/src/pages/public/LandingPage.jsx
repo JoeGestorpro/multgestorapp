@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import './LandingPage.css'
 import felipe1 from '../../assets/founder/felipe-1.jpeg'
 import felipe2 from '../../assets/founder/felipe-2.jpeg'
@@ -13,7 +13,7 @@ const gestores = [
     description: 'Sistema completo para barbearias: agenda, caixa, financeiro, colaboradores, relatórios e agendamento online.',
     features: ['Agenda', 'Caixa', 'Financeiro', 'Colaboradores', 'Relatórios', 'Agendamento Online'],
     status: 'available',
-    link: '/barber'
+    link: '/barbergestor'
   },
   {
     id: 'clima',
@@ -210,6 +210,12 @@ function HeroSection() {
 }
 
 function GestoresSection() {
+  const navigate = useNavigate()
+
+  function handleCardClick(link) {
+    navigate(link)
+  }
+
   return (
     <section id="gestores" className="section">
       <div className="container">
@@ -226,7 +232,14 @@ function GestoresSection() {
 
         <div className="gestores-grid">
           {gestores.map((gestor, index) => (
-            <div key={gestor.id} className={`gestor-card fade-in stagger-${index + 1}`}>
+            <div
+              key={gestor.id}
+              className={`gestor-card fade-in stagger-${index + 1}`}
+              onClick={() => handleCardClick(gestor.link)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCardClick(gestor.link) }}
+            >
               <div className="gestor-card-header">
                 <div className="gestor-icon">{gestor.icon}</div>
                 <span className={`gestor-status ${gestor.status}`}>
@@ -249,9 +262,9 @@ function GestoresSection() {
                 )}
               </div>
               <div className="gestor-card-footer">
-                <Link to={gestor.link} className="gestor-arrow">
+                <span className="gestor-arrow" onClick={(e) => { e.stopPropagation(); handleCardClick(gestor.link) }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </Link>
+                </span>
               </div>
             </div>
           ))}

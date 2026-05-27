@@ -1,0 +1,68 @@
+.pm-tabs {
+  display: flex;
+  position: relative;
+  background: var(--pm-surface);
+  border-radius: var(--pm-radius-sm);
+  padding: 3px;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.pm-tab {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: var(--pm-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.pm-tab:hover {
+  color: var(--pm-text-secondary);
+}
+
+.pm-tab.active {
+  color: var(--pm-text);
+}
+
+.pm-tab-icon {
+  display: flex;
+  align-items: center;
+}
+
+.pm-tab-count {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--pm-radius-full);
+  background: var(--pm-border);
+  color: var(--pm-text-muted);
+}
+
+.pm-tab.active .pm-tab-count {
+  background: var(--pm-primary-soft);
+  color: var(--pm-primary);
+}
+
+.pm-tab-indicator {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  height: calc(100% - 6px);
+  background: var(--pm-surface-hover);
+  border-radius: 6px;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+  pointer-events: none;
+}

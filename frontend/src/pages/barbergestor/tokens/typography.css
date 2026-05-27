@@ -1,0 +1,26 @@
+.barber-landing {
+  --text-display-xxl: 300 56px/1.03 var(--font-sans);
+  --text-display-xl: 300 48px/1.15 var(--font-sans);
+  --text-display-lg: 300 32px/1.1 var(--font-sans);
+  --text-display-md: 300 26px/1.12 var(--font-sans);
+  --text-heading-lg: 300 22px/1.1 var(--font-sans);
+  --text-heading-md: 300 20px/1.4 var(--font-sans);
+  --text-heading-sm: 300 18px/1.4 var(--font-sans);
+  --text-body-lg: 300 16px/1.4 var(--font-sans);
+  --text-body-md: 300 15px/1.4 var(--font-sans);
+  --text-body-tabular: 300 14px/1.4 var(--font-sans);
+  --text-button-md: 400 16px/1 var(--font-sans);
+  --text-button-sm: 400 14px/1 var(--font-sans);
+  --text-caption: 400 13px/1.4 var(--font-sans);
+  --text-micro: 300 11px/1.4 var(--font-sans);
+  --text-micro-cap: 400 10px/1.15 var(--font-sans);
+}
+
+.barber-landing h1, .barber-landing h2, .barber-landing h3 {
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+
+.barber-landing .tabular {
+  font-feature-settings: 'tnum' 1;
+}

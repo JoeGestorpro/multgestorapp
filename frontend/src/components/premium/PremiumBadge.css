@@ -1,0 +1,92 @@
+.pm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: var(--pm-radius-full);
+  white-space: nowrap;
+}
+
+.pm-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--pm-radius-full);
+  flex-shrink: 0;
+}
+
+.pm-badge-md {
+  padding: 3px 10px;
+  font-size: 11px;
+}
+
+.pm-badge-sm {
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+.pm-badge-scheduled {
+  background: rgba(147, 164, 182, 0.12);
+  color: #93a4b6;
+}
+.pm-badge-scheduled .pm-badge-dot { background: #93a4b6; }
+
+.pm-badge-confirmed {
+  background: var(--pm-info-soft);
+  color: var(--pm-info);
+}
+.pm-badge-confirmed .pm-badge-dot { background: var(--pm-info); }
+
+.pm-badge-arrived {
+  background: var(--pm-warning-soft);
+  color: var(--pm-warning);
+}
+.pm-badge-arrived .pm-badge-dot { background: var(--pm-warning); }
+
+.pm-badge-in_progress {
+  background: var(--pm-primary-soft);
+  color: var(--pm-primary);
+}
+.pm-badge-in_progress .pm-badge-dot { background: var(--pm-primary); }
+
+.pm-badge-completed {
+  background: var(--pm-success-soft);
+  color: var(--pm-success);
+}
+.pm-badge-completed .pm-badge-dot { background: var(--pm-success); }
+
+.pm-badge-canceled {
+  background: var(--pm-danger-soft);
+  color: var(--pm-danger);
+}
+.pm-badge-canceled .pm-badge-dot { background: var(--pm-danger); }
+
+.pm-badge-no_show {
+  background: rgba(251, 113, 133, 0.1);
+  color: #fb7185;
+}
+.pm-badge-no_show .pm-badge-dot { background: #fb7185; }
+
+.pm-badge-active {
+  background: var(--pm-success-soft);
+  color: var(--pm-success);
+}
+.pm-badge-active .pm-badge-dot { background: var(--pm-success); }
+
+.pm-badge-pending {
+  background: var(--pm-warning-soft);
+  color: var(--pm-warning);
+}
+.pm-badge-pending .pm-badge-dot { background: var(--pm-warning); }
+
+.pm-badge-blocked {
+  background: var(--pm-danger-soft);
+  color: var(--pm-danger);
+}
+.pm-badge-blocked .pm-badge-dot { background: var(--pm-danger); }
+
+.pm-badge-default {
+  background: var(--pm-border);
+  color: var(--pm-text-muted);
+}
+.pm-badge-default .pm-badge-dot { background: var(--pm-text-muted); }

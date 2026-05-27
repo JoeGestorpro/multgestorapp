@@ -9,7 +9,8 @@ const DEFAULT_THEME = {
   wallpaperUrl: null,
   companyName: 'Barbearia',
   onboardingCompleted: false,
-  setupProgress: 0
+  setupProgress: 0,
+  landingConfig: null
 }
 
 const ThemeContext = createContext({
@@ -44,7 +45,21 @@ export function ThemeProvider({ children }) {
     }
   }, [])
 
-  const applyThemeToDOM = useCallback((themeData) => {
+  const fetchLandingConfig = useCallback(async (token) => {
+    try {
+      const response = await api.get('/barber/booking/landing', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (response.data?.success && response.data?.data) {
+        return response.data.data
+      }
+      return null
+    } catch {
+      return null
+    }
+  }, [])
+
+  const applyThemeToDOM = useCallback((themeData, landingConfig = null) => {
     const root = document.documentElement
     root.style.setProperty('--theme-primary', themeData.primaryColor)
     root.style.setProperty('--theme-secondary', themeData.secondaryColor)
@@ -56,7 +71,26 @@ export function ThemeProvider({ children }) {
     if (themeData.wallpaperUrl) {
       root.style.setProperty('--theme-wallpaper', `url(${themeData.wallpaperUrl})`)
     }
+
+    if (landingConfig) {
+      root.style.setProperty('--bf-accent', landingConfig.booking_primary_color || themeData.primaryColor)
+      root.style.setProperty('--bf-accent-hover', landingConfig.booking_primary_color ? 
+        adjustColorBrightness(landingConfig.booking_primary_color, -15) : 
+        adjustColorBrightness(themeData.primaryColor, -15))
+      root.style.setProperty('--bf-accent-subtle', (landingConfig.booking_primary_color || themeData.primaryColor) + '1a')
+      root.style.setProperty('--bf-border-accent', (landingConfig.booking_primary_color || themeData.primaryColor) + '33')
+    }
   }, [])
+
+  function adjustColorBrightness(hex, amount) {
+    if (!hex || typeof hex !== 'string') return hex
+    const num = parseInt(hex.replace('#', ''), 16)
+    if (Number.isNaN(num)) return hex
+    const r = Math.max(0, Math.min(255, (num >> 16) + amount))
+    const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00ff) + amount))
+    const b = Math.max(0, Math.min(255, (num & 0x0000ff) + amount))
+    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
+  }
 
   const loadTheme = useCallback(async () => {
     const barberToken = localStorage.getItem('auth_token_barber') || 
@@ -67,11 +101,20 @@ export function ThemeProvider({ children }) {
       return
     }
 
-    const fetchedTheme = await fetchCompanyTheme(barberToken)
-    setTheme(fetchedTheme)
-    applyThemeToDOM(fetchedTheme)
+    const [fetchedTheme, landingConfig] = await Promise.all([
+      fetchCompanyTheme(barberToken),
+      fetchLandingConfig(barberToken)
+    ])
+
+    const fullTheme = {
+      ...fetchedTheme,
+      landingConfig
+    }
+    
+    setTheme(fullTheme)
+    applyThemeToDOM(fetchedTheme, landingConfig)
     setLoading(false)
-  }, [fetchCompanyTheme, applyThemeToDOM])
+  }, [fetchCompanyTheme, fetchLandingConfig, applyThemeToDOM])
 
   useEffect(() => {
     loadTheme()

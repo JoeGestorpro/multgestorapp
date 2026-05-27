@@ -1,3 +1,8 @@
+// ATENÇÃO: Este arquivo é uma cópia do backend/src/utils/planFeatures.js
+// Fonte canônica: GET /api/public/plan-config
+// Manter em sync manualmente até migração completa para API.
+// Ref: CF-012
+
 import { getPlanLabel, normalizePlanType } from './companyPlans'
 
 export const PLAN_FEATURES = {

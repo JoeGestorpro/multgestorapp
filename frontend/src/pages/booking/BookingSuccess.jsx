@@ -1,7 +1,7 @@
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { BarberIcon } from '../../components/barber/BarberUI'
 import { readConfirmedBooking } from './pendingBooking'
-import '../Barber.css'
+import './css/BookingFlow.index.css'
 
 function formatAppointmentDate(value) {
   if (!value) {
@@ -29,23 +29,22 @@ function BookingSuccess() {
     : ''
 
   return (
-    <main className="barber-figma-page barber-figma-confirmation-page">
-      <section className="barber-figma-confirmation-panel">
-        <div className="barber-figma-grid-texture" aria-hidden="true" />
-        <div className="barber-figma-confirmation-content">
-          <div className="barber-figma-confirmation-icon" aria-hidden="true">
+    <div className="booking-page-auth">
+      <section className="booking-confirmation-panel" style={{ margin: '0 auto' }}>
+        <div className="booking-confirmation-content">
+          <div className="booking-confirmation-icon" aria-hidden="true">
             <BarberIcon name="check" />
           </div>
 
-          <div className="barber-public-success-copy">
+          <div className="booking-confirmation-copy">
             <h1>Agendamento confirmado!</h1>
             <p>Seu horario foi reservado com sucesso</p>
           </div>
 
-          <div className="barber-figma-details-card">
+          <div className="booking-confirmation-details">
             <h2>Detalhes do agendamento</h2>
 
-            <div className="barber-figma-detail-row">
+            <div className="booking-confirmation-detail-row">
               <span><BarberIcon name="scissors" /></span>
               <div>
                 <small>Servico</small>
@@ -54,7 +53,7 @@ function BookingSuccess() {
               </div>
             </div>
 
-            <div className="barber-figma-detail-row">
+            <div className="booking-confirmation-detail-row">
               <span><BarberIcon name="users" /></span>
               <div>
                 <small>Profissional</small>
@@ -62,7 +61,7 @@ function BookingSuccess() {
               </div>
             </div>
 
-            <div className="barber-figma-detail-row">
+            <div className="booking-confirmation-detail-row">
               <span><BarberIcon name="calendar" /></span>
               <div>
                 <small>Data</small>
@@ -70,7 +69,7 @@ function BookingSuccess() {
               </div>
             </div>
 
-            <div className="barber-figma-detail-row">
+            <div className="booking-confirmation-detail-row">
               <span><BarberIcon name="clock" /></span>
               <div>
                 <small>Horario</small>
@@ -79,26 +78,26 @@ function BookingSuccess() {
             </div>
 
             {priceLabel && (
-              <div className="barber-figma-total-row">
+              <div className="booking-confirmation-total">
                 <span>Valor total</span>
                 <strong>{priceLabel}</strong>
               </div>
             )}
           </div>
 
-          <div className="barber-figma-action-stack">
-            <Link className="barber-button barber-button-primary barber-public-mail-link" to={`/agendar/${slug}/minha-conta`}>
+          <div className="booking-confirmation-actions">
+            <Link className="booking-action-primary" to={`/agendar/${slug}/minha-conta`}>
               <span>Ver meus agendamentos</span>
               <BarberIcon name="chevronRight" />
             </Link>
-            <Link className="barber-button barber-button-secondary barber-public-mail-link" to={`/agendar/${slug}`}>
+            <Link className="booking-action-secondary" to={`/agendar/${slug}`}>
               <BarberIcon name="home" />
               <span>Voltar ao inicio</span>
             </Link>
           </div>
         </div>
       </section>
-    </main>
+    </div>
   )
 }
 

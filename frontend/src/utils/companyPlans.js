@@ -1,3 +1,8 @@
+// ATENÇÃO: PLAN_LIMITS aqui duplica backend/src/services/company-plan.service.js
+// Fonte canônica: GET /api/public/plan-config
+// Manter em sync manualmente até migração completa para API.
+// Ref: CF-012
+
 export const PLAN_OPTIONS = [
   { value: 'trial', label: 'Teste gratis' },
   { value: 'free', label: 'Gratuito' },

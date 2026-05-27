@@ -53,9 +53,7 @@ export default function HeroWelcomeCard({
               <img src={logoUrl} alt={companyName} className="hero-welcome__logo" />
             ) : (
               <div className="hero-welcome__logo-fallback">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M6 3v18M18 9l-3 3-3-3M8 9l-3 3-3-3M18 9l-3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                {companyName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
               </div>
             )}
             <div className="hero-welcome__brand-text">

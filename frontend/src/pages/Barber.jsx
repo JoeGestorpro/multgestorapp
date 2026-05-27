@@ -1,27 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Shell, StatCard, ChartCard, ChartTooltip, HeroCard, SummaryCard, SummaryItem, Card, Badge, Empty, Button } from '../components/design-system'
-import { HeroWelcomeCard, ModernRankingCard } from '../components/barber'
+import { Shell, SummaryItem, Card, Badge, Empty, Button } from '../components/design-system'
 import { SkeletonLoader, CustomEmptyState } from '../components/common'
 import { ProgressReport } from '../components/reports'
 import { TutorialSpotlight } from '../components/tutorial'
 import { BottomNav, QuickActionsFAB } from '../components/mobile'
 import { useTenantTheme } from '../hooks/useTenantTheme'
 import {
-  DollarSign,
-  CalendarCheck,
-  Percent,
-  Banknote,
-  Smartphone,
-  Repeat,
+  ArrowLeft,
+  ArrowRight,
+  Building,
+  Check,
+  Clock,
   CreditCard,
-  Landmark,
-  TrendingUp,
-  Check
+  Image,
+  MapPin,
+  Palette,
+  RefreshCw,
+  Save,
+  Smartphone,
+  Trash2,
+  Upload,
+  X
 } from 'lucide-react'
 import CollaboratorAvatar from '../components/barber/CollaboratorAvatar'
-import CollaboratorMobileDashboard from '../components/barber/CollaboratorMobileDashboard'
+
 import LockedFeature from '../components/common/LockedFeature'
 import ServiceIcon from '../components/barber/ServiceIcon'
 import { normalizeServiceIcon } from '../components/barber/ServiceIcon.utils'
@@ -30,6 +33,7 @@ import AppointmentModal from '../components/barber/agenda/AppointmentModal'
 import AppointmentComposerModal from '../components/barber/agenda/AppointmentComposerModal'
 import AppointmentDetailsPanel from '../components/barber/agenda/AppointmentDetailsPanel'
 import AgendaToolbar from '../components/barber/agenda/AgendaToolbar'
+import AgendaInterna from '../components/agenda/AgendaInterna'
 import {
   BarberBadge,
   BarberButton,
@@ -44,10 +48,8 @@ import {
   LayoutDashboard,
   Calendar,
   Scissors,
-  Package,
   Users,
   Wallet,
-  BarChart3,
   Lock,
   Settings,
   Crown,
@@ -59,8 +61,14 @@ import {
   Plus
 } from 'lucide-react'
 import ClientesBarber from './barber/Clientes'
+import { CrmDashboard, CustomerSidePanel } from '../components/premium'
+import AppointmentHistoryView from '../components/premium/AppointmentHistoryView'
+import AgendaCrmView from '../components/premium/AgendaCrmView'
+import BookingAvailabilityView from '../components/premium/BookingAvailabilityView'
+import ServicesAnalyticsView from '../components/premium/ServicesAnalyticsView'
 import Servicos from './barber/Servicos'
 import Produtos from './barber/Produtos'
+import AtendimentoWorkspace from '../components/atendimento/AtendimentoWorkspace'
 import api from '../services/api'
 import {
   canUseFeature,
@@ -81,12 +89,29 @@ import '../styles/ds-encapsulation.css'
 import '../styles/dashboard-grid.css'
 import '../styles/chart-premium.css'
 import './Barber.css'
+import '../styles/premium-tokens.css'
+import '../styles/ambient-backgrounds.css'
+import BookingLandingConfig from './booking/BookingLandingConfig'
+import DashboardView from '../features/barber/views/DashboardView'
+import CashierView from '../features/barber/views/CashierView'
+import TeamView from '../features/barber/views/TeamView'
+import SettlementsView from '../features/barber/views/SettlementsView'
+import ReportsView from '../features/barber/views/ReportsView'
+import SettingsView from '../features/barber/views/SettingsView'
+import SalesView from '../features/barber/views/SalesView'
+import CollaboratorFormModal from '../features/barber/components/CollaboratorFormModal'
+import CollaboratorSummaryModal from '../features/barber/components/CollaboratorSummaryModal'
+import SaleSlideover from '../features/barber/components/SaleSlideover'
+import DeleteSaleModal from '../features/barber/components/DeleteSaleModal'
+import WatermarkBackground from '../components/watermark/WatermarkBackground'
+import BrandingEngine from '../components/common/BrandingEngine'
 
 const emptyService = {
   name: '',
   description: '',
   price: '',
   icon: 'scissors',
+  category: 'corte',
   serviceType: 'service',
   commissionType: 'percentage',
   commissionValue: '',
@@ -235,7 +260,18 @@ const emptyBarberSettings = {
     email: '',
     phone: '',
     public_booking_slug: '',
-    created_at: null
+    created_at: null,
+    whatsapp_phone: '',
+    address_line: '',
+    city: '',
+    state: '',
+    business_description: '',
+    public_display_name: '',
+    business_email: '',
+    logo_url: '',
+    primary_color: '',
+    secondary_color: '',
+    accent_color: ''
   },
   security: {
     recovery_email: '',
@@ -290,6 +326,30 @@ const emptySalesSummary = {
   totals_day: { total_amount: 0, total_sales: 0 },
   totals_week: { total_amount: 0, total_sales: 0 },
   totals_month: { total_amount: 0, total_sales: 0 }
+}
+
+function PlaceholderView({ title, description }) {
+  return (
+    <section style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      padding: '60px 20px', textAlign: 'center', gap: '12px',
+      background: 'var(--pm-surface)', borderRadius: 'var(--pm-radius-lg)',
+      border: '1px solid var(--pm-border)', marginTop: '20px'
+    }}>
+      <div style={{
+        width: 56, height: 56, borderRadius: '50%', background: 'var(--pm-surface-hover)',
+        border: '1px solid var(--pm-border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--pm-primary)'
+      }}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+        </svg>
+      </div>
+      <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--pm-text)', margin: 0 }}>{title}</h3>
+      <p style={{ fontSize: 13, color: 'var(--pm-text-muted)', maxWidth: 420, margin: 0, lineHeight: 1.5 }}>{description}</p>
+    </section>
+  )
 }
 
 const viewMeta = {
@@ -347,6 +407,56 @@ const viewMeta = {
     label: 'Configuracoes',
     title: 'Seguranca, empresa e controles sensiveis',
     description: 'Gerencie recuperacao de PIN, dados principais da empresa e a base para configuracoes futuras.'
+  },
+  'appointments-history': {
+    label: 'Historico',
+    title: 'Historico de agendamentos',
+    description: 'Agendamentos anteriores, concluidos, cancelados e no-show.'
+  },
+  'appointments-crm': {
+    label: 'CRM da Agenda',
+    title: 'CRM da agenda',
+    description: 'Proximos retornos, clientes frequentes e analise de cancelamentos.'
+  },
+  'appointments-blocks': {
+    label: 'Bloqueios',
+    title: 'Bloqueios e horarios',
+    description: 'Configure disponibilidade, horarios de trabalho e bloqueios.'
+  },
+  'customers-crm': {
+    label: 'Historico e CRM',
+    title: 'Historico e CRM',
+    description: 'Acompanhe o desempenho da barbearia com metricas completas de clientes e relacionamento.'
+  },
+  'customers-birthdays': {
+    label: 'Aniversariantes',
+    title: 'Aniversariantes',
+    description: 'Clientes que fazem aniversario neste periodo.'
+  },
+  'customers-inactive': {
+    label: 'Inativos',
+    title: 'Clientes inativos',
+    description: 'Clientes sem atendimento ou agendamento ha mais de 90 dias.'
+  },
+  'customers-vip': {
+    label: 'VIP / Fidelidade',
+    title: 'Clientes VIP',
+    description: 'Clientes classificados como Fiel ou VIP com base nas metricas de fidelidade.'
+  },
+  'services-top': {
+    label: 'Mais vendidos',
+    title: 'Servicos mais vendidos',
+    description: 'Ranking dos servicos com maior saida na barbearia.'
+  },
+  'services-favorites': {
+    label: 'Favoritos',
+    title: 'Servicos favoritos dos clientes',
+    description: 'Servicos mais utilizados por cada cliente e com maior taxa de retorno.'
+  },
+  'services-commissions': {
+    label: 'Comissoes',
+    title: 'Comissoes por servico',
+    description: 'Configure e acompanhe as comissoes por servico para cada colaborador.'
   }
 }
 
@@ -667,45 +777,37 @@ function normalizeAvatarFile(file) {
 function getInitialBarberView(pathname) {
   const normalized = String(pathname || '').trim()
 
+  if (normalized.startsWith('/barber/agenda/historico')) return 'appointments-history'
+  if (normalized.startsWith('/barber/agenda/crm')) return 'appointments-crm'
+  if (normalized.startsWith('/barber/agenda/bloqueios')) return 'appointments-blocks'
   if (normalized.startsWith('/barber/agenda') || normalized.startsWith('/barber/agendamentos') || normalized.startsWith('/barber/minha-agenda')) {
     return 'appointments'
   }
 
-  if (normalized.startsWith('/barber/servicos')) {
-    return 'services'
-  }
+  if (normalized.startsWith('/barber/servicos/mais-vendidos')) return 'services-top'
+  if (normalized.startsWith('/barber/servicos/favoritos')) return 'services-favorites'
+  if (normalized.startsWith('/barber/servicos/comissoes')) return 'services-commissions'
+  if (normalized.startsWith('/barber/servicos')) return 'services'
 
-  if (normalized.startsWith('/barber/clientes')) {
-    return 'customers'
-  }
+  if (normalized.startsWith('/barber/clientes/crm')) return 'customers-crm'
+  if (normalized.startsWith('/barber/clientes/aniversariantes')) return 'customers-birthdays'
+  if (normalized.startsWith('/barber/clientes/inativos')) return 'customers-inactive'
+  if (normalized.startsWith('/barber/clientes/vip')) return 'customers-vip'
+  if (normalized.startsWith('/barber/clientes')) return 'customers'
 
-  if (normalized.startsWith('/barber/produtos')) {
-    return 'products'
-  }
+  if (normalized.startsWith('/barber/produtos')) return 'products'
 
-  if (normalized.startsWith('/barber/vendas')) {
-    return 'sales'
-  }
+  if (normalized.startsWith('/barber/vendas')) return 'sales'
 
-  if (normalized.startsWith('/barber/caixa')) {
-    return 'cashier'
-  }
+  if (normalized.startsWith('/barber/caixa')) return 'cashier'
 
-  if (normalized.startsWith('/barber/acertos')) {
-    return 'settlements'
-  }
+  if (normalized.startsWith('/barber/acertos')) return 'settlements'
 
-  if (normalized.startsWith('/barber/colaboradores')) {
-    return 'team'
-  }
+  if (normalized.startsWith('/barber/colaboradores')) return 'team'
 
-  if (normalized.startsWith('/barber/relatorios')) {
-    return 'reports'
-  }
+  if (normalized.startsWith('/barber/relatorios')) return 'reports'
 
-  if (normalized.startsWith('/barber/configuracoes')) {
-    return 'settings'
-  }
+  if (normalized.startsWith('/barber/configuracoes')) return 'settings'
 
   return 'dashboard'
 }
@@ -714,8 +816,18 @@ function getBarberViewPath(view) {
   return {
     dashboard: '/barber/dashboard',
     appointments: '/barber/agenda',
+    'appointments-history': '/barber/agenda/historico',
+    'appointments-crm': '/barber/agenda/crm',
+    'appointments-blocks': '/barber/agenda/bloqueios',
     customers: '/barber/clientes',
+    'customers-crm': '/barber/clientes/crm',
+    'customers-birthdays': '/barber/clientes/aniversariantes',
+    'customers-inactive': '/barber/clientes/inativos',
+    'customers-vip': '/barber/clientes/vip',
     services: '/barber/servicos',
+    'services-top': '/barber/servicos/mais-vendidos',
+    'services-favorites': '/barber/servicos/favoritos',
+    'services-commissions': '/barber/servicos/comissoes',
     products: '/barber/produtos',
     sales: '/barber/vendas',
     cashier: '/barber/caixa',
@@ -782,8 +894,9 @@ function Barber() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, modules, logout, planLoading } = useAuth()
-  const { primaryColor, companyName: themeCompanyName, logoUrl } = useTenantTheme()
+  const { primaryColor, companyName: themeCompanyName, logoUrl, wallpaperUrl } = useTenantTheme()
   const [activeView, setActiveView] = useState(() => getInitialBarberView(window.location.pathname))
+  const [useNewAtendimentoLayout, setUseNewAtendimentoLayout] = useState(true)
   const [dashboard, setDashboard] = useState(emptyDashboard)
   const [appointmentsOverview, setAppointmentsOverview] = useState(emptyAppointmentsOverview)
   const [services, setServices] = useState([])
@@ -849,6 +962,14 @@ function Barber() {
     newPin: '',
     confirmPin: ''
   })
+  const [companyProfileSaving, setCompanyProfileSaving] = useState(false)
+  const [logoPreview, setLogoPreview] = useState('')
+  const [settingsTab, setSettingsTab] = useState('general')
+  const [settingsSection, setSettingsSection] = useState('menu')
+  const [brandingForm, setBrandingForm] = useState({ logo_url: '', name: '', display_name: '', primary_color: '#a3ff12', secondary_color: '#0c1017', accent_color: '#7fe11e' })
+  const [brandingLoading, setBrandingLoading] = useState(false)
+  const [brandingSaving, setBrandingSaving] = useState(false)
+  const [brandingLogoPreview, setBrandingLogoPreview] = useState('')
   const [scheduleBlocks, setScheduleBlocks] = useState([])
   const [workingHours, setWorkingHours] = useState([])
   const [appointmentViewTab, setAppointmentViewTab] = useState('list') // 'calendar', 'list', 'blocks', 'hours'
@@ -861,6 +982,7 @@ function Barber() {
   const [submittingAppointment, setSubmittingAppointment] = useState(false)
   const [appointmentForm, setAppointmentForm] = useState(() => buildEmptyAppointmentForm())
   const [showAgendaFilters, setShowAgendaFilters] = useState(true)
+  const [crmDrawerCustomer, setCrmDrawerCustomer] = useState(null)
 
   const isAdmin = ['admin', 'owner', 'master_admin', 'tenant_owner', 'tenant_admin'].includes(user?.role)
   const canManageCash = ['admin', 'owner', 'master_admin', 'tenant_owner', 'tenant_admin', 'secretary'].includes(user?.role)
@@ -1218,6 +1340,12 @@ function Barber() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  useEffect(() => {
+    if (settingsSection === 'branding') {
+      loadBranding()
+    }
+  }, [settingsSection])
+
   const navigateView = useCallback((view) => {
     const lockMessage = lockedViews[view]
 
@@ -1353,6 +1481,184 @@ function Barber() {
       setError(err.response?.data?.error || 'Nao foi possivel atualizar as configuracoes da agenda.')
     } finally {
       setSettingsSaving(false)
+    }
+  }
+
+  function handleCompanyFieldChange(field, value) {
+    setSettingsData((current) => ({
+      ...current,
+      company: {
+        ...emptyBarberSettings.company,
+        ...(current.company || {}),
+        [field]: value
+      }
+    }))
+  }
+
+  function handleLogoSelect(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      setError('Formato nao suportado. Aceitamos apenas JPEG, PNG ou WebP.')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError('A imagem deve ter no maximo 2 MB.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setLogoPreview(e.target.result)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function handleLogoRemove() {
+    setLogoPreview('')
+    setSettingsData((current) => ({
+      ...current,
+      company: {
+        ...emptyBarberSettings.company,
+        ...(current.company || {}),
+        logo_url: ''
+      }
+    }))
+  }
+
+  async function handleCompanyProfileSubmit(event) {
+    event.preventDefault()
+    setError('')
+    setSuccess('')
+
+    const company = settingsData.company || {}
+    const payload = {}
+    const fields = ['name', 'email', 'phone', 'whatsapp_phone', 'address_line', 'city', 'state', 'business_description', 'public_display_name', 'business_email']
+
+    for (const field of fields) {
+      if (company[field] !== undefined && company[field] !== emptyBarberSettings.company[field]) {
+        payload[field] = company[field]
+      }
+    }
+
+    if (Object.keys(payload).length === 0) {
+      setSuccess('Nenhuma alteracao para salvar.')
+      return
+    }
+
+    try {
+      setCompanyProfileSaving(true)
+      const response = await api.patch('/barber/company/profile', payload)
+      setSettingsData(response.data?.data || emptyBarberSettings)
+      setLogoPreview('')
+      setSuccess('Perfil da empresa atualizado com sucesso.')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Nao foi possivel atualizar o perfil.')
+    } finally {
+      setCompanyProfileSaving(false)
+    }
+  }
+
+  async function handleLogoColorsSubmit(event) {
+    event.preventDefault()
+    setError('')
+    setSuccess('')
+
+    const company = settingsData.company || {}
+    const payload = {}
+    const logoValue = logoPreview || company.logo_url
+    if (logoValue) payload.logo_url = logoValue
+    if (company.primary_color) payload.primary_color = company.primary_color
+    if (company.secondary_color) payload.secondary_color = company.secondary_color
+    if (company.accent_color) payload.accent_color = company.accent_color
+
+    if (Object.keys(payload).length === 0) {
+      setSuccess('Nenhuma alteracao para salvar.')
+      return
+    }
+
+    try {
+      setCompanyProfileSaving(true)
+      const response = await api.put('/barber/company/theme', payload)
+      setSuccess('Identidade visual atualizada com sucesso.')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Nao foi possivel atualizar a identidade visual.')
+    } finally {
+      setCompanyProfileSaving(false)
+    }
+  }
+
+  async function loadBranding() {
+    setBrandingLoading(true)
+    setError('')
+    try {
+      const response = await api.get('/barber/company/branding')
+      const data = response.data?.data || {}
+      setBrandingForm({
+        logo_url: data.logo_url || '',
+        name: data.name || '',
+        display_name: data.display_name || '',
+        primary_color: data.primary_color || '#a3ff12',
+        secondary_color: data.secondary_color || '#0c1017',
+        accent_color: data.accent_color || '#7fe11e'
+      })
+      setBrandingLogoPreview('')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao carregar dados de branding.')
+    } finally {
+      setBrandingLoading(false)
+    }
+  }
+
+  function handleBrandingFieldChange(field, value) {
+    setBrandingForm((current) => ({ ...current, [field]: value }))
+  }
+
+  function handleBrandingLogoSelect(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      setError('Formato nao suportado. Aceitamos apenas JPEG, PNG ou WebP.')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError('A imagem deve ter no maximo 2 MB.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setBrandingLogoPreview(e.target.result)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function handleBrandingLogoRemove() {
+    setBrandingLogoPreview('')
+    setBrandingForm((current) => ({ ...current, logo_url: '' }))
+  }
+
+  async function handleBrandingSubmit(event) {
+    event.preventDefault()
+    setError('')
+    setSuccess('')
+    setBrandingSaving(true)
+
+    try {
+      const payload = { ...brandingForm }
+      if (brandingLogoPreview) payload.logo_url = brandingLogoPreview
+      if (!payload.name || !payload.name.trim()) {
+        setError('Informe o nome da empresa.')
+        return
+      }
+      await api.put('/barber/company/branding', payload)
+      setSuccess('Identidade visual salva com sucesso.')
+      setBrandingLogoPreview('')
+      loadSettings({ clearMessage: false })
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao salvar identidade visual.')
+    } finally {
+      setBrandingSaving(false)
     }
   }
 
@@ -1948,8 +2254,8 @@ function Barber() {
     }))
   }
 
-  async function submitService(event) {
-    event.preventDefault()
+  async function submitService(event, options = {}) {
+    if (event) event.preventDefault()
     setError('')
     setSuccess('')
     setSubmittingService(true)
@@ -1975,7 +2281,18 @@ function Barber() {
         setSuccess('Servico cadastrado com sucesso.')
       }
 
-      resetServiceEditor()
+      if (options.saveAndContinue) {
+        setServiceForm({
+          ...emptyService,
+          category: serviceForm.category,
+          icon: serviceForm.icon
+        })
+        setServiceDrawerOpen(true)
+        setSuccess('Servico salvo! Continue cadastrando.')
+      } else {
+        resetServiceEditor()
+      }
+
       await loadData()
 
       if (activeView === 'services') {
@@ -1986,6 +2303,23 @@ function Barber() {
     } finally {
       setSubmittingService(false)
     }
+  }
+
+  function duplicateService(service) {
+    const newForm = {
+      name: `${service.name} (Copia)`,
+      description: service.description || '',
+      price: String(service.price || ''),
+      icon: service.icon || 'scissors',
+      serviceType: service.serviceType || 'service',
+      commissionType: service.commissionType || 'percentage',
+      commissionValue: service.commissionValue || '',
+      estimatedTimeMinutes: service.estimated_time_minutes ? String(service.estimated_time_minutes) : '',
+      isActive: true
+    }
+    setEditingServiceId('')
+    setServiceForm(newForm)
+    setServiceDrawerOpen(true)
   }
 
   async function editService(serviceId) {
@@ -2541,6 +2875,24 @@ function Barber() {
     }
   }
 
+  async function handleSlideoverSubmit(saleData) {
+    setError('')
+    setSuccess('')
+    setSubmittingSale(true)
+    try {
+      await api.post('/barber/sales', saleData)
+      closeSaleModal()
+      resetSaleWizard('success')
+      setSuccess('Atendimento concluido com sucesso')
+      await loadData()
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao registrar atendimento')
+      throw err
+    } finally {
+      setSubmittingSale(false)
+    }
+  }
+
   async function createAdvance(event) {
     event.preventDefault()
     setError('')
@@ -2707,483 +3059,6 @@ function Barber() {
     }
   }
 
-  function renderDashboard() {
-    if (!isAdmin) {
-      if (isMobileViewport) {
-        return (
-          <CollaboratorMobileDashboard
-            advances={advances}
-            canLaunchSales={Boolean(user?.can_launch_sales)}
-            fullDate={fullDate}
-            metrics={collaboratorMetrics}
-            money={money}
-            onOpenSale={() => {
-              setSaleForm(buildEmptySaleForm(loggedInCollaboratorId))
-              setSaleModalOpen(true)
-            }}
-            recentAttendances={collaboratorRecentAttendances}
-            user={user}
-          />
-        )
-      }
-
-      const collaboratorTodayCommission = collaboratorMetrics.today?.commission ?? collaboratorMetrics.todayCommission ?? 0
-      const collaboratorTodayBarterTotal = collaboratorMetrics.today?.barterTotal ?? collaboratorMetrics.todayBarterTotal ?? 0
-      const collaboratorTodayBarterCommission = collaboratorMetrics.today?.barterCommission ?? collaboratorMetrics.todayBarterCommission ?? 0
-      const collaboratorWeekCommission = collaboratorMetrics.week?.commission ?? collaboratorMetrics.weekCommission ?? 0
-      const collaboratorMonthCommission = collaboratorMetrics.month?.commission ?? collaboratorMetrics.monthCommission ?? 0
-      const collaboratorTodayAttendances = collaboratorMetrics.today?.appointments ?? collaboratorMetrics.todayAttendances ?? 0
-      const collaboratorTodayServices = collaboratorMetrics.today?.services ?? collaboratorMetrics.todayServices ?? collaboratorTodayAttendances
-      const collaboratorMonthAttendances = collaboratorMetrics.month?.appointments ?? collaboratorMetrics.monthAttendances ?? 0
-      const collaboratorNetBalance = collaboratorMetrics.mySettlementBalance || collaboratorMetrics.netCommission || 0
-      const pendingAdvancesCount = advances.filter((advance) => advance.status === 'pending').length
-
-      const collaboratorCards = [
-        {
-          title: 'Comissao do dia',
-          value: money(collaboratorTodayCommission),
-          detail: 'Baseado nos atendimentos que voce lancou hoje',
-          glow: 'green'
-        },
-        {
-          title: 'Atendimentos hoje',
-          value: `${collaboratorTodayAttendances}`,
-          detail: 'Somente registros vinculados ao seu usuario',
-          glow: 'blue'
-        },
-        {
-          title: 'Servicos executados',
-          value: `${collaboratorTodayServices}`,
-          detail: 'Servicos do dia retornados pelo resumo pessoal',
-          glow: 'gold'
-        },
-        {
-          title: 'Permutas hoje',
-          value: money(collaboratorTodayBarterTotal),
-          detail: 'Valor cheio lancado como permuta',
-          glow: 'red'
-        },
-        {
-          title: 'Desconto por permuta',
-          value: money(-Math.abs(collaboratorTodayBarterCommission)),
-          detail: 'Comissao de permuta debitada do saldo',
-          glow: 'red'
-        },
-        {
-          title: 'Saldo liquido atual',
-          value: money(collaboratorNetBalance),
-          detail: `${pendingAdvancesCount} vale(s) pendente(s), quando houver`,
-          glow: Number(collaboratorNetBalance) < 0 ? 'red' : 'green'
-        }
-      ]
-
-      return (
-        <>
-          <section className="barber-hero-grid">
-            <HeroCard
-              overline="Barber Store colaborador"
-              title="Sua producao e sua comissao em tempo real"
-              description="Painel focado apenas nos seus atendimentos, comissao acumulada e historico pessoal, sem expor valores financeiros da barbearia."
-              stats={[
-                `${collaboratorTodayAttendances} atendimentos hoje`,
-                `${collaboratorRecentAttendances.length} registros recentes`,
-                `${pendingAdvancesCount} vales pendentes`
-              ]}
-            />
-
-            <SummaryCard
-              title="Resumo pessoal"
-              subtitle="Indicadores liberados para o seu perfil."
-              badge={money(collaboratorNetBalance)}
-              badgeVariant="admin"
-              items={[
-                {
-                  label: "Liquido previsto",
-                  description: "Comissao menos permutas e adiantamentos",
-                  value: <strong>{money(collaboratorNetBalance)}</strong>,
-                  valueVariant: "success"
-                },
-                {
-                  label: "Comissao do dia",
-                  description: "Gerada nos seus atendimentos de hoje",
-                  value: <strong>{money(collaboratorTodayCommission)}</strong>
-                },
-                {
-                  label: "Permutas do dia",
-                  description: "Total de atendimentos marcados como permuta",
-                  value: <strong>{money(collaboratorTodayBarterTotal)}</strong>
-                },
-                {
-                  label: "Desconto por permuta",
-                  description: "Debito aplicado ao seu saldo",
-                  value: <strong>{money(-Math.abs(collaboratorTodayBarterCommission))}</strong>,
-                  valueVariant: "danger"
-                }
-              ]}
-            />
-          </section>
-
-          <section className="barber-secondary-kpis">
-            {collaboratorCards.map((card) => (
-              <article className="barber-kpi-card" key={card.title}>
-                <div className="barber-kpi-topline">
-                  <span>{card.title}</span>
-                  <span className={`barber-kpi-glow ${card.glow}`} />
-                </div>
-                <strong>{card.value}</strong>
-                <p>{card.detail}</p>
-              </article>
-            ))}
-          </section>
-
-          <ChartCard
-            title="Meus atendimentos recentes"
-            subtitle="Historico pessoal retornado pelo BarberGestor."
-            badge={`${collaboratorRecentAttendances.length} registros`}
-            badgeVariant="pix"
-          >
-            {collaboratorRecentAttendances.length > 0 ? (
-              <div className="ds-activity-list">
-                {collaboratorRecentAttendances.map((sale) => (
-                  <div className="ds-activity-item" key={sale.id}>
-                    <div className="ds-activity-item__avatar">
-                      {(sale.service_name || 'A').slice(0, 1)}
-                    </div>
-                    <div className="ds-activity-item__content">
-                      <div className="ds-activity-item__title">{sale.service_name || 'Atendimento registrado'}</div>
-                      <div className="ds-activity-item__meta">{paymentLabel(sale.payment_method)} - {fullDate(sale.created_at)}</div>
-                    </div>
-                    <div className="ds-activity-item__value">
-                      <span className="ds-activity-item__amount">{sale.commission_effect === 'debit' ? money(-Math.abs(Number(sale.commission_amount || 0))) : money(sale.commission_amount || 0)}</span>
-                      <span className={`ds-activity-item__badge ds-chart-stat__badge--${paymentTone(sale.payment_method)}`}>
-                        {sale.commission_effect === 'debit' ? 'Permuta' : 'Comissao'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="ds-chart-empty">
-                <div className="ds-chart-empty__icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48 }}>
-                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-                <h3 className="ds-chart-empty__title">Nenhum atendimento encontrado</h3>
-                <p className="ds-chart-empty__description">Assim que seus atendimentos forem registrados, eles aparecerao aqui.</p>
-              </div>
-            )}
-          </ChartCard>
-        </>
-      )
-    }
-
-    const cashBalance = dashboard.cashSession?.current_balance
-      ?? dashboard.cashSession?.net_total
-      ?? dashboard.cashSession?.netTotal
-      ?? dashboard.cashBalance
-      ?? (
-        Number(dashboard.totalCash || 0)
-        + Number(dashboard.totalPix || 0)
-        + Number(dashboard.totalCredit || 0)
-        + Number(dashboard.totalDebit || 0)
-      )
-
-    const dashboardCards = [
-      {
-        title: 'Faturamento do dia',
-        value: money(dashboard.totalDaySales),
-        detail: `${todaySalesCount} atendimentos registrados hoje`,
-        glow: 'green',
-        highlight: 'positive',
-        meta: 'Fluxo atualizado'
-      },
-      {
-        title: 'Atendimentos do dia',
-        value: `${todaySalesCount}`,
-        detail: 'Movimento registrado hoje',
-        glow: 'blue',
-        highlight: 'positive',
-        meta: 'Operacao'
-      },
-      {
-        title: 'Comissao gerada hoje',
-        value: money(dashboard.totalCommissions),
-        detail: 'Comissao consolidada da equipe',
-        glow: 'green',
-        highlight: 'positive',
-        meta: 'Equipe'
-      },
-      {
-        title: 'Dinheiro recebido',
-        value: money(dashboard.totalCash),
-        detail: 'Entradas no caixa fisico',
-        glow: 'gold',
-        highlight: 'gold',
-        meta: 'Presencial'
-      },
-      {
-        title: 'Pix recebido',
-        value: money(dashboard.totalPix),
-        detail: 'Recebimentos digitais do dia',
-        glow: 'blue',
-        highlight: 'positive',
-        meta: 'Liquidez'
-      },
-      {
-        title: 'Permutas do dia',
-        value: money(dashboard.totalPermuta),
-        detail: 'Registro separado do caixa recebido',
-        glow: 'red',
-        highlight: 'gold',
-        meta: 'Permuta'
-      },
-      {
-        title: 'Cartão Crédito',
-        value: money(dashboard.totalCredit),
-        detail: 'Pagamentos em crédito',
-        glow: 'blue',
-        highlight: 'positive',
-        meta: 'Cartão'
-      },
-      {
-        title: 'Cartão Débito',
-        value: money(dashboard.totalDebit),
-        detail: 'Pagamentos em débito',
-        glow: 'green',
-        highlight: 'positive',
-        meta: 'Cartão'
-      },
-      {
-        title: 'Saldo do caixa',
-        value: money(cashBalance),
-        detail: 'Permutas ficam fora do caixa recebido',
-        glow: 'gold',
-        highlight: 'gold',
-        meta: 'Caixa'
-      }
-    ]
-
-    const secondaryCards = [
-      {
-        title: 'Total de atendimentos',
-        value: `${todaySalesCount}`,
-        detail: 'Movimento registrado hoje',
-        glow: 'blue'
-      },
-      {
-        title: isAdmin ? 'Comissao do dia' : 'Minha comissao',
-        value: money(isAdmin ? dashboard.totalCommissions : visibleCollaboratorSummary[0]?.total_commission),
-        detail: isAdmin ? 'Comissao consolidada da equipe' : 'Bruto antes de vales',
-        glow: 'green'
-      },
-      {
-        title: isAdmin ? 'Caixa atual' : 'Liquido previsto',
-        value: money(
-          isAdmin
-            ? Number(dashboard.totalCash || 0) + Number(dashboard.totalPix || 0)
-            : visibleCollaboratorSummary[0]?.net_commission
-        ),
-        detail: isAdmin ? 'Dinheiro + Pix em caixa' : 'Comissao menos vales',
-        glow: 'gold'
-      },
-      {
-        title: 'Ranking do dia',
-        value: topCollaborator?.collaborator_name || 'Sem dados',
-        detail: topCollaborator ? `${money(topCollaborator.total_sales)} em vendas` : 'Nenhum colaborador no ranking',
-        glow: 'red'
-      }
-    ]
-
-    return (
-      <>
-        <section className="barber-hero-grid barber-overview-intro">
-          <HeroWelcomeCard
-            userName={user?.name}
-            todayStats={{
-              attendances: todaySalesCount,
-              revenue: dashboard.totalDaySales,
-              teamSize: collaborators.filter((c) => c.is_active).length
-            }}
-            onQuickAction={() => setSaleModalOpen(true)}
-          />
-
-          <ChartCard
-            title="Ranking do dia"
-            subtitle="Resumo de desempenho carregado pelo dashboard atual."
-            badge={`${ranking.length} no radar`}
-            badgeVariant="info"
-          >
-            {ranking.length > 0 ? (
-              <ModernRankingCard
-                title=""
-                items={ranking.map((item) => ({
-                  ...item,
-                  id: item.collaborator_id,
-                  name: item.collaborator_name,
-                  value: item.total_sales
-                }))}
-                metric="value"
-                metricLabel="R$"
-              />
-            ) : (
-              <CustomEmptyState
-                icon="team"
-                title="Sem ranking disponível"
-                description="As vendas do período vão preencher o ranking automaticamente."
-                compact
-              />
-            )}
-          </ChartCard>
-        </section>
-
-        <section className="barber-kpi-grid">
-          {dashboardCards.map((card, index) => {
-            const iconMap = {
-              green: { icon: TrendingUp, variant: 'success' },
-              blue: { icon: CalendarCheck, variant: 'info' },
-              gold: { icon: DollarSign, variant: 'warning' },
-              red: { icon: Repeat, variant: 'danger' }
-            }
-            const { icon: CardIcon, variant: iconVariant } = iconMap[card.glow] || { icon: TrendingUp, variant: 'accent' }
-
-            return (
-              <StatCard
-                key={card.title}
-                compact={index > 0}
-                primary={index === 0}
-                icon={CardIcon}
-                iconVariant={iconVariant}
-                label={card.title}
-                trendLabel={card.detail}
-                value={card.value}
-              />
-            )
-          })}
-        </section>
-
-        <section className="barber-secondary-kpis">
-          {secondaryCards.map((card) => {
-            const iconMap = {
-              green: { icon: Percent, variant: 'success' },
-              blue: { icon: CalendarCheck, variant: 'info' },
-              gold: { icon: Landmark, variant: 'warning' },
-              red: { icon: TrendingUp, variant: 'danger' }
-            }
-            const { icon: CardIcon, variant: iconVariant } = iconMap[card.glow] || { icon: TrendingUp, variant: 'accent' }
-
-            return (
-              <StatCard
-                key={card.title}
-                compact
-                icon={CardIcon}
-                iconVariant={iconVariant}
-                label={card.title}
-                trendLabel={card.detail}
-                value={card.value}
-              />
-            )
-          })}
-        </section>
-
-        <section className="barber-grid-two">
-          <ChartCard
-            title="Faturamento por dia"
-            subtitle="Últimos 7 dias com leitura rápida de tendência."
-            badge="Receita"
-            badgeVariant="cash"
-            value={money(salesChartData.reduce((sum, item) => sum + item.total, 0))}
-          >
-            {salesChartData.length > 0 ? (
-              <div style={{ width: '100%', minHeight: 280, height: 280 }}>
-                <ResponsiveContainer debounce={50} height="100%" minHeight={280} minWidth={260} width="100%">
-                  <BarChart data={salesChartData}>
-                    <defs>
-                      <linearGradient id="barberSalesGradient" x1="0" x2="0" y1="0" y2="1">
-                        <stop offset="0%" stopColor="var(--accent-primary)" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="var(--success)" stopOpacity={0.7} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="var(--border-subtle)" vertical={false} strokeDasharray="0" />
-                    <XAxis
-                      dataKey="label"
-                      stroke="var(--text-muted)"
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                    />
-                    <YAxis
-                      stroke="var(--text-muted)"
-                      tickFormatter={(value) => `R$${Math.round(value / 1000)}k`}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                      width={48}
-                    />
-                    <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
-                    <Bar dataKey="total" fill="url(#barberSalesGradient)" radius={[8, 8, 4, 4]} maxBarSize={48} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="ds-chart-empty">
-                <div className="ds-chart-empty__icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 56, height: 56 }}>
-                    <path d="M3 3v18h18" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M7 16l4-4 4 4 5-6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-                <h3 className="ds-chart-empty__title">Sem dados para o gráfico</h3>
-                <p className="ds-chart-empty__description">As vendas dos últimos dias aparecerão aqui assim que o caixa tiver movimentação.</p>
-              </div>
-            )}
-          </ChartCard>
-
-          <ChartCard
-            title="Últimas vendas"
-            subtitle="Atividades mais recentes para auditoria rápida."
-            badge={`${dashboard.recentSales.length} registros`}
-            badgeVariant="info"
-          >
-            {dashboard.recentSales.length > 0 ? (
-              <div className="ds-activity-list">
-                {dashboard.recentSales.map((sale, idx) => (
-                  <div className="ds-activity-item" key={sale?.id || `sale-${idx}`}>
-                    <div className="ds-activity-item__avatar">
-                      {(sale.collaborator_name || 'S').slice(0, 1)}
-                    </div>
-                    <div className="ds-activity-item__content">
-                      <div className="ds-activity-item__title">{sale.collaborator_name || 'Sem colaborador'}</div>
-                      <div className="ds-activity-item__meta">{paymentLabel(sale.payment_method)} - {fullDate(sale.created_at)}</div>
-                    </div>
-                    <div className="ds-activity-item__value">
-                      <span className="ds-activity-item__amount">{money(sale.total_amount)}</span>
-                      <span className={`ds-activity-item__badge ds-chart-stat__badge--${paymentTone(sale.payment_method)}`}>
-                        {paymentLabel(sale.payment_method)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="ds-chart-empty">
-                <div className="ds-chart-empty__icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48 }}>
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <path d="M9 9h6M9 13h4" strokeLinecap="round" />
-                  </svg>
-                </div>
-                <h3 className="ds-chart-empty__title">Sem atividades recentes</h3>
-                <p className="ds-chart-empty__description">Assim que novas vendas entrarem, elas aparecem aqui com pagamento e responsável.</p>
-              </div>
-            )}
-          </ChartCard>
-        </section>
-
-      </>
-    )
-  }
-
   function renderServices() {
     return (
       <Servicos
@@ -3203,12 +3078,14 @@ function Barber() {
         onCloseDrawer={resetServiceEditor}
         onDelete={requestServiceDelete}
         onDeleteConfirm={removeService}
+        onDuplicate={duplicateService}
         onEdit={editService}
         onFilterChange={updateServiceFilters}
         onFormChange={updateServiceForm}
         onOpenCreate={openServiceCreateDrawer}
         onDeletePasswordChange={setDeleteServicePassword}
         onDeletePinChange={setDeleteServicePin}
+        onSaveAndContinue={(e) => submitService(e, { saveAndContinue: true })}
         onSubmit={submitService}
         onToggleStatus={toggleServiceStatus}
         services={serviceCatalog}
@@ -3249,10 +3126,10 @@ function Barber() {
           { label: 'Faltas', value: filteredAppointments.filter((appointment) => appointment.status === 'no_show').length, tone: 'danger' }
         ]
       : [
-          { label: 'Agendamentos hoje', value: appointmentsOverview.summary.appointments_today, tone: 'cash' },
+          { label: 'Agendamentos hoje', value: appointmentsOverview.summary?.appointments_today ?? 0, tone: 'cash' },
           { label: 'Confirmados', value: appointmentGroups.active.length, tone: 'approved' },
           { label: 'Faltas', value: filteredAppointments.filter((appointment) => appointment.status === 'no_show').length, tone: 'danger' },
-          { label: 'Ocupacao do dia', value: `${Math.max(0, Math.min(100, Math.round((appointmentGroups.today.length / Math.max(appointmentsOverview.summary.available_collaborators || 1, 1)) * 25)))}%`, tone: 'pix' }
+          { label: 'Ocupacao do dia', value: `${Math.max(0, Math.min(100, Math.round((appointmentGroups.today.length / Math.max(appointmentsOverview.summary?.available_collaborators || 1, 1)) * 25)))}%`, tone: 'pix' }
         ]
 
     const collaboratorOptions = isCollaborator
@@ -4207,2247 +4084,8 @@ function Barber() {
     )
   }
 
-  function renderAttendancesWorkspace() {
-    const paymentOptions = salePaymentOptions
-    const activeCollaborators = collaborators.filter((collaborator) => collaborator.is_active && !collaborator.is_deleted)
-    const recentSales = sales.slice(0, 8)
-    const periodOptions = [
-      { value: 'today', label: 'Hoje' },
-      { value: 'week', label: 'Semana' },
-      { value: 'month', label: 'Mes' },
-      { value: 'custom', label: 'Periodo' }
-    ]
-    const salesSummaryCards = [
-      {
-        key: 'today',
-        label: 'Hoje',
-        value: money(salesSummary.totals_day?.total_amount || 0),
-        hint: `${salesSummary.totals_day?.total_sales || 0} atendimento(s)`
-      },
-      {
-        key: 'week',
-        label: 'Semana',
-        value: money(salesSummary.totals_week?.total_amount || 0),
-        hint: `${salesSummary.totals_week?.total_sales || 0} atendimento(s)`
-      },
-      {
-        key: 'month',
-        label: 'Mes',
-        value: money(salesSummary.totals_month?.total_amount || 0),
-        hint: `${salesSummary.totals_month?.total_sales || 0} atendimento(s)`
-      },
-      {
-        key: 'commission',
-        label: 'Comissao total',
-        value: money(salesSummary.total_commission || 0),
-        hint: `${salesSummary.total_sales || 0} venda(s) no filtro`
-      }
-    ]
-    const collaboratorTodayCommission = collaboratorMetrics.today?.commission ?? collaboratorMetrics.todayCommission ?? 0
-    const collaboratorTodayAttendances = collaboratorMetrics.today?.appointments ?? collaboratorMetrics.todayAttendances ?? 0
-    const lastPersonalSale = recentSales[0]
-    const collaboratorDayCards = [
-      {
-        key: 'today-commission',
-        label: 'Comissao de hoje',
-        value: money(collaboratorTodayCommission),
-        hint: 'Baseado nos atendimentos que voce lancou hoje'
-      },
-      {
-        key: 'today-attendances',
-        label: 'Atendimentos de hoje',
-        value: `${collaboratorTodayAttendances}`,
-        hint: 'Somente registros do seu perfil'
-      },
-      {
-        key: 'last-sale',
-        label: 'Ultimo atendimento lancado',
-        value: lastPersonalSale?.service_name || 'Nenhum atendimento',
-        hint: lastPersonalSale ? fullDate(lastPersonalSale.created_at) : 'Aguardando seu primeiro lancamento do dia'
-      },
-      {
-        key: 'day-status',
-        label: 'Status do dia',
-        value: collaboratorTodayAttendances > 0 ? 'Em andamento' : 'Sem lancamentos',
-        hint: collaboratorTodayAttendances > 0 ? 'Comissao pendente de fechamento' : 'Lance um atendimento para atualizar o saldo'
-      }
-    ]
-    const saleWizardStepIndex = Math.max(0, saleWizardSteps.findIndex((step) => step.key === saleWizardStep))
-    const effectiveSaleCollaboratorId = isCollaborator ? loggedInCollaboratorId : saleForm.collaboratorId
-    const lockedCollaboratorLabel = collaboratorDisplayName(loggedInCollaborator) || user?.name || 'Voce'
-    const goToSaleWizardStep = (stepKey) => {
-      setError('')
-      setSaleWizardStep(stepKey)
-    }
-    const goToNextSaleStep = () => {
-      if (saleWizardStep === 'start' && !effectiveSaleCollaboratorId) {
-        setError(isCollaborator ? 'Nao foi possivel identificar o colaborador autenticado' : 'Selecione um colaborador')
-        return
-      }
-
-      if (saleWizardStep === 'items' && saleItemsCount <= 0) {
-        setError('Adicione ao menos um servico ou produto')
-        return
-      }
-
-      if (saleWizardStep === 'payment' && isCashPayment && saleChangeDue < 0) {
-        setError('Valor recebido menor que o total do atendimento')
-        return
-      }
-
-      const nextStep = saleWizardSteps[Math.min(saleWizardStepIndex + 1, saleWizardSteps.length - 1)]
-      goToSaleWizardStep(nextStep.key)
-    }
-    const goToPreviousSaleStep = () => {
-      const previousStep = saleWizardSteps[Math.max(saleWizardStepIndex - 1, 0)]
-      goToSaleWizardStep(previousStep.key)
-    }
-    const renderSaleWizardActions = (nextLabel = 'Continuar') => (
-      <div className="barber-sales-wizard-actions">
-        {saleWizardStepIndex > 0 ? (
-          <BarberButton onClick={goToPreviousSaleStep} type="button" variant="ghost">
-            Voltar
-          </BarberButton>
-        ) : <span />}
-        <BarberButton onClick={goToNextSaleStep} type="button" variant="primary">
-          {nextLabel}
-        </BarberButton>
-      </div>
-    )
-
-    return (
-      <>
-        {isCollaborator ? (
-          <section className="barber-sales-control-panel barber-sales-control-panel-personal">
-            <div className="barber-sales-summary-grid">
-              {collaboratorDayCards.map((card) => (
-                <BarberCard className="barber-sales-summary-kpi" key={card.key}>
-                  <span>{card.label}</span>
-                  <strong>{card.value}</strong>
-                  <small>{card.hint}</small>
-                </BarberCard>
-              ))}
-            </div>
-
-            <BarberCard className="barber-sales-filter-card barber-sales-personal-balance">
-              <div className="barber-table-header">
-                <div>
-                  <h2>Seu saldo de comissoes hoje</h2>
-                  <p>Baseado nos atendimentos que voce lancou hoje, sem expor o faturamento da barbearia.</p>
-                </div>
-                <BarberButton onClick={() => loadData({ clearMessage: false })} type="button" variant="ghost">
-                  <BarberIcon name="refresh" />
-                  <span>Atualizar</span>
-                </BarberButton>
-              </div>
-            </BarberCard>
-          </section>
-        ) : (
-          <section className="barber-sales-control-panel">
-            <div className="barber-sales-summary-grid">
-              {salesSummaryCards.map((card) => (
-                <BarberCard className="barber-sales-summary-kpi" key={card.key}>
-                  <span>{card.label}</span>
-                  <strong>{card.value}</strong>
-                  <small>{card.hint}</small>
-                </BarberCard>
-              ))}
-            </div>
-
-            <BarberCard className="barber-sales-filter-card">
-              <div className="barber-table-header">
-                <div>
-                  <h2>Filtros de atendimentos</h2>
-                  <p>Resumo calculado no backend, sempre filtrado por empresa e vendas ativas.</p>
-                </div>
-                <BarberButton onClick={() => loadData({ clearMessage: false })} type="button" variant="ghost">
-                  <BarberIcon name="refresh" />
-                  <span>Atualizar</span>
-                </BarberButton>
-              </div>
-
-              <div className="barber-sales-filter-grid">
-                {canManageCash ? (
-                  <div className="barber-form-block">
-                    <label htmlFor="sales-filter-collaborator">Colaborador</label>
-                    <select className="barber-select" id="sales-filter-collaborator" name="collaboratorId" onChange={updateSalesFilters} value={salesFilters.collaboratorId}>
-                      <option value="">Todos</option>
-                      {activeCollaborators.map((collaborator) => (
-                        <option key={collaborator.id} value={collaborator.id}>
-                          {collaborator.name || collaborator.nickname}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
-
-                <div className="barber-form-block">
-                  <label htmlFor="sales-filter-period">Periodo</label>
-                  <select className="barber-select" id="sales-filter-period" name="period" onChange={updateSalesFilters} value={salesFilters.period}>
-                    {periodOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {salesFilters.period === 'custom' ? (
-                  <>
-                    <div className="barber-form-block">
-                      <label htmlFor="sales-filter-start">Inicio</label>
-                      <input className="barber-input" id="sales-filter-start" name="startDate" onChange={updateSalesFilters} type="date" value={salesFilters.startDate} />
-                    </div>
-                    <div className="barber-form-block">
-                      <label htmlFor="sales-filter-end">Fim</label>
-                      <input className="barber-input" id="sales-filter-end" name="endDate" onChange={updateSalesFilters} type="date" value={salesFilters.endDate} />
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            </BarberCard>
-          </section>
-        )}
-
-{saleWizardStep === 'success' ? (
-          <Card className="barber-sales-success-card barber-card-full" padding="md">
-            <div className="barber-sales-success-icon">
-              <Check />
-            </div>
-            <div>
-              <span className="barber-overline">Atendimento finalizado</span>
-              <h2>Registro salvo com sucesso</h2>
-              <p>
-                {isCollaborator
-                  ? 'Seu atendimento foi vinculado ao seu perfil e ja entra na sua comissao conforme as regras atuais.'
-                  : 'O atendimento ja entra no caixa, dashboard, relatorios e comissoes conforme as regras atuais.'}
-              </p>
-            </div>
-            <div className="barber-inline-actions">
-              <Button onClick={() => resetSaleWizard('start')} type="button" variant="primary">
-                Novo atendimento
-              </Button>
-              <Button onClick={() => loadData({ clearMessage: false })} type="button" variant="ghost">
-                Atualizar dados
-              </Button>
-            </div>
-          </Card>
-        ) : (
-          <>
-            <div className="barber-sales-steps barber-sales-wizard-steps">
-              {saleWizardSteps.map((step, index) => (
-                <button
-                  className={`barber-sales-step ${index === saleWizardStepIndex ? 'active' : ''} ${index < saleWizardStepIndex ? 'done' : ''}`}
-                  key={step.key}
-                  onClick={() => goToSaleWizardStep(step.key)}
-                  type="button"
-                >
-                  <span>{index + 1}</span>
-                  <strong>{step.label}</strong>
-                </button>
-              ))}
-            </div>
-
-            <form className="barber-sales-workspace barber-sales-wizard-workspace" onSubmit={createSale}>
-              <section className="barber-sales-main">
-                {saleWizardStep === 'start' && (
-                  <BarberCard className="barber-sales-hero">
-                    <div className="barber-sales-hero-copy">
-                      <span className="barber-overline">{isCollaborator ? 'Modo colaborador' : 'Modo gestor'}</span>
-                      <h2>Iniciar atendimento</h2>
-                      <p>{isCollaborator ? 'Fluxo rapido para celular, com seu perfil fixo e sem dados administrativos.' : 'Escolha o responsavel e avance pelo atendimento em etapas.'}</p>
-                    </div>
-
-                    <div className="barber-sales-start-grid">
-                      {canManageCash ? (
-                        <div className="barber-form-block">
-                          <label htmlFor="sale-collaborator">Colaborador</label>
-                          <select className="barber-select" id="sale-collaborator" name="collaboratorId" onChange={updateSaleForm} value={saleForm.collaboratorId}>
-                            <option value="">Selecione o colaborador</option>
-                            {activeCollaborators.map((collaborator) => (
-                              <option key={collaborator.id} value={collaborator.id}>
-                                {collaborator.name || collaborator.nickname}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      ) : (
-                        <div className="barber-placeholder">
-                          <strong>{lockedCollaboratorLabel}</strong>
-                          <p>Colaborador fixo neste atendimento.</p>
-                        </div>
-                      )}
-
-                      <div className="barber-sales-launcher-summary">
-                        <span>Catalogo disponivel</span>
-                        <strong>{visibleServices.length} servicos ativos</strong>
-                        <small>{isCollaborator ? 'Sem faturamento bruto da barbearia' : `${activeCollaborators.length} colaborador(es) ativos`}</small>
-                      </div>
-                    </div>
-
-                    {renderSaleWizardActions('Iniciar atendimento')}
-                  </BarberCard>
-                )}
-
-                {saleWizardStep === 'client' && (
-                  <BarberCard className="barber-sales-items-panel">
-                    <div className="barber-table-header">
-                      <div>
-                        <h2>Cliente</h2>
-                        <p>Identifique o cliente quando fizer sentido. O campo pode ficar vazio para atendimento rapido.</p>
-                      </div>
-                    </div>
-                    <div className="barber-form-block">
-                      <label htmlFor="sale-client-name">Cliente</label>
-                      <input className="barber-input" id="sale-client-name" name="clientName" onChange={updateSaleForm} placeholder="Nome do cliente" value={saleForm.clientName} />
-                    </div>
-                    {renderSaleWizardActions('Continuar')}
-                  </BarberCard>
-                )}
-
-                {saleWizardStep === 'items' && (
-                  <>
-                    <div className="barber-sales-launcher-bar">
-                      <BarberButton className="barber-sales-launcher-button" onClick={openServicePicker} type="button" variant="secondary">
-                        <BarberIcon name="plus" />
-                        <span>Adicionar servico/produto</span>
-                      </BarberButton>
-
-                      <div className="barber-sales-launcher-summary">
-                        <span>Resumo do atendimento</span>
-                        <strong>{saleItemsCount > 0 ? `${saleItemsCount} item(ns)` : 'Nenhum item'}</strong>
-                        <small>{isCollaborator ? money(saleEffectiveCommission) : money(saleEffectiveTotal)}</small>
-                      </div>
-                    </div>
-
-                    <BarberCard className="barber-sales-items-panel">
-                      <div className="barber-table-header">
-                        <div>
-                          <h2>Servicos/produtos</h2>
-                          <p>Adicione itens do catalogo e ajuste quantidades antes do pagamento.</p>
-                        </div>
-                        <BarberBadge tone="admin">{saleItemsCount} item(ns)</BarberBadge>
-                      </div>
-
-                      {saleForm.items.length > 0 ? (
-                        <div className="barber-sales-items-list">
-                          {saleForm.items.map((item) => (
-                            <div className="barber-sales-item-row" key={item.key}>
-                              <div className="barber-sales-item-main">
-                                <span className="barber-sales-item-icon">
-                                  {item.itemType === 'product'
-                                    ? <BarberIcon name="product" />
-                                    : <ServiceIcon icon={item.icon} serviceName={item.name} />}
-                                </span>
-                                <div>
-                                  <strong>{item.name}</strong>
-                                  <span>{isCollaborator ? lockedCollaboratorLabel : collaboratorDisplayName(activeSaleCollaborator) || 'Colaborador selecionado'}</span>
-                                </div>
-                              </div>
-
-                              <div className="barber-sales-item-qty">
-                                <button onClick={() => updateSaleItemQuantity(item.key, -1)} type="button">-</button>
-                                <span>{item.quantity}</span>
-                                <button onClick={() => updateSaleItemQuantity(item.key, 1)} type="button">+</button>
-                              </div>
-
-                              <div className="barber-sales-item-values">
-                                <strong>{isCollaborator ? money(item.commissionAmount) : money(item.totalPrice)}</strong>
-                                <span>{isCollaborator ? 'minha comissao estimada' : `${money(item.unitPrice)} unitario`}</span>
-                              </div>
-
-                              <button className="barber-sales-item-remove" onClick={() => removeSaleItem(item.key)} type="button">
-                                <BarberIcon name="trash" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <BarberEmptyState
-                          description="Use o botao acima para abrir o catalogo e adicionar servicos ou produtos."
-                          title="Nenhum item no atendimento"
-                        />
-                      )}
-
-                      {renderSaleWizardActions('Ir para pagamento')}
-                    </BarberCard>
-                  </>
-                )}
-
-                {saleWizardStep === 'payment' && (
-                  <BarberCard className="barber-sales-items-panel">
-                    <div className="barber-table-header">
-                      <div>
-                        <h2>Pagamento</h2>
-                        <p>Escolha a forma de pagamento do atendimento.</p>
-                      </div>
-                      <BarberBadge tone="cash">{isCollaborator ? `${saleItemsCount} item(ns)` : money(saleEffectiveTotal)}</BarberBadge>
-                    </div>
-
-                    <div className="barber-form-block">
-                      <label>Pagamento</label>
-                      <div className="barber-sales-payment-grid">
-                        {paymentOptions.map((option) => (
-                          <button
-                            className={`barber-sales-payment-card ${saleForm.paymentMethod === option.value ? 'active' : ''}`}
-                            key={option.value}
-                            onClick={() => updateSaleForm({ target: { name: 'paymentMethod', value: option.value } })}
-                            type="button"
-                          >
-                            <BarberIcon name={option.icon} />
-                            <span>{option.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {isCashPayment && (
-                      <>
-                        <div className="barber-form-block">
-                          <label htmlFor="sale-amount-received">Valor recebido</label>
-                          <input className="barber-input" id="sale-amount-received" min={saleEffectiveTotal || 0} name="amountReceived" onChange={updateSaleForm} step="0.01" type="number" value={saleForm.amountReceived} />
-                        </div>
-
-                        <div className="barber-sales-summary-highlight">
-                          <span>Troco</span>
-                          <strong>{money(Math.max(0, saleChangeDue))}</strong>
-                        </div>
-                      </>
-                    )}
-
-                    {isCashPayment && saleForm.amountReceived && saleChangeDue < 0 && (
-                      <div className="barber-message barber-message-error">
-                        Valor recebido menor que o total do atendimento.
-                      </div>
-                    )}
-
-                    {renderSaleWizardActions('Continuar')}
-                  </BarberCard>
-                )}
-
-                {saleWizardStep === 'notes' && (
-                  <BarberCard className="barber-sales-items-panel">
-                    <div className="barber-table-header">
-                      <div>
-                        <h2>Observacoes</h2>
-                        <p>Inclua detalhes do atendimento, preferencia do cliente ou algo importante para o historico.</p>
-                      </div>
-                    </div>
-                    <div className="barber-form-block">
-                      <label htmlFor="sale-notes">Observacoes</label>
-                      <textarea className="barber-textarea" id="sale-notes" name="notes" onChange={updateSaleForm} placeholder="Opcional" rows="5" value={saleForm.notes} />
-                    </div>
-                    {renderSaleWizardActions('Revisar')}
-                  </BarberCard>
-                )}
-
-                {saleWizardStep === 'review' && (
-                  <BarberCard className="barber-sales-items-panel">
-                    <div className="barber-table-header">
-                      <div>
-                        <h2>Revisao</h2>
-                        <p>Confira os dados antes de finalizar.</p>
-                      </div>
-                      <BarberBadge tone="cash">{isCollaborator ? money(saleEffectiveCommission) : money(saleEffectiveTotal)}</BarberBadge>
-                    </div>
-
-                    <div className="barber-sales-summary-list">
-                      <div className="barber-sales-summary-row">
-                        <span>Cliente</span>
-                        <strong>{saleForm.clientName || 'Nao informado'}</strong>
-                      </div>
-                      <div className="barber-sales-summary-row">
-                        <span>Colaborador</span>
-                        <strong>{isCollaborator ? lockedCollaboratorLabel : collaboratorDisplayName(activeSaleCollaborator) || 'Nao selecionado'}</strong>
-                      </div>
-                      <div className="barber-sales-summary-row">
-                        <span>Itens</span>
-                        <strong>{saleItemsCount}</strong>
-                      </div>
-                      <div className="barber-sales-summary-row">
-                        <span>Pagamento</span>
-                        <strong>{paymentLabel(saleForm.paymentMethod)}</strong>
-                      </div>
-                      <div className="barber-sales-summary-row">
-                        <span>{isCollaborator ? 'Minha comissao prevista' : 'Comissao'}</span>
-                        <strong>{money(saleEffectiveCommission)}</strong>
-                      </div>
-                      {!isCollaborator && (
-                        <>
-                          <div className="barber-sales-summary-row">
-                            <span>Total</span>
-                            <strong>{money(saleEffectiveTotal)}</strong>
-                          </div>
-                          <div className="barber-sales-summary-row">
-                            <span>Total liquido</span>
-                            <strong>{money(saleEffectiveNet)}</strong>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="barber-sales-wizard-actions">
-                      <BarberButton onClick={goToPreviousSaleStep} type="button" variant="ghost">
-                        Voltar
-                      </BarberButton>
-                      <BarberButton className="barber-sales-submit" disabled={submittingSale} type="submit" variant="primary">
-                        <BarberIcon name="plus" />
-                        <span>{submittingSale ? 'Finalizando...' : 'Finalizar atendimento'}</span>
-                      </BarberButton>
-                    </div>
-                  </BarberCard>
-                )}
-              </section>
-
-              <aside className="barber-sales-sidebar">
-                <BarberCard className="barber-sales-summary-card">
-                  <div className="barber-panel-header">
-                    <div>
-                      <h3>Resumo rapido</h3>
-                      <p>{isCollaborator ? 'Somente seus itens e sua comissao prevista.' : 'Totais do atendimento atual.'}</p>
-                    </div>
-                    <BarberBadge tone="cash">{isCollaborator ? money(saleEffectiveCommission) : money(saleEffectiveTotal)}</BarberBadge>
-                  </div>
-
-                  <div className="barber-sales-summary-list">
-                    <div className="barber-sales-summary-row">
-                      <span>Itens</span>
-                      <strong>{saleItemsCount}</strong>
-                    </div>
-                    <div className="barber-sales-summary-row">
-                      <span>{isCollaborator ? 'Minha comissao' : 'Comissao'}</span>
-                      <strong>{money(saleEffectiveCommission)}</strong>
-                    </div>
-                    {!isCollaborator && (
-                      <>
-                        <div className="barber-sales-summary-row">
-                          <span>Subtotal</span>
-                          <strong>{money(saleEffectiveTotal)}</strong>
-                        </div>
-                        <div className="barber-sales-summary-row">
-                          <span>Total liquido</span>
-                          <strong>{money(saleEffectiveNet)}</strong>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </BarberCard>
-              </aside>
-            </form>
-          </>
-        )}
-
-        <BarberCard className="barber-sales-recent-panel">
-          <div className="barber-table-header">
-            <div>
-              <h2>Atendimentos recentes</h2>
-              <p>Ultimos atendimentos registrados no sistema, com pagamento e colaborador responsavel.</p>
-            </div>
-            <BarberBadge tone="admin">{sales.length} registros</BarberBadge>
-          </div>
-
-          {recentSales.length > 0 ? (
-            <div className="barber-sales-recent-list">
-              {recentSales.map((sale) => (
-                <div className="barber-sales-recent-card" key={sale.id}>
-                  <div className="barber-sales-recent-main">
-                    <strong>{sale.service_name || sale.client_name || 'Atendimento registrado'}</strong>
-                    <span>{isCollaborator ? fullDate(sale.created_at) : `${sale.collaborator_name || 'Sem colaborador'} - ${fullDate(sale.created_at)}`}</span>
-                  </div>
-
-                  <div className="barber-sales-recent-meta">
-                    {!isCollaborator && <BarberBadge tone={paymentTone(sale.payment_method)}>
-                      {paymentLabel(sale.payment_method)}
-                    </BarberBadge>}
-                    <strong>{money(isCollaborator && sale.commission_effect === 'debit' ? -Math.abs(Number(sale.commission_amount || 0)) : (isCollaborator ? sale.commission_amount || 0 : sale.total_amount))}</strong>
-                  </div>
-
-                  {isAdmin ? (
-                    <button className="barber-sales-recent-remove" onClick={() => startDeleteSale(sale.id)} type="button">
-                      <BarberIcon name="trash" />
-                    </button>
-                  ) : (
-                    <span className="barber-sales-recent-id">{String(sale.id).slice(0, 8)}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <BarberEmptyState
-              description="Assim que o primeiro atendimento for registrado, o historico aparece aqui automaticamente."
-              title="Nenhum atendimento registrado"
-            />
-          )}
-        </BarberCard>
-
-        <BarberCard className="barber-sales-table-card barber-card-full">
-          <div className="barber-table-header">
-            <div>
-              <h2>Lista de atendimentos</h2>
-              <p>Vendas persistidas no banco, filtradas por periodo e colaborador.</p>
-            </div>
-            {!isCollaborator && <BarberBadge tone="cash">{money(salesSummary.total_amount || 0)}</BarberBadge>}
-          </div>
-
-          <BarberTable columns={isCollaborator ? ['Data', 'Servico', 'Cliente', 'Status', 'Minha comissao'] : ['Colaborador', 'Cliente', 'Data', 'Pagamento', 'Total', 'Comissao', 'Status', 'Acoes']}>
-            {sales.length > 0 ? (
-              sales.map((sale) => {
-                const commissionAmount = Number(sale.item_commission_amount ?? sale.commission_amount ?? 0)
-                const displayCommission = sale.commission_effect === 'debit'
-                  ? -Math.abs(commissionAmount)
-                  : commissionAmount
-                const saleStatus = sale.status || 'active'
-
-                return isCollaborator ? (
-                  <tr key={sale.id}>
-                    <td>{fullDate(sale.created_at)}</td>
-                    <td>{sale.service_name || 'Atendimento registrado'}</td>
-                    <td>{sale.customer_name || sale.client_name || 'Nao informado'}</td>
-                    <td>
-                      <BarberBadge tone={saleStatus === 'canceled' ? 'danger' : 'approved'}>
-                        {saleStatus === 'canceled' ? 'Cancelado' : 'Ativo'}
-                      </BarberBadge>
-                    </td>
-                    <td>{money(displayCommission)}</td>
-                  </tr>
-                ) : (
-                  <tr key={sale.id}>
-                    <td>
-                      <strong>{sale.collaborator_name || 'Sem colaborador'}</strong>
-                      <span>{sale.service_name || 'Atendimento registrado'}</span>
-                    </td>
-                    <td>
-                      <strong>{sale.customer_name || sale.client_name || 'Nao informado'}</strong>
-                      <span>{sale.customer_phone || sale.notes || '-'}</span>
-                    </td>
-                    <td>{fullDate(sale.created_at)}</td>
-                    <td>
-                      <BarberBadge tone={paymentTone(sale.payment_method)}>
-                        {paymentLabel(sale.payment_method)}
-                      </BarberBadge>
-                    </td>
-                    <td>{money(sale.total_amount)}</td>
-                    <td>{money(displayCommission)}</td>
-                    <td>
-                      <BarberBadge tone={saleStatus === 'canceled' ? 'danger' : 'approved'}>
-                        {saleStatus === 'canceled' ? 'Cancelado' : 'Ativo'}
-                      </BarberBadge>
-                    </td>
-                    <td>
-                      {isAdmin && saleStatus !== 'canceled' ? (
-                        <BarberButton onClick={() => startDeleteSale(sale.id)} type="button" variant="danger">
-                          <BarberIcon name="trash" />
-                          <span>Cancelar atendimento</span>
-                        </BarberButton>
-                      ) : (
-                        <span>-</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })
-            ) : (
-              <tr>
-                <td colSpan={isCollaborator ? '5' : '8'}>
-                  <BarberEmptyState
-                    description="Nenhum atendimento encontrado para os filtros atuais."
-                    title="Sem registros no periodo"
-                  />
-                </td>
-              </tr>
-            )}
-          </BarberTable>
-        </BarberCard>
-
-        <BarberModal
-          onClose={closeServicePicker}
-          open={servicePickerOpen}
-          subtitle="Busque no catalogo e adicione servicos ou produtos sem poluir a tela principal."
-          title="Adicionar servico ao atendimento"
-        >
-          <div className="barber-modal-content">
-            <div className="barber-sales-picker-toolbar">
-              <div className="barber-form-block barber-sales-search">
-                <label htmlFor="sales-search-modal">Buscar</label>
-                <input
-                  className="barber-input"
-                  id="sales-search-modal"
-                  onChange={(event) => setSaleCatalogSearch(event.target.value)}
-                  placeholder="Buscar servico ou produto..."
-                  value={saleCatalogSearch}
-                />
-              </div>
-
-              <div className="barber-sales-filter-group" role="tablist" aria-label="Filtros do catalogo">
-                {[
-                  { key: 'all', label: 'Todos' },
-                  { key: 'service', label: 'Servicos' },
-                  { key: 'product', label: 'Produtos' }
-                ].map((filter) => (
-                  <button
-                    className={`barber-sales-filter ${saleCatalogFilter === filter.key ? 'active' : ''}`}
-                    key={filter.key}
-                    onClick={() => setSaleCatalogFilter(filter.key)}
-                    type="button"
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {saleCatalogItems.length > 0 ? (
-              <div className="barber-sales-picker-grid">
-                {saleCatalogItems.map((item) => (
-                  <div className="barber-sales-picker-card" key={`${item.type}-${item.id}`}>
-                    <div className="barber-sales-picker-main">
-                      <span className="barber-sales-catalog-icon">
-                        {item.type === 'product'
-                          ? <BarberIcon name="product" />
-                          : <ServiceIcon icon={item.icon} serviceName={item.name} />}
-                      </span>
-
-                      <div className="barber-sales-catalog-copy">
-                        <div className="barber-sales-catalog-name">{formatServiceName(item.name)}</div>
-                        <div className="barber-sales-catalog-type">
-                          {item.type === 'product' ? item.category || 'Produto' : item.category === 'combo' ? 'Combo' : 'Servico'}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="barber-sales-picker-side">
-                      <strong className="barber-sales-catalog-price">{money(item.price)}</strong>
-                      <BarberButton onClick={() => appendSaleItemFromCatalog(item, item.type, 1, { closeAfterAdd: true })} type="button" variant="secondary">
-                        <BarberIcon name="plus" />
-                        <span>Adicionar</span>
-                      </BarberButton>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <BarberEmptyState
-                description="Nenhum item encontrado para este filtro. Ajuste a busca ou o tipo do catalogo."
-                title="Catalogo vazio"
-              />
-            )}
-
-            <div className="barber-modal-actions">
-              <BarberButton onClick={closeServicePicker} type="button" variant="ghost">
-                Fechar
-              </BarberButton>
-            </div>
-          </div>
-        </BarberModal>
-      </>
-    )
-  }
-
-  function renderSales() {
-    return renderAttendancesWorkspace()
-  }
-
-  function RenderSalesLegacy() {
-    return (
-      <>
-        <section className="barber-grid-two">
-          <BarberCard>
-            <div className="barber-panel-header">
-              <div>
-                <h3>Registrar atendimento</h3>
-                <p>Monte um atendimento com os servicos ativos da barbearia e mantenha o caixa sincronizado com dados reais.</p>
-              </div>
-              <BarberBadge tone="cash">{saleForm.items.length ? money(saleTotal) : 'Adicione itens'}</BarberBadge>
-            </div>
-
-            <form className="barber-panel-stack" onSubmit={createSale}>
-              <div className="barber-form-grid">
-                <div className="barber-form-block">
-                  <label htmlFor="sale-service">Servico</label>
-                  <select className="barber-select" id="sale-service" name="serviceId" onChange={updateSaleForm} value={saleForm.serviceId}>
-                    <option value="">Selecione o servico</option>
-                    {visibleServices.map((service) => (
-                      <option key={service.id} value={service.id}>
-                        {service.name} - {money(service.price)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {canManageCash ? (
-                  <div className="barber-form-block">
-                    <label htmlFor="sale-collaborator">Colaborador</label>
-                    <select className="barber-select" id="sale-collaborator" name="collaboratorId" onChange={updateSaleForm} value={saleForm.collaboratorId}>
-                      <option value="">Selecione o colaborador</option>
-                      {collaborators
-                        .filter((collaborator) => collaborator.is_active && !collaborator.is_deleted)
-                        .map((collaborator) => (
-                          <option key={collaborator.id} value={collaborator.id}>
-                            {collaborator.name || collaborator.nickname}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                ) : (
-                  <div className="barber-placeholder">
-                    <strong>Atendimento vinculado ao seu usuario</strong>
-                    <p>Como colaborador, a API ja garante que o registro fique associado ao seu perfil.</p>
-                  </div>
-                )}
-
-                <div className="barber-form-block">
-                  <label htmlFor="sale-quantity">Quantidade</label>
-                  <input className="barber-input" id="sale-quantity" min="1" name="quantity" onChange={updateSaleForm} step="1" type="number" value={saleForm.quantity} />
-                </div>
-
-                <div className="barber-form-block">
-                  <label htmlFor="sale-client-name">Cliente</label>
-                  <input className="barber-input" id="sale-client-name" name="clientName" onChange={updateSaleForm} placeholder="Opcional" value={saleForm.clientName} />
-                </div>
-
-                <div className="barber-form-block">
-                  <label htmlFor="payment-method">Pagamento</label>
-                  <select className="barber-select" id="payment-method" name="paymentMethod" onChange={updateSaleForm} value={saleForm.paymentMethod}>
-                    {salePaymentOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {isCashPayment && (
-                  <div className="barber-form-block">
-                    <label htmlFor="sale-amount-received">Valor recebido</label>
-                    <input className="barber-input" id="sale-amount-received" min={saleEffectiveTotal || 0} name="amountReceived" onChange={updateSaleForm} step="0.01" type="number" value={saleForm.amountReceived} />
-                  </div>
-                )}
-
-                <div className="barber-form-block">
-                  <label htmlFor="change-amount">Troco</label>
-                  <input className="barber-input" id="change-amount" readOnly step="0.01" type="number" value={isCashPayment ? Math.max(0, saleChangeDue) : 0} />
-                </div>
-
-                <div className="barber-form-block barber-form-block-full">
-                  <label htmlFor="sale-notes">Observacoes</label>
-                  <textarea className="barber-textarea" id="sale-notes" name="notes" onChange={updateSaleForm} placeholder="Observacoes do atendimento, preferencias do cliente ou detalhes do servico..." rows="4" value={saleForm.notes} />
-                </div>
-              </div>
-
-              <div className="barber-inline-actions">
-                <BarberButton onClick={addSaleItem} type="button" variant="secondary">
-                  <BarberIcon name="plus" />
-                  <span>Adicionar item</span>
-                </BarberButton>
-              </div>
-
-              <BarberTable columns={['Tipo', 'Item', 'Qtd', 'Valor', 'Comissao', 'Liquido', 'Acoes']}>
-                {saleForm.items.length > 0 ? (
-                  saleForm.items.map((item) => (
-                    <tr key={item.key}>
-                      <td>Servico</td>
-                      <td>{item.name}</td>
-                      <td>{item.quantity}</td>
-                      <td>{money(item.totalPrice)}</td>
-                      <td>{money(item.commissionAmount)}</td>
-                      <td>{money(item.shopNetAmount)}</td>
-                      <td>
-                        <BarberButton onClick={() => removeSaleItem(item.key)} type="button" variant="danger">
-                          Remover
-                        </BarberButton>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="7">
-                      <BarberEmptyState
-                        description="Adicione servicos do catalogo para montar o atendimento."
-                        title="Nenhum servico no atendimento"
-                      />
-                    </td>
-                  </tr>
-                )}
-              </BarberTable>
-
-              <div className="barber-page-actions">
-                <BarberButton disabled={submittingSale} type="submit" variant="primary">
-                  <BarberIcon name="plus" />
-                  <span>{submittingSale ? 'Registrando atendimento...' : 'Finalizar atendimento'}</span>
-                </BarberButton>
-                <div className="barber-placeholder" style={{ padding: 14 }}>
-                  <strong>{saleForm.items.length ? `${saleForm.items.length} servico(s) no atendimento` : 'Resumo do atendimento'}</strong>
-                  <p>
-                    {saleForm.items.length
-                      ? `${money(saleTotal)} bruto • ${money(saleCommissionTotal)} comissao • ${money(saleShopNetTotal)} liquido`
-                      : 'Adicione servicos para visualizar subtotal, comissao do colaborador e liquido da barbearia.'}
-                    {activeSaleCollaborator ? ` • ${collaboratorDisplayName(activeSaleCollaborator)}` : ''}
-                  </p>
-                </div>
-              </div>
-            </form>
-          </BarberCard>
-
-          <BarberCard>
-            <div className="barber-panel-header">
-              <div>
-                <h3>Resumo operacional</h3>
-                <p>Indicadores rapidos para acompanhar conversao e mix de pagamento.</p>
-              </div>
-              <BarberButton onClick={() => loadData()} type="button" variant="ghost">
-                <BarberIcon name="refresh" />
-                <span>Atualizar</span>
-              </BarberButton>
-            </div>
-
-            <div className="barber-summary-grid">
-              <SummaryItem
-                label="Ticket medio estimado"
-                description="Media dos ultimos 50 atendimentos carregados"
-                value={<strong>{money(sales.length ? sales.reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0) / sales.length : 0)}</strong>}
-              />
-              <SummaryItem
-                label="Pagamento mais usado"
-                description="Canal dominante no periodo"
-                value={<strong>{paymentChartData.slice().sort((a, b) => b.value - a.value)[0]?.name || 'Sem dados'}</strong>}
-              />
-              <SummaryItem
-                label="Atendimentos com colaborador"
-                description="Atendimentos associados a um profissional"
-                value={<strong>{sales.filter((sale) => sale.collaborator_name).length}</strong>}
-              />
-              <SummaryItem
-                label="Catalogo ativo"
-                description="Servicos disponiveis para lancamento"
-                value={<strong>{visibleServices.length}</strong>}
-              />
-            </div>
-
-            <div className="barber-notes-list">
-              <div className="barber-notes-item">
-                <strong>Selecao sem digitacao manual</strong>
-                <p>O seletor usa apenas servicos ativos da propria empresa para evitar erro de lancamento.</p>
-              </div>
-              <div className="barber-notes-item">
-                <strong>Exclusao segura</strong>
-                <p>Toda venda removida exige motivo e autenticacao por senha admin ou PIN.</p>
-              </div>
-            </div>
-          </BarberCard>
-        </section>
-
-        <BarberCard className="barber-card-full">
-          <div className="barber-table-header">
-            <div>
-              <h2>Lista de vendas</h2>
-              <p>Visual moderno com badges de pagamento e acoes rapidas.</p>
-            </div>
-            <BarberBadge tone="admin">{sales.length} registros</BarberBadge>
-          </div>
-
-          <BarberTable columns={['Cliente', 'Servico', 'Valor', 'Pagamento', 'Colaborador', 'Data', 'Acoes']}>
-            {sales.length > 0 ? (
-              sales.map((sale) => (
-                <tr key={sale.id}>
-                  <td>
-                    <strong>{sale.notes ? 'Cliente informado nas observacoes' : 'Nao informado'}</strong>
-                    <span>{sale.notes || 'Campo de cliente ainda nao faz parte da estrutura atual da venda.'}</span>
-                  </td>
-                  <td>
-                      <strong>{sale.service_name || sale.client_name || 'Venda registrada'}</strong>
-                    <span>{sale.client_name ? `Cliente ${sale.client_name}` : 'Itens salvos a partir do catalogo da venda.'}</span>
-                  </td>
-                  <td>
-                    <strong>{money(sale.total_amount)}</strong>
-                    <span>{sale.change_amount ? `Troco ${money(sale.change_amount)}` : 'Sem troco'}</span>
-                  </td>
-                  <td>
-                    <BarberBadge tone={paymentTone(sale.payment_method)}>
-                      {paymentLabel(sale.payment_method)}
-                    </BarberBadge>
-                  </td>
-                  <td>{sale.collaborator_name || 'Sem colaborador'}</td>
-                  <td>{fullDate(sale.created_at)}</td>
-                  <td>
-                    {isAdmin ? (
-                      <div className="barber-inline-actions">
-                        <BarberButton onClick={() => startDeleteSale(sale.id)} type="button" variant="danger">
-                          <BarberIcon name="trash" />
-                          <span>Deletar</span>
-                        </BarberButton>
-                      </div>
-                    ) : (
-                      <span>-</span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="7">
-                  <BarberEmptyState
-                    description="Registre a primeira venda para preencher o historico desta tela."
-                    title="Nenhuma venda registrada"
-                  />
-                </td>
-              </tr>
-            )}
-          </BarberTable>
-        </BarberCard>
-      </>
-    )
-  }
-
-  function renderCashier() {
-    const grossTotal = sales.reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0)
-    const cashTotal = sales
-      .filter((sale) => normalizePaymentMethod(sale.payment_method) === 'cash')
-      .reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0)
-    const pixTotal = sales
-      .filter((sale) => normalizePaymentMethod(sale.payment_method) === 'pix')
-      .reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0)
-    const creditTotal = sales
-      .filter((sale) => normalizePaymentMethod(sale.payment_method) === 'credit')
-      .reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0)
-    const debitTotal = sales
-      .filter((sale) => normalizePaymentMethod(sale.payment_method) === 'debit')
-      .reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0)
-
-    return (
-      <>
-        <section className="barber-grid-two barber-cash-layout">
-          <Card padding="md">
-            <div className="barber-panel-header">
-              <div>
-                <h3>Resumo financeiro</h3>
-                <p>Consolidado das vendas reais retornadas pelos endpoints existentes.</p>
-              </div>
-              <div className="barber-inline-actions">
-                <Badge variant="cash">Somente dados reais</Badge>
-                <Button onClick={() => {
-                  setSaleForm(buildEmptySaleForm(loggedInCollaboratorId))
-                  setSaleModalOpen(true)
-                }} type="button" variant="primary">
-                  <Plus />
-                  <span>Nova venda</span>
-                </Button>
-              </div>
-            </div>
-
-            <div className="barber-finance-grid">
-              <div className="cash-metric-card">
-                <div>
-                  <span>Bruto total</span>
-                  <p>Soma das vendas carregadas</p>
-                </div>
-                <strong className="cash-metric-value">{money(grossTotal)}</strong>
-              </div>
-              <div className="cash-metric-card">
-                <div>
-                  <span>Dinheiro</span>
-                  <p>Entradas em espécie</p>
-                </div>
-                <strong className="cash-metric-value">{money(cashTotal)}</strong>
-              </div>
-              <div className="cash-metric-card">
-                <div>
-                  <span>Pix</span>
-                  <p>Recebimentos instantâneos</p>
-                </div>
-                <strong className="cash-metric-value">{money(pixTotal)}</strong>
-              </div>
-              <div className="cash-metric-card">
-                <div>
-                  <span>Cartão Crédito</span>
-                  <p>Credicard no período</p>
-                </div>
-                <strong className="cash-metric-value">{money(creditTotal)}</strong>
-              </div>
-              <div className="cash-metric-card">
-                <div>
-                  <span>Cartão Débito</span>
-                  <p>Débitocard no período</p>
-                </div>
-                <strong className="cash-metric-value">{money(debitTotal)}</strong>
-              </div>
-              <div className="cash-metric-card">
-                <div>
-                  <span>Total de vendas</span>
-                  <p>Registros retornados pela API</p>
-                </div>
-                <strong className="cash-metric-value">{sales.length}</strong>
-              </div>
-              <div className="cash-metric-card">
-                <div>
-                  <span>Comissões</span>
-                  <p>Resumo do dashboard</p>
-                </div>
-                <strong className="cash-metric-value">{money(dashboard.totalCommissions)}</strong>
-              </div>
-            </div>
-          </Card>
-
-          <Card padding="md">
-            <div className="barber-chart-header">
-              <div>
-                <h2>Mix de pagamentos</h2>
-                <p>Distribuição baseada apenas em vendas reais.</p>
-              </div>
-              <Button onClick={() => loadData()} type="button" variant="ghost">
-                Atualizar dados
-              </Button>
-            </div>
-
-            <div className="barber-chart-body">
-              <div style={{ width: '100%', minHeight: 300, height: 300 }}>
-                {paymentChartData.some((entry) => entry.value > 0) ? (
-                  <ResponsiveContainer debounce={50} height="100%" minHeight={300} minWidth={280} width="100%">
-                    <BarChart data={paymentChartData} layout="vertical" margin={{ left: 10, right: 10 }}>
-                      <CartesianGrid stroke="rgba(148, 163, 184, 0.08)" horizontal={false} />
-                      <XAxis type="number" stroke="#7d8c9b" tickFormatter={(value) => `R$${Math.round(value)}`} />
-                      <YAxis dataKey="name" type="category" stroke="#7d8c9b" width={96} />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                      <Bar dataKey="value" radius={[12, 12, 12, 12]}>
-                        {paymentChartData.map((entry) => (
-                          <Cell fill={entry.fill} key={entry.name} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <Empty
-                    description="Assim que houver vendas reais, o mix de pagamentos aparece aqui."
-                    title="Sem dados de pagamento"
-                  />
-                )}
-              </div>
-</div>
-          </Card>
-        </section>
-      </>
-    )
-  }
-
-  function renderTeam() {
-    const financialSummary = visibleCollaboratorFinancialSummary
-    const hasOperationalCollaborators = collaborators.length > 0
-    const hasFinancialSummary = financialSummary.length > 0
-    const selectedPeriodLabel = {
-      today: 'Hoje',
-      week: 'Semana',
-      month: 'Mes',
-      custom: 'Periodo personalizado'
-    }[collaboratorFinancialFilters.period] || 'Mes'
-
-    return (
-      <>
-<Card padding="md">
-          <div className="barber-panel-header">
-            <div>
-              <h3>{isAdmin ? 'Colaboradores' : 'Seu resumo financeiro'}</h3>
-              <p>
-                {isAdmin
-                  ? 'Gerencie sua equipe, comissoes e desempenho individual.'
-                  : 'Acompanhe apenas seu bruto gerado, comissao, vales e liquido a receber.'}
-              </p>
-            </div>
-            <Badge variant="admin">{selectedPeriodLabel}</Badge>
-          </div>
-
-          <div className="barber-toolbar">
-            <div className="barber-form-block">
-              <label htmlFor="collaborator-financial-period">Periodo</label>
-              <select
-                className="barber-select"
-                id="collaborator-financial-period"
-                name="period"
-                onChange={updateCollaboratorFinancialFilters}
-                value={collaboratorFinancialFilters.period}
-              >
-                <option value="today">Hoje</option>
-                <option value="week">Semana</option>
-                <option value="month">Mes</option>
-                <option value="custom">Personalizado</option>
-              </select>
-            </div>
-
-            {collaboratorFinancialFilters.period === 'custom' && (
-              <>
-                <div className="barber-form-block">
-                  <label htmlFor="collaborator-financial-start">Inicio</label>
-                  <input
-                    className="barber-input"
-                    id="collaborator-financial-start"
-                    name="startDate"
-                    onChange={updateCollaboratorFinancialFilters}
-                    type="date"
-                    value={collaboratorFinancialFilters.startDate}
-                  />
-                </div>
-                <div className="barber-form-block">
-                  <label htmlFor="collaborator-financial-end">Fim</label>
-                  <input
-                    className="barber-input"
-                    id="collaborator-financial-end"
-                    name="endDate"
-                    onChange={updateCollaboratorFinancialFilters}
-                    type="date"
-                    value={collaboratorFinancialFilters.endDate}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        </Card>
-
-        <section className="barber-collaborator-grid">
-          {hasFinancialSummary ? (
-            financialSummary.map((collaborator, index) => {
-              const collaboratorRecord = collaborators.find((item) => item.id === collaborator.collaborator_id) || {}
-
-              return (
-<Card className="barber-collaborator-card" padding="md">
-                  <div className="barber-collaborator-top">
-                    <div className="barber-collaborator-heading">
-                      <CollaboratorAvatar
-                        avatarUrl={collaboratorRecord.avatar_url || collaborator.avatar_url}
-                        name={collaboratorRecord.name || collaborator.collaborator_name}
-                        size="md"
-                      />
-                      <div>
-                        <h3>{collaborator.collaborator_name}</h3>
-                        <p>
-                          {collaborator.commission_type === 'fixed'
-                            ? `Comissao fixa de ${money(collaborator.commission_rate)}`
-                            : `${collaborator.commission_rate}% de comissao cadastrada`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="barber-collaborator-top-badges">
-                      {isAdmin && <Badge variant={index === 0 ? 'permuta' : 'admin'}>#{index + 1}</Badge>}
-                      {isAdmin && (
-                        <Badge variant={collaborator.is_active ? 'success' : 'danger'}>
-                          {collaborator.is_active ? 'Ativo' : 'Inativo'}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="barber-collaborator-stats">
-                    <div>
-                      <span>Faturamento bruto</span>
-                      <strong>{money(collaborator.gross_revenue)}</strong>
-                    </div>
-                    <div>
-                      <span>Comissao gerada</span>
-                      <strong>{money(collaborator.commission_total)}</strong>
-                    </div>
-                    <div>
-                      <span>Adiantamentos</span>
-                      <strong>{money(collaborator.advances_total)}</strong>
-                    </div>
-                    <div>
-                      <span>Liquido a receber</span>
-                      <strong>{money(collaborator.net_to_receive)}</strong>
-                    </div>
-                    <div>
-                      <span>Atendimentos</span>
-                      <strong>{collaborator.sales_count || 0}</strong>
-                    </div>
-                    <div>
-                      <span>Ultima venda</span>
-                      <strong>{collaborator.last_sale_at ? fullDate(collaborator.last_sale_at) : '-'}</strong>
-                    </div>
-                  </div>
-
-                  {Number(collaborator.sales_count || 0) === 0 && (
-                    <p className="barber-inline-hint">Este colaborador ainda nao gerou vendas no periodo.</p>
-                  )}
-
-<div className="barber-inline-actions">
-                    <Button onClick={() => openCollaboratorSummary(collaborator.collaborator_id)} type="button" variant="secondary">
-                      Ver resumo
-                    </Button>
-                    {isAdmin && (
-                      <Button onClick={() => editCollaborator(collaborator.collaborator_id)} type="button" variant="ghost">
-                        Editar
-                      </Button>
-                    )}
-                    {isAdmin && (
-                      <Button
-                        onClick={() => {
-                          setAdvanceForm((current) => ({ ...current, collaboratorId: collaborator.collaborator_id }))
-                          navigateView('cashier')
-                        }}
-                        type="button"
-                        variant="ghost"
-                      >
-                        Registrar adiantamento
-                      </Button>
-                    )}
-                  </div>
-                </Card>
-              )
-            })
-) : (
-            <Card className="barber-collaborator-card" padding="md">
-              <Empty
-                description={isAdmin
-                  ? hasOperationalCollaborators
-                    ? 'A equipe ja foi cadastrada, mas ainda nao gerou movimentacao no periodo selecionado.'
-                    : 'Nenhum colaborador cadastrado ainda.'
-                  : 'Seu resumo financeiro aparecera aqui assim que houver vendas reais no periodo.'}
-                title={isAdmin
-                  ? hasOperationalCollaborators
-                    ? 'Equipe sem movimentacao no periodo'
-                    : 'Nenhum colaborador cadastrado'
-                  : 'Sem resumo financeiro'}
-              />
-              {isAdmin && !hasOperationalCollaborators && (
-                <div className="barber-inline-actions">
-                  <Button onClick={openCollaboratorCreateModal} type="button" variant="primary">
-                    Adicionar primeiro colaborador
-                  </Button>
-                </div>
-              )}
-            </Card>
-          )}
-        </section>
-
-<section className="barber-grid-two">
-          <Card className="barber-card-full" padding="md">
-            <div className="barber-panel-header">
-              <div>
-                <h3>{isAdmin ? 'Equipe cadastrada' : 'Seu resumo profissional'}</h3>
-                <p>
-                  {isAdmin
-                    ? 'Lista operacional da equipe com acesso rapido para editar e acompanhar desempenho.'
-                    : 'Seus indicadores individuais com base nas vendas reais do periodo.'}
-                </p>
-              </div>
-            </div>
-
-            {isAdmin ? (
-              <BarberTable columns={['Colaborador', 'Comissao', 'Permissoes', 'Status', 'Acoes']}>
-                {collaborators.length > 0 ? (
-                  collaborators.map((collaborator) => {
-                    const rank = financialSummary.findIndex((item) => item.collaborator_id === collaborator.id)
-
-                    return (
-                      <tr key={collaborator.id}>
-                        <td>
-                          <div className="barber-collaborator-main-cell">
-                            <CollaboratorAvatar
-                              avatarUrl={collaborator.avatar_url}
-                              name={collaboratorDisplayName(collaborator)}
-                              size="sm"
-                            />
-                            <div>
-                              <strong>
-                                {collaborator.name || collaborator.nickname}
-                                {rank >= 0 ? <span> #{rank + 1}</span> : null}
-                              </strong>
-                              <span>{collaborator.email || 'Sem email'}</span>
-                              <span>{collaborator.phone || 'Sem telefone'} - {collaborator.role || 'collaborator'}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          {collaborator.commission_type === 'fixed'
-                            ? money(collaborator.commission_rate)
-                            : `${collaborator.commission_rate}%`}
-                        </td>
-                        <td>
-                          <div className="barber-status-grid">
-                            {collaborator.can_view_own_dashboard && <Badge variant="success">Dashboard</Badge>}
-                            {collaborator.can_view_own_reports && <Badge variant="pix">Relatorio</Badge>}
-                            {collaborator.can_launch_sales && <Badge variant="permuta">Vendas</Badge>}
-                          </div>
-                        </td>
-                        <td>
-                          <Badge variant={collaborator.is_active ? 'success' : 'danger'}>
-                            {collaborator.is_active ? 'Ativo' : 'Inativo'}
-                          </Badge>
-                        </td>
-                        <td>
-                          <div className="barber-inline-actions">
-                            <Button onClick={() => openCollaboratorSummary(collaborator.id)} type="button" variant="secondary">
-                              Ver resumo
-                            </Button>
-                            <Button onClick={() => editCollaborator(collaborator.id)} type="button" variant="ghost">
-                              Editar
-                            </Button>
-                            <Button
-                              onClick={() => toggleCollaboratorStatus(collaborator)}
-                              type="button"
-                              variant={collaborator.is_active ? 'secondary' : 'primary'}
-                            >
-                              {collaborator.is_active ? 'Desativar' : 'Ativar'}
-                            </Button>
-                            <Button
-                              onClick={() => saveCollaboratorPermissions(collaborator.id, {
-                                canLaunchSales: !collaborator.can_launch_sales,
-                                canViewOwnDashboard: collaborator.can_view_own_dashboard,
-                                canViewOwnReports: collaborator.can_view_own_reports
-                              })}
-                              type="button"
-                              variant="ghost"
-                            >
-                              {collaborator.can_launch_sales ? 'Bloquear vendas' : 'Liberar vendas'}
-                            </Button>
-                            <Button onClick={() => removeCollaborator(collaborator.id)} type="button" variant="danger">
-                              Excluir
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan="5">
-                      <Empty
-                        description="Cadastre colaboradores para montar o ranking e a distribuicao das comissoes."
-                        title="Nenhum colaborador cadastrado"
-                      />
-                    </td>
-                  </tr>
-                )}
-              </BarberTable>
-            ) : currentCollaboratorFinancialSummary ? (
-              <>
-<SummaryCard
-                  items={[
-                    {
-                      label: "Atendimentos",
-                      description: "Quantidade lancada por voce no periodo",
-                      value: <strong>{currentCollaboratorFinancialSummary.sales_count || 0}</strong>
-                    },
-                    {
-                      label: "Comissao gerada",
-                      description: "Total real da sua comissao",
-                      value: <strong>{money(currentCollaboratorFinancialSummary.commission_total)}</strong>
-                    },
-                    {
-                      label: "Adiantamentos",
-                      description: "Somente vales aprovados ou liquidados",
-                      value: <strong>{money(currentCollaboratorFinancialSummary.advances_total)}</strong>
-                    },
-                    {
-                      label: "Liquido a receber",
-                      description: "Comissao menos adiantamentos",
-                      value: <strong>{money(currentCollaboratorFinancialSummary.net_to_receive)}</strong>,
-                      valueVariant: "success"
-                    }
-                  ]}
-                />
-                <div className="barber-inline-actions">
-                  <Button onClick={() => openCollaboratorSummary(currentCollaboratorFinancialSummary.collaborator_id)} type="button" variant="secondary">
-                    Ver resumo
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <Empty
-                description="Seu resumo financeiro aparecera aqui assim que houver vendas reais no periodo."
-                title="Sem dados financeiros"
-              />
-            )}
-          </Card>
-        </section>
-      </>
-    )
-  }
-
-  function renderSettlements() {
-    if (!isAdmin) {
-      return (
-        <BarberCard>
-          <BarberEmptyState
-            description="Os acertos de colaboradores ficam disponiveis apenas para perfis gestores."
-            title="Acertos indisponiveis"
-          />
-        </BarberCard>
-      )
-    }
-
-    const activeSettlementSummary = settlementPreview || {}
-    const totalAttendances = activeSettlementSummary.total_attendances || activeSettlementSummary.totalAttendances || 0
-    const totalCommission = activeSettlementSummary.total_commission || 0
-    const totalAdvances = activeSettlementSummary.total_advances || 0
-    const netAmount = activeSettlementSummary.net_amount || 0
-    const totalSettlementsPaid = settlements.reduce((sum, settlement) => sum + Number(settlement.net_amount || 0), 0)
-    const totalSettlementsCommission = settlements.reduce((sum, settlement) => sum + Number(settlement.total_commission || 0), 0)
-    const pendingAdvances = advances.filter((advance) => advance.status === 'pending').length
-
-    return (
-      <section className="settlements-page">
-        <BarberCard className="settlements-card settlements-header">
-          <div className="barber-panel-header">
-            <div>
-              <span className="barber-overline">Fechamento</span>
-              <h3>Acertos</h3>
-              <p>Fechamento de comissoes e pagamentos dos colaboradores.</p>
-            </div>
-            <BarberBadge tone="admin">Gestao</BarberBadge>
-          </div>
-</BarberCard>
-
-        <Card className="settlements-card settlements-filters-card" padding="md">
-          <div className="barber-panel-header">
-            <div>
-              <span className="barber-overline">Periodo atual</span>
-              <h3>Fechamento por colaborador</h3>
-              <p>Selecione o colaborador e o periodo antes de calcular ou fechar o pagamento.</p>
-            </div>
-            <Badge variant="cash">Comissoes</Badge>
-          </div>
-
-          <div className="settlements-filters-grid">
-            <div className="barber-form-block">
-              <label htmlFor="settlement-collaborator">Colaborador</label>
-              <select
-                className="barber-select"
-                id="settlement-collaborator"
-                name="collaboratorId"
-                onChange={updateSettlementFilters}
-                value={settlementCollaboratorId}
-              >
-                <option value="">Selecione</option>
-                {collaborators
-                  .filter((collaborator) => collaborator.is_active && !collaborator.is_deleted)
-                  .map((collaborator) => (
-                    <option key={collaborator.id} value={collaborator.id}>
-                      {collaborator.name || collaborator.nickname}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            <div className="barber-form-block">
-              <label htmlFor="settlement-start-date">Data inicial</label>
-              <input
-                className="barber-input"
-                id="settlement-start-date"
-                name="startDate"
-                onChange={updateSettlementFilters}
-                type="date"
-                value={settlementFilters.startDate}
-              />
-            </div>
-            <div className="barber-form-block">
-              <label htmlFor="settlement-end-date">Data final</label>
-              <input
-                className="barber-input"
-                id="settlement-end-date"
-                name="endDate"
-                onChange={updateSettlementFilters}
-                type="date"
-                value={settlementFilters.endDate}
-              />
-            </div>
-            <div className="settlements-filter-actions">
-              <Button onClick={() => loadSettlementPreview(settlementFilters)} type="button" variant="secondary">
-                Atualizar
-              </Button>
-              <Button onClick={createSettlement} type="button" variant="primary">
-                Fechar acerto
-              </Button>
-            </div>
-          </div>
-        </Card>
-
-        <div className="settlements-summary-grid">
-          <div className="settlements-summary-card">
-            <span>Total de atendimentos</span>
-            <strong>{totalAttendances}</strong>
-            <p>No periodo selecionado</p>
-          </div>
-          <div className="settlements-summary-card">
-            <span>Comissao gerada</span>
-            <strong>{money(totalCommission)}</strong>
-            <p>Antes dos vales</p>
-          </div>
-          <div className="settlements-summary-card">
-            <span>Vales/adiantamentos</span>
-            <strong>{money(totalAdvances)}</strong>
-            <p>Aprovados no periodo</p>
-          </div>
-          <div className="settlements-summary-card settlements-summary-card-highlight">
-            <span>Valor liquido a pagar</span>
-            <strong>{money(netAmount)}</strong>
-            <p>Valor previsto</p>
-          </div>
-        </div>
-
-        {!settlementPreview ? (
-          <div className="settlements-empty-state">
-            <strong>Fechamento aguardando filtros</strong>
-            <p>Escolha um colaborador e clique em Atualizar para carregar o resumo do periodo.</p>
-          </div>
-        ) : null}
-
-        <div className="settlements-detail-grid">
-<Card className="settlements-card" padding="md">
-            <div className="barber-panel-header">
-              <div>
-                <h3>Detalhes de vales e adiantamentos</h3>
-                <p>Mantenha as movimentacoes internas da equipe dentro do mesmo fluxo de acertos.</p>
-              </div>
-              <Badge variant="pending">{pendingAdvances} pendentes</Badge>
-            </div>
-
-            <form className="settlements-advance-form" onSubmit={createAdvance}>
-              <div className="settlements-advance-grid">
-                <div className="barber-form-block">
-                  <label htmlFor="advance-collaborator">Colaborador</label>
-                  <select
-                    className="barber-select"
-                    id="advance-collaborator"
-                    name="collaboratorId"
-                    onChange={updateAdvanceForm}
-                    required
-                    value={advanceForm.collaboratorId}
-                  >
-                    <option value="">Selecione</option>
-                    {collaborators
-                      .filter((collaborator) => collaborator.is_active && !collaborator.is_deleted)
-                      .map((collaborator) => (
-                        <option key={collaborator.id} value={collaborator.id}>
-                          {collaborator.name || collaborator.nickname}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                <div className="barber-form-block">
-                  <label htmlFor="advance-amount">Valor</label>
-                  <input
-                    className="barber-input"
-                    id="advance-amount"
-                    min="0.01"
-                    name="amount"
-                    onChange={updateAdvanceForm}
-                    required
-                    step="0.01"
-                    type="number"
-                    value={advanceForm.amount}
-                  />
-                </div>
-                <div className="barber-form-block settlements-advance-reason">
-                  <label htmlFor="advance-reason">Motivo</label>
-                  <textarea
-                    className="barber-textarea"
-                    id="advance-reason"
-                    name="reason"
-                    onChange={updateAdvanceForm}
-                    rows="3"
-                    value={advanceForm.reason}
-                  />
-                </div>
-              </div>
-
-              <div className="settlements-advance-footer">
-                <div className="barber-advance-credentials">
-                  <div className="barber-form-block">
-                    <label htmlFor="approval-password">Senha admin</label>
-                    <input
-                      className="barber-input"
-                      id="approval-password"
-                      onChange={(event) => setApprovalPassword(event.target.value)}
-                      type="password"
-                      value={approvalPassword}
-                    />
-                  </div>
-                  <div className="barber-form-block">
-                    <label htmlFor="approval-pin">PIN</label>
-                    <input
-                      className="barber-input"
-                      id="approval-pin"
-                      onChange={(event) => setApprovalPin(event.target.value)}
-                      type="password"
-                      value={approvalPin}
-                    />
-                  </div>
-                </div>
-<Button type="submit" variant="primary">
-                  Solicitar vale
-                </Button>
-              </div>
-            </form>
-
-            <BarberTable className="settlements-table-wrapper" columns={['Data', 'Colaborador', 'Valor', 'Status', 'Acoes']}>
-              {advances.slice(0, 6).length > 0 ? (
-                advances.slice(0, 6).map((advance) => (
-                  <tr key={advance.id}>
-                    <td>{fullDate(advance.created_at)}</td>
-                    <td>{advance.collaborator_name}</td>
-                    <td>{money(advance.amount)}</td>
-                    <td>
-                      <Badge variant={advanceTone(advance.status)}>{advanceLabel(advance.status)}</Badge>
-                    </td>
-                    <td>
-{advance.status === 'pending' ? (
-                        <div className="barber-inline-actions">
-                          <Button onClick={() => updateAdvanceStatus(advance.id, 'approve')} type="button" variant="primary">
-                            Aprovar
-                          </Button>
-                          <Button onClick={() => updateAdvanceStatus(advance.id, 'reject')} type="button" variant="danger">
-                            Rejeitar
-                          </Button>
-                        </div>
-                      ) : (
-                        <span>-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5">
-<Empty
-                      description="Nenhum vale ou adiantamento encontrado para acompanhar agora."
-                      title="Sem movimentacoes"
-                    />
-                  </td>
-                </tr>
-              )}
-            </BarberTable>
-</Card>
-
-          <Card className="settlements-card" padding="md">
-            <div className="barber-panel-header">
-              <div>
-                <h3>Resumo dos acertos</h3>
-                <p>Leitura rapida dos fechamentos ja registrados.</p>
-              </div>
-              <Badge variant="admin">{settlements.length} registros</Badge>
-            </div>
-
-            <div className="settlements-mini-summary">
-              <div>
-                <span>Total pago</span>
-                <strong>{money(totalSettlementsPaid)}</strong>
-                <p>Soma liquida dos fechamentos</p>
-              </div>
-              <div>
-                <span>Comissoes</span>
-                <strong>{money(totalSettlementsCommission)}</strong>
-                <p>Comissao bruta fechada</p>
-              </div>
-              <div>
-                <span>Historico</span>
-                <strong>{settlements.length}</strong>
-                <p>Acertos anteriores</p>
-              </div>
-            </div>
-</Card>
-        </div>
-
-        <Card className="settlements-card settlements-history-card" padding="md">
-          <div className="barber-panel-header">
-            <div>
-              <h3>Historico de acertos anteriores</h3>
-              <p>Historico separado do fechamento atual para auditoria e conferencia de pagamentos.</p>
-            </div>
-            <Badge variant="admin">{settlements.length} registros</Badge>
-          </div>
-
-          <BarberTable className="settlements-table-wrapper" columns={['Data do fechamento', 'Colaborador', 'Periodo', 'Valor', 'Comissao', 'Vales']}>
-            {settlements.length > 0 ? (
-              settlements.map((settlement) => (
-                <tr key={settlement.id}>
-                  <td>{fullDate(settlement.created_at)}</td>
-                  <td>{settlement.collaborator_name}</td>
-                  <td>
-                    <span>
-                      {settlement.period_start
-                        ? `${shortDate(settlement.period_start)} ate ${shortDate(settlement.period_end)}`
-                        : 'Inicio ate fechamento'}
-                      </span>
-                  </td>
-                  <td><strong>{money(settlement.net_amount)}</strong></td>
-                  <td>{money(settlement.total_commission)}</td>
-                  <td>{money(settlement.total_advances)}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="6">
-                  <Empty
-                    description="Nenhum acerto encontrado para este periodo."
-                    title="Historico vazio"
-                  />
-                </td>
-              </tr>
-            )}
-          </BarberTable>
-        </Card>
-      </section>
-    )
-  }
-
-  function renderReports() {
-    if (!isAdmin) {
-return (
-      <>
-        <section className="barber-grid-two barber-cash-layout">
-<Card padding="md">
-              <div className="barber-panel-header">
-                <div>
-                  <h3>Meu relatorio</h3>
-                  <p>Resumo apenas dos seus atendimentos, comissoes e adiantamentos.</p>
-                </div>
-              </div>
-
-              <SummaryCard
-                items={[
-                  {
-                    label: "Atendimentos",
-                    description: "Total no periodo carregado",
-                    value: <strong>{personalReport.totals?.attendances || 0}</strong>
-                  },
-                  {
-                    label: "Comissao acumulada",
-                    description: "Total das suas comissoes",
-                    value: <strong>{money(personalReport.totals?.totalCommission)}</strong>
-                  },
-                  {
-                    label: "Adiantamentos",
-                    description: "Somente valores do seu historico",
-                    value: <strong>{money(personalReport.totals?.totalAdvances)}</strong>
-                  },
-                  {
-                    label: "Liquido previsto",
-                    description: "Comissao menos adiantamentos",
-                    value: <strong>{money(personalReport.totals?.netCommission)}</strong>,
-                    valueVariant: "success"
-                  }
-                ]}
-              />
-            </Card>
-
-            <Card padding="md">
-              <div className="barber-panel-header">
-                <div>
-                  <h3>Meus fechamentos</h3>
-                  <p>Historico pessoal de pagamentos ja fechados.</p>
-                </div>
-                <Badge variant="admin">{settlements.length} registros</Badge>
-              </div>
-
-              <BarberTable columns={['Data', 'Comissao', 'Vales', 'Liquido pago', 'Periodo']}>
-                {settlements.length > 0 ? (
-                  settlements.map((settlement) => (
-                    <tr key={settlement.id}>
-                      <td>{fullDate(settlement.created_at)}</td>
-                      <td>{money(settlement.total_commission)}</td>
-                      <td>{money(settlement.total_advances)}</td>
-                      <td>{money(settlement.net_amount)}</td>
-                      <td>
-                        {settlement.period_start
-                          ? `${shortDate(settlement.period_start)} ate ${shortDate(settlement.period_end)}`
-                          : 'Inicio ate fechamento'}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5">
-                      <Empty
-                        description="Seus fechamentos aparecerao aqui quando forem registrados pelo admin."
-                        title="Nenhum fechamento disponivel"
-                      />
-                    </td>
-                  </tr>
-                )}
-              </BarberTable>
-            </Card>
-          </section>
-
-          <Card padding="md">
-            <div className="barber-table-header">
-              <div>
-                <h2>Meus atendimentos</h2>
-                <p>Lista pessoal de atendimentos retornada pelo seu relatorio.</p>
-              </div>
-              <Badge variant="pix">{personalReport.sales?.length || 0} registros</Badge>
-            </div>
-
-            <BarberTable columns={['Data', 'Servico', 'Comissao', 'Observacoes']}>
-              {personalReport.sales?.length > 0 ? (
-                personalReport.sales.map((sale) => (
-                  <tr key={sale.id}>
-                    <td>{fullDate(sale.created_at)}</td>
-                    <td>
-                      <strong>{sale.service_name || 'Atendimento registrado'}</strong>
-                      <span>{shortDate(sale.sale_date_local)}</span>
-                    </td>
-                    <td>{money(sale.commission_amount)}</td>
-                    <td>{sale.client_name || '-'}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="4">
-                    <Empty
-                      description="Seu historico pessoal aparecera aqui assim que houver atendimentos no periodo."
-                      title="Nenhum atendimento encontrado"
-                    />
-                  </td>
-                </tr>
-              )}
-            </BarberTable>
-          </Card>
-        </>
-      )
-    }
-
-    return (
-      <>
-<Card className="barber-report-hub" padding="md">
-          <div className="barber-panel-header">
-            <div>
-              <span className="barber-overline">Relatorios</span>
-              <h3>Central historica da barbearia</h3>
-              <p>Use esta area para analisar periodos, formas de pagamento, servicos, permutas, comissoes e caixa.</p>
-            </div>
-            <Badge variant="admin">Historico real</Badge>
-          </div>
-
-          <div className="barber-report-scope-grid">
-            {[
-              'Diario',
-              'Semanal',
-              'Mensal',
-              'Periodo personalizado',
-              'Por colaborador',
-              'Por forma de pagamento',
-              'Por servico',
-              'Por permuta',
-              'Por comissao',
-              'Por caixa'
-            ].map((scope) => (
-              <span className="barber-report-scope" key={scope}>{scope}</span>
-            ))}
-          </div>
-</Card>
-
-        <section className="barber-report-grid">
-          <SummaryCard
-                title="Catalogo em numeros"
-                subtitle="Visao consolidada do cadastro de servicos desta barbearia."
-                items={[
-                  {
-                    label: "Total de servicos",
-                    description: "Itens cadastrados e nao excluidos",
-                    value: <strong>{services.length}</strong>
-                  },
-                  {
-                    label: "Servicos ativos",
-                    description: "Disponiveis no lancamento de venda",
-                    value: <strong>{visibleServices.length}</strong>
-                  },
-                  {
-                    label: "Tempo medio do catalogo",
-                    description: "Media dos servicos com tempo informado",
-                    value: (
-                      <strong>
-                        {services.filter((service) => service.estimated_time_minutes).length
-                          ? `${Math.round(
-                              services
-                                .filter((service) => service.estimated_time_minutes)
-                                .reduce((sum, service) => sum + Number(service.estimated_time_minutes || 0), 0)
-                              / services.filter((service) => service.estimated_time_minutes).length
-                            )} min`
-                          : '-'}
-                      </strong>
-                    )
-                  },
-                  {
-                    label: "Total de produtos",
-                    description: "Catalogo disponivel para revenda futura",
-                    value: <strong>{products.length}</strong>
-                  },
-                  {
-                    label: "Estoque baixo",
-                    description: "Produtos que pedem reposicao imediata",
-                    value: <strong>{lowStockProducts.length}</strong>,
-                    valueVariant: lowStockProducts.length > 0 ? 'warning' : 'default'
-                  }
-                ]}
-              />
-
-        </section>
-      </>
-    )
-  }
-
-  function renderSettings() {
-    if (!isAdmin) {
-      return (
-        <BarberCard>
-          <div className="barber-panel-header">
-            <div>
-              <span className="barber-overline">Configuracoes</span>
-              <h3>Acesso restrito</h3>
-              <p>Apenas o dono/admin da barbearia pode gerenciar PIN e dados sensiveis da empresa.</p>
-            </div>
-            <BarberBadge tone="danger">Restrito</BarberBadge>
-          </div>
-        </BarberCard>
-      )
-    }
-
-    const companyName = settingsData.company?.name || user?.company_name || 'Barbearia'
-    const companyEmail = settingsData.company?.email || '-'
-    const companyPhone = settingsData.company?.phone || '-'
-    const publicBookingSlug = settingsData.company?.public_booking_slug || ''
-    const publicBookingUrl = publicBookingSlug ? `${window.location.origin}/agendar/${publicBookingSlug}` : ''
-    const onlineMinAdvanceEnabled = settingsData.agenda?.online_min_advance_enabled === true
-    const onlineMinAdvanceValue = Number(settingsData.agenda?.online_min_advance_value || 0)
-
-    return (
-      <>
-        <section className="barber-grid-two barber-settings-grid">
-          <Card className="barber-settings-card" padding="md">
-            <div className="barber-panel-header">
-              <div>
-                <span className="barber-overline">Empresa</span>
-                <h3>Identidade da barbearia</h3>
-                <p>Base pronta para nome, logo e presenca visual do modulo.</p>
-              </div>
-              <Badge variant="neutral">Em breve</Badge>
-            </div>
-
-            <div className="barber-settings-preview">
-              <div className="barber-settings-logo-placeholder">
-                <Package />
-              </div>
-              <div>
-                <strong>{companyName}</strong>
-                <p>Marca d'agua, upload de logo e identidade visual entram nesta area na proxima etapa.</p>
-              </div>
-            </div>
-
-            <div className="barber-settings-meta">
-              <div className="barber-settings-meta-item">
-                <span>Nome da barbearia</span>
-                <strong>{companyName}</strong>
-              </div>
-              <div className="barber-settings-meta-item">
-                <span>E-mail comercial</span>
-                <strong>{companyEmail}</strong>
-              </div>
-              <div className="barber-settings-meta-item">
-                <span>Telefone</span>
-                <strong>{companyPhone}</strong>
-              </div>
-              <div className="barber-settings-meta-item">
-                <span>Link publico</span>
-                <strong>{publicBookingUrl || 'Sera exibido quando a agenda publica estiver configurada.'}</strong>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="barber-settings-card" padding="md">
-            <div className="barber-panel-header">
-              <div>
-                <span className="barber-overline">Agenda</span>
-                <h3>Antecedencia para agendamento online</h3>
-                <p>Defina se o cliente precisa reservar com horas minimas de antecedencia no link publico.</p>
-              </div>
-              <Badge variant={onlineMinAdvanceEnabled ? 'success' : 'neutral'}>
-                {onlineMinAdvanceEnabled ? 'Ativa' : 'Desativada'}
-              </Badge>
-            </div>
-
-            <form className="barber-form-grid" onSubmit={handleAgendaSettingsSubmit}>
-              <label className="barber-settings-toggle">
-                <span>Exigir antecedencia minima para agendamentos online</span>
-                <input
-                  checked={onlineMinAdvanceEnabled}
-                  onChange={(event) => handleAgendaSettingsChange('online_min_advance_enabled', event.target.checked)}
-                  type="checkbox"
-                />
-              </label>
-
-              {onlineMinAdvanceEnabled ? (
-                <div className="barber-input-grid">
-                  <label>
-                    <span>Antecedencia minima</span>
-                    <input
-                      inputMode="numeric"
-                      min="1"
-                      onChange={(event) => handleAgendaSettingsChange('online_min_advance_value', Number(event.target.value || 0))}
-                      placeholder="1, 2, 4, 8, 12 ou 24"
-                      step="1"
-                      type="number"
-                      value={onlineMinAdvanceValue || ''}
-                    />
-                  </label>
-                </div>
-              ) : null}
-
-              <div className="barber-settings-hint">
-                <Clock />
-                <span>
-                  {onlineMinAdvanceEnabled
-                    ? `Clientes so verao horarios com pelo menos ${onlineMinAdvanceValue || 1} horas de antecedencia.`
-                    : 'Com a regra desativada, o cliente podera reservar qualquer horario disponivel no link online.'}
-                </span>
-              </div>
-
-              <div className="barber-settings-actions">
-                <Button disabled={settingsSaving} type="submit" variant="primary">
-                  <Check />
-                  <span>{settingsSaving ? 'Salvando...' : 'Salvar agenda'}</span>
-                </Button>
-              </div>
-            </form>
-          </Card>
-
-          <Card className="barber-settings-card" padding="md">
-            <div className="barber-panel-header">
-              <div>
-                <span className="barber-overline">Seguranca</span>
-                <h3>Recuperacao e troca de PIN</h3>
-                <p>Use este fluxo para redefinir o PIN do dono/admin sem expor dados sensiveis no painel.</p>
-              </div>
-              <Badge variant="admin">Prioridade</Badge>
-            </div>
-
-            <div className="barber-settings-security-callout">
-              <div>
-                <strong>PIN sensivel da operacao</strong>
-                <p>O codigo enviado por e-mail expira em {settingsData.security?.expires_in_minutes || 10} minutos.</p>
-              </div>
-              <Button onClick={openPinRecovery} type="button" variant="primary">
-                <RefreshCw />
-                <span>Esqueci meu PIN</span>
-              </Button>
-            </div>
-
-            {settingsLoading ? (
-              <div className="barber-settings-loading">
-                <p>Carregando configuracoes de agenda e seguranca...</p>
-              </div>
-            ) : null}
-
-            {pinRecoveryOpen ? (
-              <div className="barber-settings-security-flow">
-                <div className="barber-settings-stepper">
-                  <span className={pinRecoveryStep === 'request' ? 'active' : ''}>1. Validar e-mail</span>
-                  <span className={pinRecoveryStep === 'reset' ? 'active' : ''}>2. Redefinir PIN</span>
-                </div>
-
-                {pinRecoveryStep === 'request' ? (
-                  <form className="barber-form-grid" onSubmit={handlePinRecoveryRequest}>
-                    <label>
-                      <span>E-mail de recuperacao</span>
-                      <input
-                        onChange={(event) => handlePinRecoveryFieldChange('email', event.target.value)}
-                        placeholder="dono@barbearia.com.br"
-                        type="email"
-                        value={pinRecoveryForm.email}
-                      />
-                    </label>
-
-                    <div className="barber-settings-actions">
-                      <Button disabled={pinRecoverySubmitting} type="submit" variant="primary">
-                        <Check />
-                        <span>{pinRecoverySubmitting ? 'Enviando codigo...' : 'Enviar codigo'}</span>
-                      </Button>
-                      <Button
-                        onClick={() => resetPinRecoveryFlow(pinRecoveryForm.email)}
-                        type="button"
-                        variant="ghost"
-                      >
-                        <X />
-                        <span>Fechar</span>
-                      </Button>
-                    </div>
-                  </form>
-                ) : (
-                  <form className="barber-form-grid" onSubmit={handlePinResetSubmit}>
-                    <label>
-                      <span>E-mail de recuperacao</span>
-                      <input
-                        onChange={(event) => handlePinRecoveryFieldChange('email', event.target.value)}
-                        type="email"
-                        value={pinRecoveryForm.email}
-                      />
-                    </label>
-
-                    <div className="barber-input-grid">
-                      <label>
-                        <span>Codigo de 6 digitos</span>
-                        <input
-                          inputMode="numeric"
-                          maxLength={6}
-                          onChange={(event) => handlePinRecoveryFieldChange('code', event.target.value.replace(/\D/g, ''))}
-                          placeholder="000000"
-                          value={pinRecoveryForm.code}
-                        />
-                      </label>
-
-                      <label>
-                        <span>Novo PIN</span>
-                        <input
-                          inputMode="numeric"
-                          onChange={(event) => handlePinRecoveryFieldChange('newPin', event.target.value.replace(/\D/g, ''))}
-                          placeholder="Minimo 4 digitos"
-                          type="password"
-                          value={pinRecoveryForm.newPin}
-                        />
-                      </label>
-
-                      <label>
-                        <span>Confirmar PIN</span>
-                        <input
-                          inputMode="numeric"
-                          onChange={(event) => handlePinRecoveryFieldChange('confirmPin', event.target.value.replace(/\D/g, ''))}
-                          placeholder="Repita o PIN"
-                          type="password"
-                          value={pinRecoveryForm.confirmPin}
-                        />
-                      </label>
-                    </div>
-
-                    <div className="barber-settings-hint">
-                      <Clock />
-                      <span>Use apenas numeros. O novo PIN precisa ter pelo menos 4 digitos.</span>
-                    </div>
-
-                    <div className="barber-settings-actions">
-                      <Button disabled={pinRecoverySubmitting} type="submit" variant="primary">
-                        <Check />
-                        <span>{pinRecoverySubmitting ? 'Salvando PIN...' : 'Salvar novo PIN'}</span>
-                      </Button>
-                      <Button
-                        onClick={() => resetPinRecoveryFlow(pinRecoveryForm.email)}
-                        type="button"
-                        variant="ghost"
-                      >
-                        <X />
-                        <span>Cancelar</span>
-                      </Button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            ) : null}
-
-            {!pinRecoveryOpen ? (
-              <div className="barber-settings-meta">
-                <div className="barber-settings-meta-item">
-                  <span>E-mail padrao</span>
-                  <strong>{settingsData.security?.recovery_email || user?.email || '-'}</strong>
-                </div>
-                <div className="barber-settings-meta-item">
-                  <span>Ultima revisao da area</span>
-                  <strong>{settingsData.company?.created_at ? fullDate(settingsData.company.created_at) : 'Nao informado'}</strong>
-                </div>
-              </div>
-            ) : null}
-          </Card>
-        </section>
-      </>
-    )
+  function handleBackToMenu() {
+    setSettingsSection('menu')
   }
 
 function renderActiveView() {
@@ -6560,27 +4198,285 @@ function renderActiveView() {
 
     switch (currentView) {
       case 'appointments':
-        return renderAppointments()
+        return (
+          <AgendaInterna
+            appointmentsOverview={appointmentsOverview}
+            canManageCash={canManageCash}
+            collaborators={collaborators}
+            isCollaborator={isCollaborator}
+            loadData={loadData}
+            loggedInCollaboratorId={loggedInCollaboratorId}
+            scheduleBlocks={scheduleBlocks}
+            servicesById={servicesById}
+            setError={setError}
+            setSuccess={setSuccess}
+            user={user}
+            visibleServices={visibleServices}
+            workingHours={workingHours}
+          />
+        )
+      case 'appointments-history':
+        return <AppointmentHistoryView />
+      case 'appointments-crm':
+        return <AgendaCrmView />
+      case 'appointments-blocks':
+        return <BookingAvailabilityView />
       case 'customers':
-        return <ClientesBarber />
+        return <CrmDashboard variant="list" />
+      case 'customers-crm':
+        return <CrmDashboard variant="crm" />
+      case 'customers-birthdays':
+        return <CrmDashboard variant="list" initialTab="aniversariantes" />
+      case 'customers-inactive':
+        return <CrmDashboard variant="list" initialTab="inativos" />
+      case 'customers-vip':
+        return <CrmDashboard variant="vip" />
       case 'services':
-        return renderServices()
+        return <Servicos
+          deletePassword={deleteServicePassword}
+          deletePin={deleteServicePin}
+          deleteTarget={serviceCatalog.find((service) => service.id === deleteServiceId) || null}
+          deleteOpen={Boolean(deleteServiceId)}
+          filters={serviceFilters}
+          form={serviceForm}
+          isAdmin={isAdmin}
+          isEditing={isEditingService}
+          isSaving={submittingService}
+          isDrawerOpen={serviceDrawerOpen}
+          money={money}
+          onCancelEdit={resetServiceEditor}
+          onCloseDelete={closeServiceDeleteModal}
+          onCloseDrawer={resetServiceEditor}
+          onDelete={requestServiceDelete}
+          onDeleteConfirm={removeService}
+          onDuplicate={duplicateService}
+          onEdit={editService}
+          onFilterChange={updateServiceFilters}
+          onFormChange={updateServiceForm}
+          onOpenCreate={openServiceCreateDrawer}
+          onDeletePasswordChange={setDeleteServicePassword}
+          onDeletePinChange={setDeleteServicePin}
+          onSaveAndContinue={(e) => submitService(e, { saveAndContinue: true })}
+          onSubmit={submitService}
+          onToggleStatus={toggleServiceStatus}
+          services={serviceCatalog}
+        />
+      case 'services-top':
+        return <ServicesAnalyticsView variant="top" />
+      case 'services-favorites':
+        return <ServicesAnalyticsView variant="favorites" />
+      case 'services-commissions':
+        return <ServicesAnalyticsView variant="commissions" />
       case 'products':
-        return renderProducts()
+        return <Produtos
+          filters={productFilters}
+          form={productForm}
+          isEditing={isEditingProduct}
+          money={money}
+          onCancelEdit={resetProductEditor}
+          onDelete={removeProduct}
+          onEdit={editProduct}
+          onFilterChange={updateProductFilters}
+          onFormChange={updateProductForm}
+          onSubmit={submitProduct}
+          onToggleStatus={toggleProductStatus}
+          products={productCatalog}
+          suppliers={suppliers}
+        />
       case 'sales':
-        return renderSales()
+        return <SalesView
+          useNewAtendimentoLayout={useNewAtendimentoLayout}
+          services={services}
+          products={products}
+          collaborators={collaborators}
+          sales={sales}
+          salesSummary={salesSummary}
+          collaboratorMetrics={collaboratorMetrics}
+          user={user}
+          saleForm={saleForm}
+          saleFilters={salesFilters}
+          salePaymentOptions={salePaymentOptions}
+          saleWizardStep={saleWizardStep}
+          saleItemsCount={saleItemsCount}
+          saleEffectiveTotal={saleEffectiveTotal}
+          saleEffectiveCommission={saleEffectiveCommission}
+          saleEffectiveNet={saleEffectiveNet}
+          saleChangeDue={saleChangeDue}
+          isCashPayment={isCashPayment}
+          submittingSale={submittingSale}
+          servicePickerOpen={servicePickerOpen}
+          saleCatalogItems={saleCatalogItems}
+          saleCatalogSearch={saleCatalogSearch}
+          saleCatalogFilter={saleCatalogFilter}
+          canManageCash={canManageCash}
+          isCollaborator={isCollaborator}
+          isAdmin={isAdmin}
+          loggedInCollaboratorId={loggedInCollaboratorId}
+          loggedInCollaborator={loggedInCollaborator}
+          activeSaleCollaborator={activeSaleCollaborator}
+          setError={setError}
+          setSaleWizardStep={setSaleWizardStep}
+          updateSaleForm={updateSaleForm}
+          updateSalesFilters={updateSalesFilters}
+          createSale={createSale}
+          loadData={loadData}
+          resetSaleWizard={resetSaleWizard}
+          openServicePicker={openServicePicker}
+          closeServicePicker={closeServicePicker}
+          removeSaleItem={removeSaleItem}
+          startDeleteSale={startDeleteSale}
+          setSaleCatalogSearch={setSaleCatalogSearch}
+          setSaleCatalogFilter={setSaleCatalogFilter}
+          appendSaleItemFromCatalog={appendSaleItemFromCatalog}
+          setCrmDrawerCustomer={setCrmDrawerCustomer}
+          updateSaleItemQuantity={updateSaleItemQuantity}
+          onSubmit={async (saleData) => {
+            setError('')
+            setSuccess('')
+            setSubmittingSale(true)
+            try {
+              await api.post('/barber/sales', saleData)
+              setSuccess('Atendimento registrado com sucesso.')
+              await loadData()
+              if (activeView === 'sales') {
+                await loadServiceCatalog(serviceFilters, { keepFullList: true, showError: false })
+                await loadProductCatalog(productFilters, { keepFullList: true, showError: false })
+              }
+            } catch (err) {
+              setError(err.response?.data?.error || 'Nao foi possivel registrar o atendimento')
+            } finally {
+              setSubmittingSale(false)
+            }
+          }}
+          onRefresh={async () => {
+            setError('')
+            try {
+              await loadData()
+            } catch (err) {
+              setError('Nao foi possivel atualizar os dados')
+            }
+          }}
+        />
       case 'cashier':
-        return renderCashier()
+        return <CashierView
+          sales={sales}
+          dashboard={dashboard}
+          setSaleForm={setSaleForm}
+          buildEmptySaleForm={buildEmptySaleForm}
+          loggedInCollaboratorId={loggedInCollaboratorId}
+          setSaleModalOpen={setSaleModalOpen}
+          loadData={loadData}
+          paymentChartData={paymentChartData}
+        />
       case 'settlements':
-        return renderSettlements()
+        return <SettlementsView
+          isAdmin={isAdmin}
+          collaborators={collaborators}
+          settlementPreview={settlementPreview}
+          settlements={settlements}
+          advances={advances}
+          settlementFilters={settlementFilters}
+          settlementCollaboratorId={settlementCollaboratorId}
+          updateSettlementFilters={updateSettlementFilters}
+          loadSettlementPreview={loadSettlementPreview}
+          createSettlement={createSettlement}
+          approvalPassword={approvalPassword}
+          approvalPin={approvalPin}
+          setApprovalPassword={setApprovalPassword}
+          setApprovalPin={setApprovalPin}
+          advanceForm={advanceForm}
+          createAdvance={createAdvance}
+          updateAdvanceForm={updateAdvanceForm}
+          updateAdvanceStatus={updateAdvanceStatus}
+        />
       case 'team':
-        return renderTeam()
+        return <TeamView
+          isAdmin={isAdmin}
+          collaborators={collaborators}
+          visibleCollaboratorFinancialSummary={visibleCollaboratorFinancialSummary}
+          currentCollaboratorFinancialSummary={currentCollaboratorFinancialSummary}
+          collaboratorFinancialFilters={collaboratorFinancialFilters}
+          updateCollaboratorFinancialFilters={updateCollaboratorFinancialFilters}
+          openCollaboratorSummary={openCollaboratorSummary}
+          editCollaborator={editCollaborator}
+          setAdvanceForm={setAdvanceForm}
+          navigateView={navigateView}
+          openCollaboratorCreateModal={openCollaboratorCreateModal}
+          toggleCollaboratorStatus={toggleCollaboratorStatus}
+          saveCollaboratorPermissions={saveCollaboratorPermissions}
+          removeCollaborator={removeCollaborator}
+        />
       case 'reports':
-        return renderReports()
+        return <ReportsView
+          isAdmin={isAdmin}
+          personalReport={personalReport}
+          settlements={settlements}
+          money={money}
+          fullDate={fullDate}
+          shortDate={shortDate}
+          services={services}
+          visibleServices={visibleServices}
+          products={products}
+          lowStockProducts={lowStockProducts}
+        />
       case 'settings':
-        return renderSettings()
+        return <SettingsView
+          isAdmin={isAdmin}
+          settingsData={settingsData}
+          settingsSection={settingsSection}
+          settingsLoading={settingsLoading}
+          brandingForm={brandingForm}
+          brandingLoading={brandingLoading}
+          brandingLogoPreview={brandingLogoPreview}
+          logoPreview={logoPreview}
+          user={user}
+          fullDate={fullDate}
+          emptyBarberSettings={emptyBarberSettings}
+          setSettingsSection={setSettingsSection}
+          loadBranding={loadBranding}
+          handleBackToMenu={handleBackToMenu}
+          handleBrandingSubmit={handleBrandingSubmit}
+          handleBrandingFieldChange={handleBrandingFieldChange}
+          handleBrandingLogoSelect={handleBrandingLogoSelect}
+          handleBrandingLogoRemove={handleBrandingLogoRemove}
+          brandingSaving={brandingSaving}
+          handleCompanyProfileSubmit={handleCompanyProfileSubmit}
+          handleCompanyFieldChange={handleCompanyFieldChange}
+          companyProfileSaving={companyProfileSaving}
+          handleAgendaSettingsSubmit={handleAgendaSettingsSubmit}
+          handleAgendaSettingsChange={handleAgendaSettingsChange}
+          settingsSaving={settingsSaving}
+          pinRecoveryOpen={pinRecoveryOpen}
+          pinRecoveryStep={pinRecoveryStep}
+          pinRecoveryForm={pinRecoveryForm}
+          pinRecoverySubmitting={pinRecoverySubmitting}
+          handlePinRecoveryRequest={handlePinRecoveryRequest}
+          handlePinResetSubmit={handlePinResetSubmit}
+          handlePinRecoveryFieldChange={handlePinRecoveryFieldChange}
+          resetPinRecoveryFlow={resetPinRecoveryFlow}
+          openPinRecovery={openPinRecovery}
+        />
       default:
-        return renderDashboard()
+        return <DashboardView
+          isAdmin={isAdmin}
+          isMobileViewport={isMobileViewport}
+          advances={advances}
+          collaboratorMetrics={collaboratorMetrics}
+          collaboratorRecentAttendances={collaboratorRecentAttendances}
+          user={user}
+          setSaleForm={setSaleForm}
+          buildEmptySaleForm={buildEmptySaleForm}
+          loggedInCollaboratorId={loggedInCollaboratorId}
+          setSaleModalOpen={setSaleModalOpen}
+          dashboard={dashboard}
+          collaborators={collaborators}
+          todaySalesCount={todaySalesCount}
+          ranking={ranking}
+          topCollaborator={topCollaborator}
+          salesChartData={salesChartData}
+          visibleCollaboratorSummary={visibleCollaboratorSummary}
+          appointmentsOverview={appointmentsOverview}
+        />
     }
   }
 
@@ -6590,35 +4486,50 @@ function renderActiveView() {
     avatar: user?.avatar_url || user?.avatarUrl || null
   }
 
+  const effectiveCompanyName = themeCompanyName || user?.company_name || user?.companyName || 'Barbearia'
+  const effectiveLogoUrl = logoUrl || settingsData.company?.logo_url || null
+  const effectiveWallpaperUrl = wallpaperUrl || settingsData.company?.wallpaper_url || null
+
   return (
     <>
+      <BrandingEngine
+        primaryColor={primaryColor || settingsData.company?.primary_color}
+        logoUrl={effectiveLogoUrl}
+        wallpaperUrl={effectiveWallpaperUrl}
+      />
+      <WatermarkBackground logoUrl={effectiveLogoUrl} companyName={effectiveCompanyName} />
       <Shell
         sidebarProps={{
           activeItem: currentView,
           onNavigate: navigateView,
-          companyName: themeCompanyName || user?.company_name || user?.companyName || 'Barbearia',
-          logoUrl: logoUrl || settingsData.company?.logo_url || null,
+          companyName: effectiveCompanyName,
+          logoUrl: effectiveLogoUrl,
           primaryColor: primaryColor || settingsData.company?.primary_color || null,
           planName: planLabel,
           user: sidebarUser
         }}
         topbarProps={{
-          title: meta.label,
-          subtitle: meta.title,
+          title: currentView === 'dashboard' ? effectiveCompanyName : meta.label,
+          subtitle: currentView === 'dashboard' ? 'Visão geral do dia' : meta.title,
           user: sidebarUser,
           onMenuClick: () => setSidebarOpen((prev) => !prev),
-          onSearchClick: () => {}
+          onSearchClick: () => {},
+          onLogout: handleLogout,
+          onNavigate: navigateView,
+          notifications: appointmentsOverview.summary?.appointments_today || 0
         }}
       >
-        <section className="barber-page">
+        <section className="barber-page" data-module={currentView}>
           <header className="barber-page-hero">
             <div>
-              <span className="barber-overline">{isAdmin ? 'Modo gestor' : 'Modo colaborador'}</span>
-              <h1>{currentView === 'dashboard' ? 'BarberGestor' : meta.label}</h1>
+              <span className="barber-overline">BarberGestor {currentView === 'dashboard' ? '• Visão geral' : `• ${meta.label}`}</span>
+              <h1>{currentView === 'dashboard' ? (themeCompanyName || user?.company_name || 'Barbearia') : meta.label}</h1>
               <p>{meta.description}</p>
-              <div className="barber-plan-summary">
-                <span>Plano atual</span>
-                <strong>{planLabel}</strong>
+              <div className="barber-page-hero-meta">
+                <div className="barber-plan-summary">
+                  <span>Plano</span>
+                  <strong>{planLabel}</strong>
+                </div>
               </div>
             </div>
 
@@ -6662,585 +4573,53 @@ function renderActiveView() {
         </section>
       </Shell>
 
-      <BarberModal
-        onClose={closeCollaboratorModal}
-        open={collaboratorModalOpen}
-        subtitle="Cadastro com login proprio, permissoes de acesso e controle de lancamento pelo celular."
-        title={isEditingCollaborator ? 'Editar colaborador' : 'Novo colaborador'}
-      >
-        <div className="barber-modal-content">
-          <form className="barber-panel-stack" onSubmit={createCollaborator}>
-            <div className="barber-avatar-upload">
-              <CollaboratorAvatar
-                avatarUrl={collaboratorForm.avatarDataUrl || collaboratorForm.avatarUrl}
-                name={collaboratorForm.name || 'Colaborador'}
-                selected={Boolean(collaboratorForm.avatarDataUrl || collaboratorForm.avatarUrl)}
-                size="xl"
-              />
-              <div className="barber-avatar-upload-copy">
-                <strong>Foto do colaborador</strong>
-                <p>Essa foto aparecera na agenda publica para seus clientes escolherem o profissional.</p>
-                <div className="barber-avatar-upload-actions">
-                  <label className="barber-button barber-button-ghost" htmlFor="collaborator-avatar-input">
-                    {collaboratorForm.avatarDataUrl || collaboratorForm.avatarUrl ? 'Trocar foto' : 'Adicionar foto'}
-                  </label>
-                  {(collaboratorForm.avatarDataUrl || collaboratorForm.avatarUrl) && (
-                    <BarberButton onClick={removeCollaboratorAvatarPreview} type="button" variant="ghost">
-                      Remover
-                    </BarberButton>
-                  )}
-                </div>
-                <input
-                  accept="image/jpeg,image/png,image/webp"
-                  className="barber-avatar-upload-input"
-                  id="collaborator-avatar-input"
-                  onChange={updateCollaboratorAvatar}
-                  type="file"
-                />
-                <small className="barber-form-hint">Formatos aceitos: JPG, PNG e WEBP com ate 2MB.</small>
-              </div>
-            </div>
-            <div className="barber-form-grid">
-              <div className="barber-form-block">
-                <label htmlFor="collaborator-name">Nome</label>
-                <input
-                  className="barber-input"
-                  id="collaborator-name"
-                  name="name"
-                  onChange={updateCollaboratorForm}
-                  required
-                  value={collaboratorForm.name}
-                />
-              </div>
-              <div className="barber-form-block">
-                <label htmlFor="collaborator-email">Email</label>
-                <input
-                  className="barber-input"
-                  id="collaborator-email"
-                  name="email"
-                  onChange={updateCollaboratorForm}
-                  required
-                  type="email"
-                  value={collaboratorForm.email}
-                />
-              </div>
-              <div className="barber-form-block">
-                <label htmlFor="collaborator-password">Senha inicial {isEditingCollaborator ? '(opcional)' : ''}</label>
-                <input
-                  className="barber-input"
-                  id="collaborator-password"
-                  name="password"
-                  onChange={updateCollaboratorForm}
-                  required={!isEditingCollaborator}
-                  type="password"
-                  value={collaboratorForm.password}
-                />
-              </div>
-              <div className="barber-form-block">
-                <label htmlFor="collaborator-phone">Telefone</label>
-                <input
-                  className="barber-input"
-                  id="collaborator-phone"
-                  name="phone"
-                  onChange={updateCollaboratorForm}
-                  value={collaboratorForm.phone}
-                />
-              </div>
-              <div className="barber-form-block">
-                <label htmlFor="collaborator-commission-type">Tipo de comissao</label>
-                <select
-                  className="barber-select"
-                  id="collaborator-commission-type"
-                  name="commissionType"
-                  onChange={updateCollaboratorForm}
-                  value={collaboratorForm.commissionType}
-                >
-                  <option value="percentage">Percentual</option>
-                  <option value="fixed">Valor fixo</option>
-                </select>
-              </div>
-              <div className="barber-form-block">
-                <label htmlFor="commission-rate">Comissao</label>
-                <input
-                  className="barber-input"
-                  id="commission-rate"
-                  min="0"
-                  name="commissionRate"
-                  onChange={updateCollaboratorForm}
-                  step="0.01"
-                  type="number"
-                  value={collaboratorForm.commissionRate}
-                />
-              </div>
-              <div className="barber-form-block">
-                <label htmlFor="collaborator-status">Status</label>
-                <select
-                  className="barber-select"
-                  id="collaborator-status"
-                  name="isActive"
-                  onChange={updateCollaboratorForm}
-                  value={String(collaboratorForm.isActive)}
-                >
-                  <option value="true">Ativo</option>
-                  <option value="false">Inativo</option>
-                </select>
-              </div>
-              <div className="barber-form-block barber-form-block-full">
-                <label>Agenda publica</label>
-                <label className="barber-permission-item">
-                  <input
-                    checked={collaboratorForm.availableForBooking}
-                    name="availableForBooking"
-                    onChange={updateCollaboratorForm}
-                    type="checkbox"
-                  />
-                  <span>
-                    Disponivel para agendamentos
-                    <small className="barber-form-hint">Quando ativado, este colaborador aparece no link publico de agendamento da barbearia.</small>
-                  </span>
-                </label>
-              </div>
-              <div className="barber-form-block barber-form-block-full">
-                <label>Permissoes</label>
-                <LockedFeature
-                  locked={!canUseExtraPermissionsFeature}
-                  message={getLockedFeatureMessage('extra_permissions')}
-                  onLockedClick={handleLockedFeature}
-                >
-                  <div className="barber-permission-list">
-                    <label className="barber-permission-item">
-                      <input
-                        checked={collaboratorForm.canViewOwnDashboard}
-                        name="canViewOwnDashboard"
-                        onChange={updateCollaboratorForm}
-                        type="checkbox"
-                      />
-                      <span>Pode acessar dashboard proprio</span>
-                    </label>
-                    <label className="barber-permission-item">
-                      <input
-                        checked={collaboratorForm.canViewOwnReports}
-                        name="canViewOwnReports"
-                        onChange={updateCollaboratorForm}
-                        type="checkbox"
-                      />
-                      <span>Pode visualizar relatorio pessoal</span>
-                    </label>
-                    <label className="barber-permission-item">
-                      <input
-                        checked={collaboratorForm.canLaunchSales}
-                        name="canLaunchSales"
-                        onChange={updateCollaboratorForm}
-                        type="checkbox"
-                      />
-                      <span>Pode lancar vendas pelo celular</span>
-                    </label>
-                  </div>
-                </LockedFeature>
-                {isAdmin && (
-                  <label className="barber-permission-item">
-                    <input
-                      checked={collaboratorForm.canMakeBarter}
-                      name="canMakeBarter"
-                      onChange={updateCollaboratorForm}
-                      type="checkbox"
-                    />
-                    <span>
-                      Pode lancar permuta
-                      <small className="barber-form-hint">Permite registrar atendimentos como permuta. A comissao da permuta sera descontada do saldo do colaborador e pode deixar o saldo negativo.</small>
-                    </span>
-                  </label>
-                )}
-              </div>
-            </div>
-            <div className="barber-modal-actions">
-              <BarberButton onClick={closeCollaboratorModal} type="button" variant="ghost">
-                Cancelar
-              </BarberButton>
-              <BarberButton type="submit" variant="primary">
-                <BarberIcon name="plus" />
-                <span>{isEditingCollaborator ? 'Salvar colaborador' : 'Salvar colaborador'}</span>
-              </BarberButton>
-            </div>
-          </form>
-        </div>
-      </BarberModal>
+      <CollaboratorFormModal
+        collaboratorModalOpen={collaboratorModalOpen}
+        closeCollaboratorModal={closeCollaboratorModal}
+        isEditingCollaborator={isEditingCollaborator}
+        collaboratorForm={collaboratorForm}
+        updateCollaboratorForm={updateCollaboratorForm}
+        updateCollaboratorAvatar={updateCollaboratorAvatar}
+        removeCollaboratorAvatarPreview={removeCollaboratorAvatarPreview}
+        createCollaborator={createCollaborator}
+        canUseExtraPermissionsFeature={canUseExtraPermissionsFeature}
+        getLockedFeatureMessage={getLockedFeatureMessage}
+        handleLockedFeature={handleLockedFeature}
+        isAdmin={isAdmin}
+      />
 
-      <BarberModal
-        onClose={closeCollaboratorSummary}
-        open={Boolean(collaboratorSummaryId)}
-        subtitle={collaboratorSummaryTarget ? `Resumo financeiro de ${collaboratorSummaryTarget.collaborator_name} no periodo selecionado.` : ''}
-        title={collaboratorSummaryTarget ? `Resumo de ${collaboratorSummaryTarget.collaborator_name}` : 'Resumo do colaborador'}
-      >
-        <div className="barber-modal-content">
-          {collaboratorSummaryTarget ? (
-            <>
-              <SummaryCard
-                items={[
-                  {
-                    label: "Faturamento bruto",
-                    description: "Total vendido no periodo",
-                    value: <strong>{money(collaboratorSummaryTarget.gross_revenue)}</strong>
-                  },
-                  {
-                    label: "Comissao gerada",
-                    description: "Com base nas vendas reais",
-                    value: <strong>{money(collaboratorSummaryTarget.commission_total)}</strong>
-                  },
-                  {
-                    label: "Adiantamentos",
-                    description: "Vales aprovados ou liquidados",
-                    value: <strong>{money(collaboratorSummaryTarget.advances_total)}</strong>
-                  },
-                  {
-                    label: "Liquido a receber",
-                    description: "Comissao menos adiantamentos",
-                    value: <strong>{money(collaboratorSummaryTarget.net_to_receive)}</strong>,
-                    valueVariant: "success"
-                  },
-                  {
-                    label: "Atendimentos",
-                    description: "Quantidade de vendas no periodo",
-                    value: <strong>{collaboratorSummaryTarget.sales_count || 0}</strong>
-                  },
-                  {
-                    label: "Ultima venda",
-                    description: "Ultimo registro valido",
-                    value: <strong>{collaboratorSummaryTarget.last_sale_at ? fullDate(collaboratorSummaryTarget.last_sale_at) : '-'}</strong>
-                  }
-                ]}
-              />
+      <CollaboratorSummaryModal
+        collaboratorSummaryId={collaboratorSummaryId}
+        closeCollaboratorSummary={closeCollaboratorSummary}
+        collaboratorSummaryTarget={collaboratorSummaryTarget}
+        collaboratorSummarySales={collaboratorSummarySales}
+        collaboratorSummaryAdvances={collaboratorSummaryAdvances}
+      />
 
-              <BarberCard>
-                <div className="barber-table-header">
-                  <div>
-                    <h2>Vendas recentes</h2>
-                    <p>Ultimos lancamentos reais deste colaborador no periodo.</p>
-                  </div>
-                  <BarberBadge tone="pix">{collaboratorSummarySales.length} registros</BarberBadge>
-                </div>
-                <BarberTable columns={['Data', 'Servico', 'Pagamento', 'Valor']}>
-                  {collaboratorSummarySales.length > 0 ? (
-                    collaboratorSummarySales.map((sale) => (
-                      <tr key={sale.id}>
-                        <td>{fullDate(sale.created_at)}</td>
-                        <td>
-                          <strong>{sale.service_name || sale.client_name || 'Venda registrada'}</strong>
-                          <span>{sale.notes || '-'}</span>
-                        </td>
-                        <td>
-                          <BarberBadge tone={paymentTone(sale.payment_method)}>
-                            {paymentLabel(sale.payment_method)}
-                          </BarberBadge>
-                        </td>
-                        <td>{money(sale.total_amount)}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="4">
-                        <BarberEmptyState
-                          description="Este colaborador ainda nao possui vendas no periodo."
-                          title="Sem vendas no periodo"
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </BarberTable>
-              </BarberCard>
-
-              {collaboratorSummaryAdvances.length > 0 && (
-                <BarberCard>
-                  <div className="barber-table-header">
-                    <div>
-                      <h2>Adiantamentos</h2>
-                      <p>Movimentacoes de vales associadas a este colaborador.</p>
-                    </div>
-                    <BarberBadge tone="pending">{collaboratorSummaryAdvances.length} registros</BarberBadge>
-                  </div>
-                  <BarberTable columns={['Data', 'Motivo', 'Status', 'Valor']}>
-                    {collaboratorSummaryAdvances.map((advance) => (
-                      <tr key={advance.id}>
-                        <td>{fullDate(advance.created_at)}</td>
-                        <td>{advance.reason || '-'}</td>
-                        <td>
-                          <BarberBadge tone={advanceTone(advance.status)}>
-                            {advanceLabel(advance.status)}
-                          </BarberBadge>
-                        </td>
-                        <td>{money(advance.amount)}</td>
-                      </tr>
-                    ))}
-                  </BarberTable>
-                </BarberCard>
-              )}
-            </>
-          ) : (
-            <BarberEmptyState
-              description="Nao foi possivel localizar os detalhes financeiros deste colaborador."
-              title="Resumo indisponivel"
-            />
-          )}
-        </div>
-      </BarberModal>
-
-      <BarberModal
-        onClose={closeSaleModal}
+      <SaleSlideover
         open={saleModalOpen}
-        subtitle={canManageCash
-          ? 'Selecione um servico ativo, vincule o colaborador e registre a venda direto no caixa.'
-          : 'Selecione um servico ativo e registre a venda vinculada automaticamente ao colaborador autenticado.'}
-        title="Nova venda"
-      >
-        <div className="barber-modal-content">
-          <form className="barber-panel-stack" onSubmit={createSale}>
-            <div className="barber-form-grid">
-              <div className="barber-form-block">
-                <label htmlFor="cash-sale-service">Servico</label>
-                <select
-                  className="barber-select"
-                  id="cash-sale-service"
-                  name="serviceId"
-                  onChange={updateSaleForm}
-                  value={saleForm.serviceId}
-                >
-                  <option value="">Selecione o servico</option>
-                  {visibleServices.map((service) => (
-                    <option key={service.id} value={service.id}>
-                      {service.name} - {money(service.price)}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        onClose={closeSaleModal}
+        services={visibleServices}
+        products={visibleProducts}
+        collaborators={collaborators}
+        cashSession={dashboard.cashSession}
+        loggedInCollaboratorId={loggedInCollaboratorId}
+        canManageCash={canManageCash}
+        isCollaborator={isCollaborator}
+        user={user}
+        onSubmit={handleSlideoverSubmit}
+      />
 
-              {canManageCash ? (
-                <div className="barber-form-block">
-                  <label htmlFor="cash-sale-collaborator">Colaborador</label>
-                  <select
-                    className="barber-select"
-                    id="cash-sale-collaborator"
-                    name="collaboratorId"
-                    onChange={updateSaleForm}
-                    required
-                    value={saleForm.collaboratorId}
-                  >
-                    <option value="">Selecione o colaborador</option>
-                    {collaborators
-                      .filter((collaborator) => collaborator.is_active)
-                      .map((collaborator) => (
-                        <option key={collaborator.id} value={collaborator.id}>
-                          {collaborator.name || collaborator.nickname}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              ) : (
-                <div className="barber-form-block">
-                  <label>Colaborador</label>
-                  <div className="barber-inline-hint">
-                    {collaboratorDisplayName(loggedInCollaborator) || user?.name || 'Colaborador autenticado'}
-                  </div>
-                </div>
-              )}
-
-              <div className="barber-form-block">
-                <label htmlFor="cash-sale-quantity">Quantidade</label>
-                <input
-                  className="barber-input"
-                  id="cash-sale-quantity"
-                  min="1"
-                  name="quantity"
-                  onChange={updateSaleForm}
-                  step="1"
-                  type="number"
-                  value={saleForm.quantity}
-                />
-              </div>
-
-              <div className="barber-form-block">
-                <label htmlFor="cash-sale-client">Cliente</label>
-                <input
-                  className="barber-input"
-                  id="cash-sale-client"
-                  name="clientName"
-                  onChange={updateSaleForm}
-                  placeholder="Opcional"
-                  value={saleForm.clientName}
-                />
-              </div>
-
-              <div className="barber-form-block">
-                <label htmlFor="cash-sale-payment">Pagamento</label>
-                <select
-                  className="barber-select"
-                  id="cash-sale-payment"
-                  name="paymentMethod"
-                  onChange={updateSaleForm}
-                  required
-                  value={saleForm.paymentMethod}
-                >
-                  {salePaymentOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {isCashPayment && (
-                <div className="barber-form-block">
-                  <label htmlFor="cash-sale-received">Valor recebido</label>
-                  <input
-                    className="barber-input"
-                    id="cash-sale-received"
-                    min={saleEffectiveTotal || 0}
-                    name="amountReceived"
-                    onChange={updateSaleForm}
-                    step="0.01"
-                    type="number"
-                    value={saleForm.amountReceived}
-                  />
-                </div>
-              )}
-
-              <div className="barber-form-block barber-form-block-full">
-                <label htmlFor="cash-sale-notes">Observacoes</label>
-                <textarea
-                  className="barber-textarea"
-                  id="cash-sale-notes"
-                  name="notes"
-                  onChange={updateSaleForm}
-                  rows="3"
-                  value={saleForm.notes}
-                />
-              </div>
-            </div>
-
-            <div className="barber-inline-actions">
-              <BarberButton onClick={addSaleItem} type="button" variant="secondary">
-                <BarberIcon name="plus" />
-                <span>Adicionar item</span>
-              </BarberButton>
-            </div>
-
-            <BarberTable columns={['Tipo', 'Item', 'Qtd', 'Valor', 'Comissao', 'Liquido', 'Acoes']}>
-              {saleForm.items.length > 0 ? (
-                saleForm.items.map((item) => (
-                  <tr key={item.key}>
-                    <td>Servico</td>
-                    <td>{item.name}</td>
-                    <td>{item.quantity}</td>
-                    <td>{money(item.totalPrice)}</td>
-                    <td>{money(item.commissionAmount)}</td>
-                    <td>{money(item.shopNetAmount)}</td>
-                    <td>
-                      <BarberButton onClick={() => removeSaleItem(item.key)} type="button" variant="danger">
-                        Remover
-                      </BarberButton>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="7">
-                    <BarberEmptyState
-                        description="Adicione servicos do catalogo para registrar a operacao."
-                        title="Nenhum item na venda"
-                      />
-                  </td>
-                </tr>
-              )}
-            </BarberTable>
-
-            <SummaryCard
-              items={[
-                {
-                  label: "Total bruto",
-                  description: saleForm.items.length ? `${saleForm.items.length} item(ns) na operacao` : 'Adicione itens para montar a venda',
-                  value: <strong>{money(saleTotal)}</strong>
-                },
-                {
-                  label: "Comissao total",
-                  description: activeSaleCollaborator ? `Aplicada para ${collaboratorDisplayName(activeSaleCollaborator)}` : 'Escolha o colaborador responsavel',
-                  value: <strong>{money(saleCommissionTotal)}</strong>
-                },
-                {
-                  label: "Liquido da barbearia",
-                  description: "Total menos a comissao dos itens",
-                  value: <strong>{money(saleShopNetTotal)}</strong>,
-                  valueVariant: "success"
-                },
-                {
-                  label: "Troco",
-                  description: isCashPayment ? 'Calculado em tempo real' : 'Nao se aplica',
-                  value: (
-                    <strong style={isCashPayment && saleChangeDue < 0 ? { color: '#ff7d7d' } : undefined}>
-                      {isCashPayment ? money(Math.max(0, saleChangeDue)) : money(0)}
-                    </strong>
-                  )
-                }
-              ]}
-            />
-
-            {isCashPayment && saleForm.amountReceived && saleChangeDue < 0 && (
-              <div className="barber-message barber-message-error">
-                Valor recebido menor que o total da venda.
-              </div>
-            )}
-
-            <div className="barber-modal-actions">
-              <BarberButton onClick={closeSaleModal} type="button" variant="ghost">
-                Cancelar
-              </BarberButton>
-              <BarberButton disabled={submittingSale} type="submit" variant="primary">
-                <BarberIcon name="plus" />
-                <span>{submittingSale ? 'Lancando venda...' : 'Lancar venda do colaborador'}</span>
-              </BarberButton>
-            </div>
-          </form>
-        </div>
-      </BarberModal>
-
-      <BarberModal
-        onClose={() => setDeleteSaleId('')}
-        open={Boolean(deleteSaleId)}
-        size="small"
-        subtitle={deleteSaleTarget ? `Atendimento de ${money(deleteSaleTarget.total_amount)} em ${fullDate(deleteSaleTarget.created_at)}` : ''}
-        title="Cancelar atendimento"
-      >
-        <div className="barber-modal-content">
-          <div className="barber-form-block">
-            <label htmlFor="delete-reason">Motivo do cancelamento</label>
-            <textarea
-              className="barber-textarea"
-              id="delete-reason"
-              onChange={(event) => setDeleteReason(event.target.value)}
-              rows="4"
-              value={deleteReason}
-            />
-          </div>
-          <div className="barber-form-grid">
-            <div className="barber-form-block">
-              <label htmlFor="delete-pin">PIN admin</label>
-              <input
-                className="barber-input"
-                id="delete-pin"
-                inputMode="numeric"
-                onChange={(event) => setDeletePin(event.target.value)}
-                type="password"
-                value={deletePin}
-              />
-            </div>
-          </div>
-          <div className="barber-modal-actions">
-            <BarberButton onClick={() => setDeleteSaleId('')} type="button" variant="ghost">
-              Cancelar
-            </BarberButton>
-            <BarberButton onClick={deleteSale} type="button" variant="danger">
-              <BarberIcon name="trash" />
-              <span>Cancelar atendimento</span>
-            </BarberButton>
-          </div>
-        </div>
-      </BarberModal>
+      <DeleteSaleModal
+        deleteSaleId={deleteSaleId}
+        deleteSaleTarget={deleteSaleTarget}
+        deleteReason={deleteReason}
+        setDeleteReason={setDeleteReason}
+        deletePin={deletePin}
+        setDeletePin={setDeletePin}
+        deleteSale={deleteSale}
+        setDeleteSaleId={setDeleteSaleId}
+      />
 
       <BottomNav
         activeItem={currentView}
@@ -7259,6 +4638,12 @@ function renderActiveView() {
         }}
         mainActionLabel="Novo atendimento"
         show={!isMobileViewport || currentView !== 'settings'}
+      />
+
+      <CustomerSidePanel
+        customer={crmDrawerCustomer}
+        open={!!crmDrawerCustomer}
+        onClose={() => setCrmDrawerCustomer(null)}
       />
     </>
   )

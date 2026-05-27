@@ -1,68 +1,127 @@
+import { Suspense, lazy } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
-import Activations from './pages/Activations'
-import Clients from './pages/Clients'
-import Clima from './pages/Clima'
-import ConfirmEmail from './pages/ConfirmEmail'
-import FirstAccess from './pages/FirstAccess'
-import ForgotPassword from './pages/ForgotPassword'
-import BookingArea from './pages/booking/BookingArea'
-import BookingLogin from './pages/booking/BookingLogin'
-import BookingProfile from './pages/booking/BookingProfile'
-import BookingRegister from './pages/booking/BookingRegister'
-import BookingSuccess from './pages/booking/BookingSuccess'
-import BookingPage from './pages/barber/BookingPage'
-import BarberDashboard from './pages/barber/BarberDashboard'
-import BarberLogin from './pages/barber/BarberLogin'
-import FinanceDashboard from './pages/master/FinanceDashboard'
-import MasterLogin from './pages/master/MasterLogin'
-import LandingPage from './pages/public/LandingPage'
-import ModuleSelect from './pages/ModuleSelect'
-import Modules from './pages/Modules'
-import NoModules from './pages/NoModules'
-import Register from './pages/Register'
-import ResetPassword from './pages/ResetPassword'
-import Settings from './pages/Settings'
-import Subscriptions from './pages/Subscriptions'
-import Terra from './pages/Terra'
+import ErrorBoundary from './components/ErrorBoundary'
+import PageLoader from './components/PageLoader'
 import BarberPrivateRoute from './routes/BarberPrivateRoute'
 import BookingPrivateRoute from './routes/BookingPrivateRoute'
 import MasterPrivateRoute from './routes/MasterPrivateRoute'
 import ModuleRoute from './routes/ModuleRoute'
 
+const Activations      = lazy(() => import('./pages/Activations'))
+const ChoosePlan       = lazy(() => import('./pages/ChoosePlan'))
+const Clients          = lazy(() => import('./pages/Clients'))
+const Clima            = lazy(() => import('./pages/Clima'))
+const ConfirmEmail     = lazy(() => import('./pages/ConfirmEmail'))
+const FirstAccess      = lazy(() => import('./pages/FirstAccess'))
+const ForgotPassword   = lazy(() => import('./pages/ForgotPassword'))
+const BookingArea      = lazy(() => import('./pages/booking/BookingArea'))
+const BookingLogin     = lazy(() => import('./pages/booking/BookingLogin'))
+const BookingProfile   = lazy(() => import('./pages/booking/BookingProfile'))
+const BookingRegister  = lazy(() => import('./pages/booking/BookingRegister'))
+const BookingSuccess   = lazy(() => import('./pages/booking/BookingSuccess'))
+const BookingPage      = lazy(() => import('./pages/barber/BookingPage'))
+const BarberDashboard  = lazy(() => import('./pages/barber/BarberDashboard'))
+const BarberLogin      = lazy(() => import('./pages/barber/BarberLogin'))
+const FinanceDashboard = lazy(() => import('./pages/master/FinanceDashboard'))
+const MasterLogin      = lazy(() => import('./pages/master/MasterLogin'))
+const LandingPage      = lazy(() => import('./pages/public/LandingPage'))
+const BarberLanding    = lazy(() => import('./pages/barbergestor/BarberLanding'))
+const ModuleSelect     = lazy(() => import('./pages/ModuleSelect'))
+const Modules          = lazy(() => import('./pages/Modules'))
+const NoModules        = lazy(() => import('./pages/NoModules'))
+const Register         = lazy(() => import('./pages/Register'))
+const ResetPassword    = lazy(() => import('./pages/ResetPassword'))
+const Settings         = lazy(() => import('./pages/Settings'))
+const Subscriptions    = lazy(() => import('./pages/Subscriptions'))
+const Terra            = lazy(() => import('./pages/Terra'))
+
 function App() {
   return (
+    <Suspense fallback={<PageLoader />}>
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/barbergestor" element={<BarberLanding />} />
       <Route path="/login" element={<Navigate to="/barber/login" replace />} />
       <Route path="/barber/login" element={<BarberLogin />} />
       <Route path="/master/login" element={<MasterLogin />} />
       <Route path="/master" element={<Navigate to="/master/dashboard" replace />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/escolher-plano" element={<ChoosePlan />} />
       <Route path="/first-access" element={<FirstAccess />} />
       <Route path="/primeiro-acesso" element={<FirstAccess />} />
       <Route path="/set-password" element={<FirstAccess />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/agendar/:slug" element={<BookingPage />} />
-      <Route path="/agendar/:slug/login" element={<BookingLogin />} />
-      <Route path="/agendar/:slug/cadastro" element={<BookingRegister />} />
-      <Route path="/agendar/:slug/confirmado" element={<BookingSuccess />} />
+      <Route path="/agendar/:slug" element={
+        <ErrorBoundary fallback={
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#1f2933' }}>
+            <h3>Nao foi possivel carregar o agendamento</h3>
+            <p style={{ color: '#667085' }}>Tente novamente ou entre em contato com a barbearia.</p>
+          </div>
+        }>
+          <BookingPage />
+        </ErrorBoundary>
+      } />
+      <Route path="/agendar/:slug/login" element={
+        <ErrorBoundary fallback={
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#1f2933' }}>
+            <h3>Nao foi possivel carregar o agendamento</h3>
+            <p style={{ color: '#667085' }}>Tente novamente ou entre em contato com a barbearia.</p>
+          </div>
+        }>
+          <BookingLogin />
+        </ErrorBoundary>
+      } />
+      <Route path="/agendar/:slug/cadastro" element={
+        <ErrorBoundary fallback={
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#1f2933' }}>
+            <h3>Nao foi possivel carregar o agendamento</h3>
+            <p style={{ color: '#667085' }}>Tente novamente ou entre em contato com a barbearia.</p>
+          </div>
+        }>
+          <BookingRegister />
+        </ErrorBoundary>
+      } />
+      <Route path="/agendar/:slug/confirmado" element={
+        <ErrorBoundary fallback={
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#1f2933' }}>
+            <h3>Nao foi possivel carregar o agendamento</h3>
+            <p style={{ color: '#667085' }}>Tente novamente ou entre em contato com a barbearia.</p>
+          </div>
+        }>
+          <BookingSuccess />
+        </ErrorBoundary>
+      } />
       <Route path="/confirmar-email" element={<ConfirmEmail />} />
       <Route
         path="/agendar/:slug/minha-conta"
         element={
-          <BookingPrivateRoute>
-            <BookingArea />
-          </BookingPrivateRoute>
+          <ErrorBoundary fallback={
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#1f2933' }}>
+              <h3>Nao foi possivel carregar o agendamento</h3>
+              <p style={{ color: '#667085' }}>Tente novamente ou entre em contato com a barbearia.</p>
+            </div>
+          }>
+            <BookingPrivateRoute>
+              <BookingArea />
+            </BookingPrivateRoute>
+          </ErrorBoundary>
         }
       />
       <Route
         path="/agendar/:slug/perfil"
         element={
-          <BookingPrivateRoute>
-            <BookingProfile />
-          </BookingPrivateRoute>
+          <ErrorBoundary fallback={
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#1f2933' }}>
+              <h3>Nao foi possivel carregar o agendamento</h3>
+              <p style={{ color: '#667085' }}>Tente novamente ou entre em contato com a barbearia.</p>
+            </div>
+          }>
+            <BookingPrivateRoute>
+              <BookingProfile />
+            </BookingPrivateRoute>
+          </ErrorBoundary>
         }
       />
       <Route path="/cliente/agendamentos" element={<Navigate to="/barber/login" replace />} />
@@ -148,7 +207,7 @@ function App() {
         }
       />
       <Route
-        path="/barber/agenda"
+        path="/barber/agenda/*"
         element={
           <BarberPrivateRoute>
             <BarberDashboard />
@@ -164,7 +223,7 @@ function App() {
         }
       />
       <Route
-        path="/barber/servicos"
+        path="/barber/servicos/*"
         element={
           <BarberPrivateRoute>
             <BarberDashboard />
@@ -172,7 +231,7 @@ function App() {
         }
       />
       <Route
-        path="/barber/clientes"
+        path="/barber/clientes/*"
         element={
           <BarberPrivateRoute>
             <BarberDashboard />
@@ -265,6 +324,7 @@ function App() {
       <Route path="/settings" element={<Navigate to="/master/settings" replace />} />
       <Route path="*" element={<Navigate to="/barber/login" replace />} />
     </Routes>
+    </Suspense>
   )
 }
 

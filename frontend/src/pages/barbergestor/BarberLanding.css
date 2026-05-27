@@ -1,0 +1,159 @@
+@import './tokens/index.css';
+
+.barber-landing {
+  --font-sans: Inter, 'SF Pro Display', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-feature-settings: 'ss01' 1;
+  color: var(--ink);
+  background: var(--surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+.barber-landing * {
+  box-sizing: border-box;
+}
+
+.barber-landing a {
+  font-weight: inherit;
+}
+
+.barber-landing img {
+  max-width: 100%;
+  display: block;
+}
+
+.bl-section {
+  padding: var(--space-section) 0;
+}
+
+.bl-section--dark {
+  background: var(--brand-dark-900);
+  color: var(--on-dark);
+}
+
+.bl-section--cream {
+  background: var(--surface-cream);
+}
+
+.bl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-weight: 400;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.bl-btn:hover {
+  text-decoration: none;
+}
+
+.bl-btn--primary {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: var(--primary);
+}
+
+.bl-btn--primary:hover {
+  background: var(--primary-deep);
+  border-color: var(--primary-deep);
+}
+
+.bl-btn--secondary {
+  background: transparent;
+  color: var(--primary);
+  border-color: var(--hairline);
+}
+
+.bl-btn--secondary:hover {
+  background: var(--surface-soft);
+  border-color: var(--primary);
+}
+
+.bl-btn--sm {
+  font: var(--text-button-sm);
+  padding: 6px 14px;
+  min-height: 36px;
+}
+
+.bl-btn--md {
+  font: var(--text-button-md);
+  padding: 8px 20px;
+  min-height: 44px;
+}
+
+.bl-btn--lg {
+  font: var(--text-button-md);
+  padding: 10px 28px;
+  min-height: 48px;
+  font-size: 16px;
+}
+
+.bl-section-title {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.bl-section-title--left {
+  text-align: left;
+  margin: 0;
+}
+
+.bl-section-title__label {
+  display: inline-flex;
+  align-items: center;
+  font: var(--text-micro-cap);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--primary);
+  background: var(--primary-subdued);
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  margin-bottom: var(--space-lg);
+}
+
+.bl-section-title__h {
+  font: var(--text-display-lg);
+  color: var(--ink);
+  margin: 0 0 var(--space-lg);
+}
+
+.bl-section--dark .bl-section-title__h {
+  color: var(--on-dark);
+}
+
+.bl-section--dark .bl-section-title__label {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.8);
+}
+
+.bl-section-title__sub {
+  font: var(--text-body-lg);
+  color: var(--ink-mute);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.bl-section--dark .bl-section-title__sub {
+  color: rgba(255,255,255,0.5);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import api from '../../services/api'
+import { CustomerSidePanel } from '../../components/premium'
 
 function formatDate(value) {
   if (!value) {
@@ -23,6 +24,15 @@ function statusLabel(status) {
   }[status] || status
 }
 
+const estiloAvatar = {
+  width: 40, height: 40, borderRadius: '50%',
+  background: 'var(--barber-panel-soft)',
+  border: '1px solid var(--barber-border)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  fontWeight: 600, fontSize: 14, color: 'var(--barber-text)',
+  cursor: 'pointer', flexShrink: 0
+}
+
 function ClientesBarber() {
   const [loading, setLoading] = useState(true)
   const [savingId, setSavingId] = useState('')
@@ -30,6 +40,7 @@ function ClientesBarber() {
   const [success, setSuccess] = useState('')
   const [filters, setFilters] = useState({ search: '', status: 'all' })
   const [result, setResult] = useState({ total: 0, items: [] })
+  const [selectedCustomer, setSelectedCustomer] = useState(null)
 
   async function loadCustomers(currentFilters = filters) {
     setLoading(true)
@@ -144,7 +155,10 @@ function ClientesBarber() {
         <div className="barber-customers-list">
           {result.items.map((customer) => (
             <article className="barber-customers-card" key={customer.id}>
-              <div className="barber-customers-card-main">
+              <div style={estiloAvatar} onClick={() => setSelectedCustomer(customer)}>
+                {(customer.name || '?').slice(0, 2).toUpperCase()}
+              </div>
+              <div className="barber-customers-card-main" onClick={() => setSelectedCustomer(customer)} style={{ cursor: 'pointer' }}>
                 <strong>{customer.name}</strong>
                 <span>{customer.email}</span>
                 <span>{customer.phone || 'Telefone nao informado'}</span>
@@ -175,6 +189,12 @@ function ClientesBarber() {
           ))}
         </div>
       )}
+
+      <CustomerSidePanel
+        customer={selectedCustomer}
+        open={!!selectedCustomer}
+        onClose={() => setSelectedCustomer(null)}
+      />
     </section>
   )
 }

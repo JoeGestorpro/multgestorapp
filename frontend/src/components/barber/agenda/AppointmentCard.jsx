@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import CollaboratorAvatar from '../CollaboratorAvatar'
 
 const STATUS_LABELS = {
@@ -11,7 +12,7 @@ const STATUS_LABELS = {
   blocked: 'Bloqueado'
 }
 
-export default function AppointmentCard({
+function AppointmentCard({
   appointment,
   top,
   height,
@@ -35,17 +36,25 @@ export default function AppointmentCard({
       type="button"
     >
       <div className="agenda-appointment-head">
+        <span className="agenda-appointment-status-dot" />
         <span className="agenda-appointment-status">
           {STATUS_LABELS[appointment.status] || 'Agendado'}
         </span>
         <small>{appointment.timeCompactLabel || appointment.timeLabel || '--:--'}</small>
       </div>
-      <strong>{appointment.service_name || appointment.reason || 'Servico'}</strong>
-      <p>{appointment.customer_name || 'Cliente'}</p>
-      <small>{appointment.slotLabel || '-'}</small>
-      {appointment.status !== 'blocked' && (
+      <strong className="agenda-appointment-customer">
+        {appointment.customer_name || 'Cliente'}
+      </strong>
+      <p className="agenda-appointment-service">
+        {appointment.service_name || appointment.reason || 'Servico'}
+      </p>
+      <small className="agenda-appointment-meta">
+        {appointment.collaborator_name || appointment.slotLabel || '-'}
+        {appointment.duration_label ? ` · ${appointment.duration_label}` : ''}
+      </small>
+      {appointment.status !== 'blocked' && appointment.customer_avatar_url && (
         <CollaboratorAvatar
-          avatarUrl={appointment.customer_avatar_url || ''}
+          avatarUrl={appointment.customer_avatar_url}
           className="agenda-appointment-avatar"
           name={appointment.customer_name}
           size="sm"
@@ -54,3 +63,5 @@ export default function AppointmentCard({
     </button>
   )
 }
+
+export default memo(AppointmentCard)

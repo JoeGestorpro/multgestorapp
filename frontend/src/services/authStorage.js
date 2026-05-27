@@ -1,50 +1,48 @@
+// ATENÇÃO: tokens agora ficam em memória (não mais localStorage).
+// Persistência entre reloads é feita via HttpOnly cookie no backend
+// chamando POST /api/auth/refresh no mount do AuthContext.
+// Ref: CF-009
+
+const _tokenStore = new Map()
+// Chaves: 'booking_customer_token', 'barber_admin_token', 'master_admin_token'
+
+let _activeBackofficeScope = null
+
 export const AUTH_TOKEN_KEYS = {
   booking: 'booking_customer_token',
-  barber: 'barber_admin_token',
-  master: 'master_admin_token'
+  barber:  'barber_admin_token',
+  master:  'master_admin_token'
 }
-
-const ACTIVE_BACKOFFICE_SCOPE_KEY = 'backoffice_active_scope'
 
 export function getStoredToken(scope) {
   const key = AUTH_TOKEN_KEYS[scope]
-  return key ? window.localStorage.getItem(key) : null
+  return key ? (_tokenStore.get(key) || null) : null
 }
 
 export function setStoredToken(scope, token) {
   const key = AUTH_TOKEN_KEYS[scope]
-
-  if (!key) {
-    return
-  }
-
+  if (!key) return
   if (token) {
-    window.localStorage.setItem(key, token)
-    return
+    _tokenStore.set(key, token)
+  } else {
+    _tokenStore.delete(key)
   }
-
-  window.localStorage.removeItem(key)
 }
 
 export function clearStoredToken(scope) {
-  setStoredToken(scope, '')
+  setStoredToken(scope, null)
 }
 
 export function getActiveBackofficeScope() {
-  return window.localStorage.getItem(ACTIVE_BACKOFFICE_SCOPE_KEY)
+  return _activeBackofficeScope
 }
 
 export function setActiveBackofficeScope(scope) {
-  if (scope) {
-    window.localStorage.setItem(ACTIVE_BACKOFFICE_SCOPE_KEY, scope)
-    return
-  }
-
-  window.localStorage.removeItem(ACTIVE_BACKOFFICE_SCOPE_KEY)
+  _activeBackofficeScope = scope || null
 }
 
 export function getDefaultBackofficeToken() {
-  const activeScope = getActiveBackofficeScope()
+  const activeScope = _activeBackofficeScope
 
   if (activeScope === 'master' || activeScope === 'barber') {
     return getStoredToken(activeScope)

@@ -14,6 +14,21 @@
   --barber-blue: #5ca8ff;
   --barber-red: #fb7185;
   --barber-yellow: #facc15;
+  --barber-violet: #a78bfa;
+  --barber-emerald: #34d399;
+  --barber-purple: #c084fc;
+  --barber-rose: #fb7185;
+
+  --cat-corte: #8cff4f;
+  --cat-barba: #f4c86c;
+  --cat-combo: #a78bfa;
+  --cat-estetica: #5ca8ff;
+  --cat-coloracao: #a78bfa;
+  --cat-quimica: #fb7185;
+  --cat-infantil: #34d399;
+  --cat-premium: #f4c86c;
+  --cat-spa: #c084fc;
+  --cat-outros: #94a3b8;
   background:
     linear-gradient(140deg, rgba(140, 255, 79, 0.09), transparent 28%),
     linear-gradient(180deg, #080b10 0%, #0d131a 52%, #07090d 100%);
@@ -393,6 +408,13 @@
   color: var(--barber-muted);
   margin: 0;
   max-width: 760px;
+}
+
+.barber-page-hero-meta {
+  margin-top: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
 .barber-page-actions {
@@ -1241,9 +1263,721 @@
 }
 
 .barber-service-premium-card:hover .barber-service-premium-actions,
-.barber-service-premium-card:focus-within .barber-service-premium-actions {
+.barber-service-premium-card:focus-within .barber-service-premium-actions,
+.barber-service-premium-card.mobile-visible .barber-service-premium-actions {
   opacity: 1;
   transform: translateY(0);
+}
+
+.barber-service-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.barber-service-card-icon .barber-service-symbol {
+  transition: transform 0.2s ease;
+}
+
+.barber-service-premium-card:hover .barber-service-card-icon {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 16px rgba(140, 255, 79, 0.15);
+}
+
+.barber-service-premium-card:hover .barber-service-card-icon .barber-service-symbol {
+  transform: scale(1.1);
+}
+
+.barber-service-card[data-category="corte"] {
+  border-left: 3px solid var(--cat-corte);
+}
+.barber-service-card[data-category="barba"] {
+  border-left: 3px solid var(--cat-barba);
+}
+.barber-service-card[data-category="combo"] {
+  border-left: 3px solid var(--cat-combo);
+}
+.barber-service-card[data-category="estetica"] {
+  border-left: 3px solid var(--cat-estetica);
+}
+.barber-service-card[data-category="coloracao"] {
+  border-left: 3px solid var(--cat-coloracao);
+}
+.barber-service-card[data-category="quimica"] {
+  border-left: 3px solid var(--cat-quimica);
+}
+.barber-service-card[data-category="infantil"] {
+  border-left: 3px solid var(--cat-infantil);
+}
+.barber-service-card[data-category="premium"] {
+  border-left: 3px solid var(--cat-premium);
+}
+.barber-service-card[data-category="spa"] {
+  border-left: 3px solid var(--cat-spa);
+}
+.barber-service-card[data-category="outros"] {
+  border-left: 3px solid var(--cat-outros);
+}
+
+.barber-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.barber-category-badge.corte {
+  background: rgba(140, 255, 79, 0.15);
+  color: #8cff4f;
+  border: 1px solid rgba(140, 255, 79, 0.25);
+}
+
+.barber-category-badge.barba {
+  background: rgba(244, 200, 108, 0.15);
+  color: #f4c86c;
+  border: 1px solid rgba(244, 200, 108, 0.25);
+}
+
+.barber-category-badge.combo {
+  background: rgba(167, 139, 250, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(167, 139, 250, 0.25);
+}
+
+.barber-category-badge.estetica,
+.barber-category-badge.coloracao {
+  background: rgba(92, 168, 255, 0.15);
+  color: #5ca8ff;
+  border: 1px solid rgba(92, 168, 255, 0.25);
+}
+
+.barber-category-badge.quimica {
+  background: rgba(251, 113, 133, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(251, 113, 133, 0.25);
+}
+
+.barber-category-badge.infantil {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.25);
+}
+
+.barber-category-badge.premium {
+  background: rgba(244, 200, 108, 0.15);
+  color: #f4c86c;
+  border: 1px solid rgba(244, 200, 108, 0.25);
+}
+
+.barber-category-badge.spa {
+  background: rgba(192, 132, 252, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(192, 132, 252, 0.25);
+}
+
+.barber-category-badge.outros {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.barber-services-category-tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.barber-services-category-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.barber-category-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  color: var(--barber-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.barber-category-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--barber-text);
+}
+
+.barber-category-tab.active {
+  background: rgba(140, 255, 79, 0.1);
+  border-color: rgba(140, 255, 79, 0.25);
+  color: var(--barber-accent);
+}
+
+.barber-category-tab[data-category="corte"].active {
+  background: rgba(140, 255, 79, 0.12);
+  border-color: rgba(140, 255, 79, 0.3);
+  color: #8cff4f;
+}
+
+.barber-category-tab[data-category="barba"].active {
+  background: rgba(244, 200, 108, 0.12);
+  border-color: rgba(244, 200, 108, 0.3);
+  color: #f4c86c;
+}
+
+.barber-category-tab[data-category="combo"].active {
+  background: rgba(167, 139, 250, 0.12);
+  border-color: rgba(167, 139, 250, 0.3);
+  color: #a78bfa;
+}
+
+.barber-category-tab[data-category="estetica"].active,
+.barber-category-tab[data-category="coloracao"].active {
+  background: rgba(92, 168, 255, 0.12);
+  border-color: rgba(92, 168, 255, 0.3);
+  color: #5ca8ff;
+}
+
+.barber-category-tab[data-category="quimica"].active {
+  background: rgba(251, 113, 133, 0.12);
+  border-color: rgba(251, 113, 133, 0.3);
+  color: #fb7185;
+}
+
+.barber-category-tab[data-category="infantil"].active {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #34d399;
+}
+
+.barber-category-tab[data-category="premium"].active {
+  background: rgba(244, 200, 108, 0.12);
+  border-color: rgba(244, 200, 108, 0.3);
+  color: #f4c86c;
+}
+
+.barber-category-tab[data-category="spa"].active {
+  background: rgba(192, 132, 252, 0.12);
+  border-color: rgba(192, 132, 252, 0.3);
+  color: #c084fc;
+}
+
+.barber-category-tab-count {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+}
+
+.barber-category-tab.active .barber-category-tab-count {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.barber-service-category-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.barber-service-duration {
+  color: var(--barber-muted);
+  font-size: 12px;
+}
+
+.barber-service-description {
+  color: var(--barber-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.barber-service-premium-price {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(140, 255, 79, 0.06), rgba(140, 255, 79, 0.02));
+  border: 1px solid rgba(140, 255, 79, 0.12);
+  border-radius: 14px;
+}
+
+.barber-service-price-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--barber-muted);
+}
+
+.barber-service-price-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--barber-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.barber-service-icon-preview {
+  width: 52px;
+  height: 52px;
+}
+
+.barber-icon-option.active .barber-icon-preview {
+  background: rgba(140, 255, 79, 0.1);
+}
+
+.smart-service-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.smart-service-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.smart-service-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--barber-muted);
+}
+
+.smart-service-templates {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.smart-service-templates-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--barber-soft);
+  margin-bottom: 12px;
+}
+
+.smart-service-templates-header svg {
+  color: var(--barber-accent);
+}
+
+.smart-service-templates-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.smart-template-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  font-size: 11px;
+  color: var(--barber-soft);
+}
+
+.smart-template-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.smart-template-item.selected {
+  background: rgba(140, 255, 79, 0.08);
+  border-color: rgba(140, 255, 79, 0.25);
+  color: var(--barber-accent);
+}
+
+.smart-template-item.selected::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  box-shadow: 0 0 12px rgba(140, 255, 79, 0.15);
+  pointer-events: none;
+}
+
+.template-check {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: var(--barber-accent);
+}
+
+.smart-name-field {
+  position: relative;
+}
+
+.smart-name-input {
+  padding-right: 44px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.smart-name-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--barber-accent);
+  opacity: 0.6;
+}
+
+.smart-service-suggestions {
+  margin-top: 8px;
+  background: rgba(20, 27, 38, 0.98);
+  border: 1px solid rgba(140, 255, 79, 0.15);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.smart-suggestions-label {
+  display: block;
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--barber-muted);
+}
+
+.smart-suggestions-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.smart-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-size: 13px;
+  color: var(--barber-text);
+  border: none;
+  background: none;
+  text-align: left;
+}
+
+.smart-suggestion-item:hover {
+  background: rgba(140, 255, 79, 0.08);
+}
+
+.smart-suggestion-item span:first-of-type {
+  flex: 1;
+}
+
+.suggestion-meta {
+  font-size: 11px;
+  color: var(--barber-muted);
+}
+
+.smart-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.smart-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.smart-form-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--barber-soft);
+}
+
+.quick-time-selector {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.quick-time-btn {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--barber-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quick-time-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--barber-text);
+}
+
+.quick-time-btn.active {
+  background: rgba(140, 255, 79, 0.12);
+  border-color: rgba(140, 255, 79, 0.3);
+  color: var(--barber-accent);
+}
+
+.smart-category-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.smart-category-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--barber-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.smart-category-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--barber-text);
+}
+
+.smart-category-tab.active {
+  background: rgba(140, 255, 79, 0.1);
+  border-color: rgba(140, 255, 79, 0.25);
+  color: var(--barber-accent);
+}
+
+.smart-icon-section {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.smart-icon-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+}
+
+.smart-icon-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--barber-muted);
+}
+
+.smart-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.smart-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--barber-muted);
+  position: relative;
+}
+
+.smart-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--barber-text);
+}
+
+.smart-icon-btn.active {
+  background: rgba(140, 255, 79, 0.1);
+  border-color: rgba(140, 255, 79, 0.4);
+}
+
+.icon-check {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  color: var(--barber-accent);
+}
+
+.smart-service-actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: 8px;
+}
+
+.smart-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+}
+
+.smart-action-btn.cancel {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--barber-muted);
+  flex: 0 0 auto;
+}
+
+.smart-action-btn.cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--barber-text);
+}
+
+.smart-action-btn.continue {
+  background: rgba(140, 255, 79, 0.1);
+  color: var(--barber-accent);
+  flex: 0 0 auto;
+}
+
+.smart-action-btn.continue:hover {
+  background: rgba(140, 255, 79, 0.15);
+}
+
+.smart-action-btn.submit {
+  background: var(--barber-accent);
+  color: #05070b;
+  flex: 1;
+}
+
+.smart-action-btn.submit:hover {
+  background: #9aff3d;
+}
+
+.smart-action-btn.submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .smart-service-templates-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .smart-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .smart-icon-section {
+    grid-template-columns: 1fr;
+  }
+
+  .smart-icon-preview {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .smart-service-actions {
+    flex-wrap: wrap;
+  }
+
+.barber-service-premium-actions .barber-button-danger,
+.barber-service-premium-actions .barber-button-secondary {
+  display: none;
+}
+
+.barber-service-premium-card:hover .barber-service-premium-actions .barber-button-danger,
+.barber-service-premium-card:hover .barber-service-premium-actions .barber-button-secondary,
+.barber-service-premium-card.mobile-visible .barber-service-premium-actions .barber-button-danger,
+.barber-service-premium-card.mobile-visible .barber-service-premium-actions .barber-button-secondary {
+  display: inline-flex;
+}
+
+.barber-service-duplicate-btn {
+  display: none;
+  padding: 6px 10px;
+  background: rgba(167, 139, 250, 0.1);
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  border-radius: 8px;
+  color: #a78bfa;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  align-items: center;
+  gap: 4px;
+}
+
+.barber-service-duplicate-btn:hover {
+  background: rgba(167, 139, 250, 0.15);
+  border-color: rgba(167, 139, 250, 0.3);
+}
+
+.barber-service-premium-card:hover .barber-service-duplicate-btn,
+.barber-service-premium-card.mobile-visible .barber-service-duplicate-btn {
+  display: inline-flex;
+}
+
+.smart-action-btn.submit {
+    flex: 1 1 100%;
+  }
+
+  .quick-time-selector {
+    justify-content: flex-start;
+  }
 }
 
 .barber-drawer-root {
@@ -1683,36 +2417,68 @@
 }
 
 .barber-sales-picker-toolbar {
-  display: grid;
-  gap: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 4px;
+}
+
+.barber-sales-picker-toolbar .barber-form-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.barber-sales-picker-toolbar .barber-form-block label {
+  display: none;
+}
+
+.barber-sales-picker-toolbar .barber-sales-search .barber-input {
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.barber-sales-picker-toolbar .barber-sales-filter-group {
+  flex-shrink: 0;
+}
+
+.barber-sales-picker-toolbar .barber-sales-filter {
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 11px;
 }
 
 .barber-sales-picker-grid {
   display: grid;
-  gap: 14px;
+  gap: 8px;
 }
 
 .barber-sales-picker-card {
   align-items: center;
   background: rgba(24, 34, 49, 0.74);
   border: 1px solid rgba(148, 163, 184, 0.12);
-  border-radius: 22px;
-  display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(0, 1fr) auto;
-  padding: 16px 18px;
+  border-radius: 18px;
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
 }
 
 .barber-sales-picker-main,
 .barber-sales-picker-side {
   align-items: center;
   display: flex;
-  gap: 14px;
+  gap: 10px;
+}
+
+.barber-sales-picker-main {
+  flex: 1;
+  min-width: 0;
 }
 
 .barber-sales-picker-side {
-  align-items: flex-end;
-  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .barber-sales-catalog-grid {
@@ -1741,6 +2507,52 @@
   background: linear-gradient(135deg, rgba(182, 255, 0, 0.16), rgba(24, 34, 49, 0.86));
   border-color: rgba(182, 255, 0, 0.34);
   box-shadow: 0 18px 34px rgba(182, 255, 0, 0.1);
+}
+
+.barber-sales-catalog-card.selected .barber-sales-catalog-icon {
+  background: rgba(182, 255, 0, 0.18);
+}
+
+.barber-sales-picker-card .barber-sales-catalog-icon {
+  height: 36px;
+  width: 36px;
+  flex-shrink: 0;
+  border-radius: 10px;
+}
+
+.barber-sales-picker-card .barber-sales-catalog-icon .barber-service-symbol {
+  height: 20px;
+  width: 20px;
+}
+
+.barber-sales-picker-card .barber-sales-catalog-name {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.barber-sales-picker-card .barber-sales-catalog-type {
+  font-size: 11px;
+  color: #93a4b6;
+}
+
+.barber-sales-picker-card .barber-sales-catalog-price {
+  font-size: 14px;
+  font-weight: 800;
+  color: #8cff4f;
+  white-space: nowrap;
+}
+
+.barber-sales-picker-card .barber-button {
+  padding: 6px 12px;
+  font-size: 12px;
+  min-height: 34px;
+  border-radius: 10px;
+}
+
+.barber-sales-picker-card .barber-button .barber-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .barber-sales-catalog-icon,
@@ -4075,7 +4887,7 @@
   border-radius: 22px;
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  grid-template-columns: 44px minmax(0, 1.4fr) minmax(0, 1fr) auto;
   padding: 20px;
 }
 
@@ -5281,24 +6093,24 @@
   box-sizing: border-box;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  height: min(880px, calc(100vh - 32px));
-  max-height: calc(100vh - 32px);
-  max-width: 1180px;
+  grid-template-rows: auto 1fr;
+  height: min(720px, calc(100vh - 40px));
+  max-height: calc(100vh - 40px);
+  max-width: 900px;
   min-width: 0;
   opacity: 1;
   overflow: hidden;
-  padding: 24px;
+  padding: 20px;
   position: relative;
   z-index: 41;
-  width: min(1180px, calc(100vw - 32px));
+  width: min(900px, calc(100vw - 40px));
 }
 
 .barber-modal-header {
   background: #111827;
   border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-  margin: -24px -24px 0;
-  padding: 24px;
+  margin: -20px -20px 0;
+  padding: 16px 20px;
   position: sticky;
   top: 0;
   z-index: 5;
@@ -5318,7 +6130,7 @@
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding-top: 20px;
+  padding-top: 16px;
   width: 100%;
 }
 
@@ -5561,22 +6373,7 @@
   padding: 20px;
 }
 
-.barber-settings-logo-placeholder {
-  align-items: center;
-  background: radial-gradient(circle at 30% 20%, rgba(251, 191, 36, 0.24), rgba(15, 23, 42, 0.98));
-  border: 1px solid rgba(251, 191, 36, 0.2);
-  border-radius: 22px;
-  color: #fbbf24;
-  display: inline-flex;
-  height: 72px;
-  justify-content: center;
-  width: 72px;
-}
 
-.barber-settings-logo-placeholder .barber-icon {
-  height: 28px;
-  width: 28px;
-}
 
 .barber-settings-meta {
   display: grid;
@@ -5675,7 +6472,395 @@
   color: rgba(226, 232, 240, 0.72);
 }
 
+.barber-settings-grid *,
+.barber-settings-card * {
+  box-sizing: border-box;
+}
+
+.barber-settings-grid h1,
+.barber-settings-grid h2,
+.barber-settings-grid h3,
+.barber-settings-grid p,
+.barber-settings-grid strong,
+.barber-settings-grid span {
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+.barber-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.barber-settings-field > span {
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.barber-settings-field > input,
+.barber-settings-field > textarea {
+  background: linear-gradient(180deg, rgba(23, 32, 51, 0.98), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  color: #f8fafc;
+  min-height: 48px;
+  outline: 0;
+  padding: 0 14px;
+  width: 100%;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.barber-settings-field > textarea {
+  min-height: 100px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.barber-settings-field > input:focus,
+.barber-settings-field > textarea:focus {
+  border-color: #a3ff12;
+  box-shadow: 0 0 0 3px rgba(163, 255, 18, 0.12), 0 0 24px rgba(163, 255, 18, 0.08);
+  background: linear-gradient(180deg, rgba(23, 32, 51, 1), rgba(17, 26, 43, 1));
+}
+
+.barber-settings-field > input::placeholder,
+.barber-settings-field > textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+.barber-settings-logo-section {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.barber-settings-logo-preview-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160px;
+  height: 160px;
+  border-radius: 20px;
+  background: radial-gradient(circle at 30% 20%, rgba(140, 255, 79, 0.08), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.barber-settings-logo-preview-area:hover {
+  border-color: rgba(140, 255, 79, 0.25);
+  box-shadow: 0 0 24px rgba(140, 255, 79, 0.08);
+}
+
+.barber-settings-logo-preview-area:has(.barber-settings-logo-img) {
+  background: rgba(8, 12, 18, 0.9);
+}
+
+.barber-settings-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 12px;
+}
+
+.barber-settings-logo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(148, 163, 184, 0.5);
+}
+
+.barber-settings-logo-placeholder svg {
+  width: 48px;
+  height: 48px;
+}
+
+.barber-settings-logo-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.barber-settings-logo-upload-btn {
+  align-items: center;
+  background: linear-gradient(180deg, rgba(23, 32, 51, 0.98), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  color: #e5e7eb;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 10px;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 20px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  width: fit-content;
+}
+
+.barber-settings-logo-upload-btn:hover {
+  border-color: rgba(182, 255, 0, 0.35);
+  color: #ffffff;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.9), rgba(20, 30, 50, 0.95));
+}
+
+.barber-settings-logo-input {
+  display: none;
+}
+
+.barber-settings-logo-hint {
+  color: rgba(226, 232, 240, 0.5);
+  font-size: 12px;
+  margin: 0;
+}
+
+.barber-settings-logo-remove-btn {
+  align-items: center;
+  background: transparent;
+  border: 1px solid rgba(251, 113, 133, 0.2);
+  border-radius: 12px;
+  color: rgba(251, 113, 133, 0.7);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  width: fit-content;
+}
+
+.barber-settings-logo-remove-btn:hover {
+  background: rgba(251, 113, 133, 0.1);
+  border-color: rgba(251, 113, 133, 0.35);
+  color: #ffd6dd;
+}
+
+.barber-settings-colors {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.barber-settings-color-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.barber-settings-color-row input[type="color"] {
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  padding: 3px;
+  flex-shrink: 0;
+}
+
+.barber-settings-color-row input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.barber-settings-color-row input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 8px;
+}
+
+.barber-settings-color-row input[type="text"] {
+  background: linear-gradient(180deg, rgba(23, 32, 51, 0.98), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  color: #f8fafc;
+  min-height: 48px;
+  outline: 0;
+  padding: 0 12px;
+  width: 100%;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.barber-settings-color-row input[type="text"]:focus {
+  border-color: #a3ff12;
+  box-shadow: 0 0 0 3px rgba(163, 255, 18, 0.12);
+}
+
+.barber-settings-prefs {
+  display: grid;
+  gap: 16px;
+}
+
+.barber-settings-menu-header {
+  margin-bottom: 28px;
+}
+
+.barber-settings-menu-header span {
+  color: #a3ff12;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.barber-settings-menu-header h3 {
+  color: #f1f5f9;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 6px 0 0;
+}
+
+.barber-settings-menu-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.barber-settings-menu-card {
+  align-items: center;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(10, 14, 20, 0.84));
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 18px;
+  cursor: pointer;
+  display: flex;
+  gap: 18px;
+  padding: 22px 24px;
+  text-align: left;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+  width: 100%;
+}
+
+.barber-settings-menu-card:hover {
+  border-color: rgba(163, 255, 18, 0.35);
+  box-shadow: 0 0 0 3px rgba(163, 255, 18, 0.08);
+  transform: translateY(-1px);
+}
+
+.barber-settings-menu-card:active {
+  transform: translateY(0);
+}
+
+.barber-settings-menu-card-icon {
+  align-items: center;
+  background: linear-gradient(135deg, rgba(163, 255, 18, 0.15), rgba(163, 255, 18, 0.05));
+  border-radius: 14px;
+  color: #a3ff12;
+  display: flex;
+  flex-shrink: 0;
+  height: 52px;
+  justify-content: center;
+  width: 52px;
+}
+
+.barber-settings-menu-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.barber-settings-menu-card-content strong {
+  color: #f1f5f9;
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.barber-settings-menu-card-content p {
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.barber-settings-menu-card-arrow {
+  color: #475569;
+  flex-shrink: 0;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.barber-settings-menu-card:hover .barber-settings-menu-card-arrow {
+  color: #a3ff12;
+  transform: translateX(3px);
+}
+
+.barber-settings-back-row {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.barber-settings-back-btn {
+  align-items: center;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 10px;
+  color: #cbd5e1;
+  cursor: pointer;
+  display: flex;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.barber-settings-back-btn:hover {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #f1f5f9;
+}
+
+.barber-settings-back-row .barber-overline {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
 @media (max-width: 860px) {
+  .barber-settings-logo-section {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .barber-settings-logo-preview-area {
+    width: 140px;
+    height: 140px;
+  }
+
+  .barber-settings-logo-upload-btn {
+    width: 100%;
+  }
+
+  .barber-settings-logo-remove-btn {
+    width: 100%;
+  }
+
+  .barber-settings-colors {
+    grid-template-columns: 1fr;
+  }
+
+  .barber-settings-field > input,
+  .barber-settings-field > textarea,
+  .barber-settings-color-row input[type="text"] {
+    min-height: 44px;
+  }
+
   .barber-topbar,
   .barber-page-hero,
   .barber-topbar-actions {
@@ -7559,5 +8744,596 @@
   .agenda-status-hero {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .barber-service-premium-card {
+    min-height: 0;
+    padding: 16px;
+  }
+
+  .barber-service-premium-card .barber-service-premium-actions {
+    opacity: 1;
+    transform: none;
+  }
+
+  .barber-service-premium-meta {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .barber-service-card-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .barber-service-premium-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .barber-services-hero-copy {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .barber-services-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .barber-services-toolbar {
+    flex-direction: column;
+  }
+
+  .barber-services-toolbar-search,
+  .barber-services-toolbar-filter {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .barber-service-fab {
+    display: flex;
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: var(--barber-accent);
+    color: #05070b;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 700;
+    box-shadow: 0 4px 16px rgba(140, 255, 79, 0.3);
+    z-index: 50;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .barber-service-fab:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(140, 255, 79, 0.4);
+  }
+
+  .barber-service-fab:active {
+    transform: scale(0.95);
+  }
+
+  .barber-icon-picker-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .barber-icon-filter {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .barber-service-premium-meta {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .barber-service-premium-card {
+    border-radius: 16px;
+  }
+
+  .barber-service-premium-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .barber-services-hero-copy h2 {
+    font-size: 28px;
+  }
+}
+
+/* =============================================================================
+   BOOKING LANDING CONFIG - PREMIUM STYLES
+   ============================================================================= */
+
+.barber-booking-landing-config {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  max-width: 1200px;
+}
+
+.barber-booking-landing-config .barber-settings-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--barber-panel-soft);
+  padding: 6px;
+  border-radius: 16px;
+  width: fit-content;
+}
+
+.barber-booking-landing-config .barber-settings-tabs button {
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: var(--barber-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.barber-booking-landing-config .barber-settings-tabs button.active {
+  background: var(--barber-accent);
+  color: #000;
+}
+
+.barber-booking-landing-config .barber-settings-tabs button:hover:not(.active) {
+  color: var(--barber-soft);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.barber-booking-landing-config .barber-form-success {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #4ade80;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.barber-booking-landing-config .barber-form-error {
+  background: rgba(251, 113, 133, 0.15);
+  border: 1px solid rgba(251, 113, 133, 0.3);
+  color: #f87171;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.barber-booking-landing-config .barber-settings-card {
+  background: var(--barber-panel);
+  border: 1px solid var(--barber-border);
+  border-radius: 20px;
+  padding: 24px;
+}
+
+.barber-booking-landing-config .barber-overline {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--barber-accent);
+  margin-bottom: 8px;
+}
+
+.barber-booking-landing-config .barber-settings-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--barber-text);
+  margin: 0 0 20px 0;
+}
+
+.barber-booking-landing-config .barber-settings-card h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--barber-soft);
+  margin: 0 0 12px 0;
+}
+
+.barber-booking-landing-config .barber-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.barber-booking-landing-config .barber-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.barber-booking-landing-config .barber-settings-field span {
+  font-size: 13px;
+  color: var(--barber-muted);
+}
+
+.barber-booking-landing-config .barber-settings-field input,
+.barber-booking-landing-config .barber-settings-field textarea {
+  background: var(--barber-bg);
+  border: 1px solid var(--barber-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  color: var(--barber-text);
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.barber-booking-landing-config .barber-settings-field input:focus,
+.barber-booking-landing-config .barber-settings-field textarea:focus {
+  outline: none;
+  border-color: var(--barber-accent);
+  box-shadow: 0 0 0 3px rgba(140, 255, 79, 0.15);
+}
+
+.barber-booking-landing-config .barber-settings-field input::placeholder,
+.barber-booking-landing-config .barber-settings-field textarea::placeholder {
+  color: rgba(147, 164, 182, 0.5);
+}
+
+.barber-booking-landing-config .barber-settings-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.barber-booking-landing-config .barber-settings-color-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.barber-booking-landing-config .barber-settings-color-row input[type="color"] {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+}
+
+.barber-booking-landing-config .barber-settings-color-row input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.barber-booking-landing-config .barber-settings-color-row input[type="color"]::-webkit-color-swatch {
+  border: 2px solid var(--barber-border);
+  border-radius: 10px;
+}
+
+.barber-booking-landing-config .barber-settings-color-row input[type="text"] {
+  width: 100px;
+  background: var(--barber-bg);
+  border: 1px solid var(--barber-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--barber-text);
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.barber-booking-landing-config .barber-settings-color-row .barber-settings-color-label {
+  font-size: 14px;
+  color: var(--barber-soft);
+}
+
+.barber-booking-landing-config .barber-settings-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.barber-booking-landing-config .barber-settings-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.barber-booking-landing-config .barber-settings-toggle input[type="checkbox"] {
+  width: 44px;
+  height: 24px;
+  appearance: none;
+  background: var(--barber-panel-soft);
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.barber-booking-landing-config .barber-settings-toggle input[type="checkbox"]::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--barber-muted);
+  top: 3px;
+  left: 3px;
+  transition: all 0.2s ease;
+}
+
+.barber-booking-landing-config .barber-settings-toggle input[type="checkbox"]:checked {
+  background: var(--barber-accent);
+}
+
+.barber-booking-landing-config .barber-settings-toggle input[type="checkbox"]:checked::before {
+  background: #000;
+  transform: translateX(20px);
+}
+
+.barber-booking-landing-config .barber-settings-toggle span {
+  font-size: 14px;
+  color: var(--barber-soft);
+}
+
+/* Logo Section */
+.barber-booking-landing-config .barber-settings-logo-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.barber-booking-landing-config .barber-settings-logo-preview-area {
+  aspect-ratio: 16/9;
+  background: var(--barber-bg);
+  border: 2px dashed var(--barber-border);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.barber-booking-landing-config .barber-settings-logo-preview-area img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.barber-booking-landing-config .barber-settings-logo-placeholder {
+  color: var(--barber-muted);
+}
+
+.barber-booking-landing-config .barber-settings-logo-placeholder svg {
+  width: 48px;
+  height: 48px;
+}
+
+.barber-booking-landing-config .barber-settings-logo-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.barber-booking-landing-config .barber-settings-logo-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--barber-accent);
+  color: #000;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.barber-booking-landing-config .barber-settings-logo-upload-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.barber-booking-landing-config .barber-settings-logo-upload-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.barber-booking-landing-config .barber-settings-logo-input {
+  display: none;
+}
+
+.barber-booking-landing-config .barber-settings-logo-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(251, 113, 133, 0.15);
+  color: #f87171;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.barber-booking-landing-config .barber-settings-logo-remove-btn:hover {
+  background: rgba(251, 113, 133, 0.25);
+}
+
+.barber-booking-landing-config .barber-settings-logo-remove-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Gallery */
+.barber-booking-landing-config .barber-settings-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.barber-booking-landing-config .barber-settings-gallery-item {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--barber-border);
+}
+
+.barber-booking-landing-config .barber-settings-gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.barber-booking-landing-config .barber-settings-gallery-item button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.barber-booking-landing-config .barber-settings-gallery-item button:hover {
+  background: rgba(251, 113, 133, 0.9);
+}
+
+.barber-booking-landing-config .barber-settings-gallery-upload {
+  aspect-ratio: 1;
+  border: 2px dashed var(--barber-border);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--barber-muted);
+  font-size: 24px;
+  transition: all 0.2s ease;
+}
+
+.barber-booking-landing-config .barber-settings-gallery-upload:hover {
+  border-color: var(--barber-accent);
+  color: var(--barber-accent);
+}
+
+/* Preview Section */
+.barber-booking-landing-preview {
+  background: var(--barber-bg);
+  border: 1px solid var(--barber-border);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-top: 24px;
+}
+
+.barber-booking-landing-preview-header {
+  background: var(--barber-panel-soft);
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--barber-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.barber-booking-landing-preview-header h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--barber-text);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.barber-booking-landing-preview-header h4 svg {
+  width: 18px;
+  height: 18px;
+  color: var(--barber-accent);
+}
+
+.barber-booking-landing-preview-header span {
+  font-size: 12px;
+  color: var(--barber-muted);
+}
+
+.barber-booking-landing-preview-content {
+  padding: 24px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Actions */
+.barber-booking-landing-config .barber-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid var(--barber-border);
+  margin-top: 8px;
+}
+
+.barber-booking-landing-config .barber-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.barber-booking-landing-config .barber-button--primary {
+  background: var(--barber-accent);
+  color: #000;
+}
+
+.barber-booking-landing-config .barber-button--primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(140, 255, 79, 0.25);
+}
+
+.barber-booking-landing-config .barber-button--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.barber-booking-landing-config .barber-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .barber-booking-landing-config {
+    padding: 16px;
+  }
+
+  .barber-booking-landing-config .barber-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .barber-booking-landing-config .barber-settings-logo-section {
+    grid-template-columns: 1fr;
+  }
+
+  .barber-booking-landing-config .barber-settings-gallery-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }

@@ -1,6 +1,7 @@
+import { memo } from 'react'
 import { BarberButton, BarberModal } from '../BarberUI'
 
-export default function AppointmentComposerModal({
+function AppointmentComposerModal({
   open,
   form,
   collaborators,
@@ -11,136 +12,173 @@ export default function AppointmentComposerModal({
   onSubmit,
   submitting
 }) {
-  if (!open) {
-    return null
-  }
+  if (!open) return null
 
   return (
     <BarberModal
       open={open}
       title="Novo agendamento"
-      subtitle="Crie um horario na agenda interna sem sair da grade."
+      subtitle="Crie um horário na agenda interna sem sair da grade."
       onClose={onClose}
     >
       <form className="agenda-composer-form" onSubmit={onSubmit}>
-        <div className="agenda-composer-grid">
-          <div className="barber-form-block">
-            <label htmlFor="appointment-service">Servico</label>
-            <select
-              className="barber-select"
-              id="appointment-service"
-              name="serviceId"
-              onChange={onChange}
-              value={form.serviceId}
-            >
-              <option value="">Selecione o servico</option>
-              {services.map((service) => (
-                <option key={service.id} value={service.id}>
-                  {service.name} - {Number(service.estimated_time_minutes || 30)} min
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {!isCollaborator && (
-            <div className="barber-form-block">
-              <label htmlFor="appointment-collaborator">Profissional</label>
-              <select
-                className="barber-select"
-                id="appointment-collaborator"
-                name="collaboratorId"
-                onChange={onChange}
-                value={form.collaboratorId}
-              >
-                <option value="">Selecione o profissional</option>
-                {collaborators.map((collaborator) => (
-                  <option key={collaborator.id} value={collaborator.id}>
-                    {collaborator.nickname || collaborator.name || 'Colaborador'}
-                  </option>
-                ))}
-              </select>
+        <div className="agenda-composer-layout">
+          {/* Coluna Esquerda: Cliente */}
+          <div className="agenda-composer-column">
+            <div className="agenda-composer-section">
+              <span className="agenda-composer-section-title">Cliente</span>
+              <div className="agenda-composer-field">
+                <label htmlFor="appointment-customer-name">Nome</label>
+                <input
+                  className="barber-input"
+                  id="appointment-customer-name"
+                  name="customerName"
+                  onChange={onChange}
+                  placeholder="Nome do cliente"
+                  value={form.customerName}
+                />
+              </div>
+              <div className="agenda-composer-field">
+                <label htmlFor="appointment-customer-phone">WhatsApp</label>
+                <input
+                  className="barber-input"
+                  id="appointment-customer-phone"
+                  name="customerPhone"
+                  onChange={onChange}
+                  placeholder="(00) 00000-0000"
+                  value={form.customerPhone}
+                />
+              </div>
+              <div className="agenda-composer-field">
+                <label htmlFor="appointment-customer-email">E-mail</label>
+                <input
+                  className="barber-input"
+                  id="appointment-customer-email"
+                  name="customerEmail"
+                  onChange={onChange}
+                  placeholder="Opcional"
+                  type="email"
+                  value={form.customerEmail}
+                />
+              </div>
             </div>
-          )}
-
-          <div className="barber-form-block">
-            <label htmlFor="appointment-date">Data</label>
-            <input
-              className="barber-input"
-              id="appointment-date"
-              name="appointmentDate"
-              onChange={onChange}
-              type="date"
-              value={form.appointmentDate}
-            />
           </div>
 
-          <div className="barber-form-block">
-            <label htmlFor="appointment-time">Horario</label>
-            <input
-              className="barber-input"
-              id="appointment-time"
-              name="appointmentTime"
-              onChange={onChange}
-              step="1800"
-              type="time"
-              value={form.appointmentTime}
-            />
+          {/* Coluna Direita: Data/Hora */}
+          <div className="agenda-composer-column">
+            <div className="agenda-composer-section">
+              <span className="agenda-composer-section-title">Data & Horário</span>
+              <div className="agenda-composer-field">
+                <label htmlFor="appointment-date">Data</label>
+                <input
+                  className="barber-input"
+                  id="appointment-date"
+                  name="appointmentDate"
+                  onChange={onChange}
+                  type="date"
+                  value={form.appointmentDate}
+                />
+              </div>
+              <div className="agenda-composer-field">
+                <label htmlFor="appointment-time">Horário</label>
+                <input
+                  className="barber-input"
+                  id="appointment-time"
+                  name="appointmentTime"
+                  onChange={onChange}
+                  step="1800"
+                  type="time"
+                  value={form.appointmentTime}
+                />
+              </div>
+            </div>
           </div>
+        </div>
 
-          <div className="barber-form-block">
-            <label htmlFor="appointment-customer-name">Cliente</label>
-            <input
-              className="barber-input"
-              id="appointment-customer-name"
-              name="customerName"
-              onChange={onChange}
-              placeholder="Nome do cliente"
-              value={form.customerName}
-            />
+        {/* Serviços */}
+        <div className="agenda-composer-section">
+          <span className="agenda-composer-section-title">Serviço</span>
+          <div className="agenda-composer-services">
+            {services.map((service) => {
+              const isSelected = form.serviceId === service.id
+              const duration = Number(service.estimated_time_minutes || 30)
+              const price = Number(service.price || 0)
+              return (
+                <label
+                  key={service.id}
+                  className={`agenda-composer-service-card ${isSelected ? 'selected' : ''}`}
+                >
+                  <input
+                    checked={isSelected}
+                    className="agenda-composer-service-input"
+                    name="serviceId"
+                    onChange={onChange}
+                    type="radio"
+                    value={service.id}
+                  />
+                  <div className="agenda-composer-service-info">
+                    <strong>{service.name}</strong>
+                    <div className="agenda-composer-service-meta">
+                      <span>{duration} min</span>
+                      <span>R$ {price.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  </div>
+                </label>
+              )
+            })}
           </div>
+        </div>
 
-          <div className="barber-form-block">
-            <label htmlFor="appointment-customer-phone">WhatsApp</label>
-            <input
-              className="barber-input"
-              id="appointment-customer-phone"
-              name="customerPhone"
-              onChange={onChange}
-              placeholder="(00) 00000-0000"
-              value={form.customerPhone}
-            />
+        {/* Profissional */}
+        {!isCollaborator && (
+          <div className="agenda-composer-section">
+            <span className="agenda-composer-section-title">Profissional</span>
+            <div className="agenda-composer-professionals">
+              {collaborators.map((collab) => {
+                const isSelected = form.collaboratorId === collab.id
+                return (
+                  <label
+                    key={collab.id}
+                    className={`agenda-composer-professional-card ${isSelected ? 'selected' : ''}`}
+                  >
+                    <input
+                      checked={isSelected}
+                      className="agenda-composer-professional-input"
+                      name="collaboratorId"
+                      onChange={onChange}
+                      type="radio"
+                      value={collab.id}
+                    />
+                    <span className="agenda-composer-professional-avatar">
+                      {collab.nickname?.[0] || collab.name?.[0] || '?'}
+                    </span>
+                    <span className="agenda-composer-professional-name">
+                      {collab.nickname || collab.name || 'Colaborador'}
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
           </div>
+        )}
 
-          <div className="barber-form-block barber-form-block-full">
-            <label htmlFor="appointment-customer-email">E-mail</label>
-            <input
-              className="barber-input"
-              id="appointment-customer-email"
-              name="customerEmail"
-              onChange={onChange}
-              placeholder="Opcional"
-              type="email"
-              value={form.customerEmail}
-            />
-          </div>
-
-          <div className="barber-form-block barber-form-block-full">
-            <label htmlFor="appointment-notes">Observacoes</label>
-            <textarea
-              className="barber-textarea"
-              id="appointment-notes"
-              name="notes"
-              onChange={onChange}
-              placeholder="Anote preferencias, detalhes do horario ou observacoes do atendimento."
-              rows="4"
-              value={form.notes}
-            />
-          </div>
+        {/* Observações */}
+        <div className="agenda-composer-section">
+          <span className="agenda-composer-section-title">Observações</span>
+          <textarea
+            className="barber-textarea"
+            id="appointment-notes"
+            name="notes"
+            onChange={onChange}
+            placeholder="Anote preferências, detalhes do horário ou observações do atendimento."
+            rows="3"
+            value={form.notes}
+          />
         </div>
 
         <div className="agenda-composer-actions">
           <BarberButton onClick={onClose} type="button" variant="ghost">
-            Fechar
+            Cancelar
           </BarberButton>
           <BarberButton disabled={submitting} type="submit" variant="primary">
             {submitting ? 'Salvando...' : 'Criar agendamento'}
@@ -150,3 +188,5 @@ export default function AppointmentComposerModal({
     </BarberModal>
   )
 }
+
+export default memo(AppointmentComposerModal)

@@ -135,9 +135,35 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     async function loadUser() {
+      // Tentar token já em memória (caso raro: mount duplo)
       const currentSession = resolveStoredBackofficeSession()
 
-      if (!currentSession.token) {
+      let activeToken = currentSession.token
+      let activeScope = currentSession.scope
+
+      // Se não há token em memória, tentar refresh via cookie
+      if (!activeToken) {
+        try {
+          const refreshResponse = await api.post('/auth/refresh')
+          // withCredentials envia o cookie automaticamente
+          if (refreshResponse.data?.success && refreshResponse.data?.data?.token) {
+            activeToken = refreshResponse.data.data.token
+
+            // Descobrir o scope pelo role do user retornado
+            const refreshedUser = refreshResponse.data.data.user
+            activeScope = refreshedUser?.auth_scope === 'master' ? 'master' : 'barber'
+
+            setStoredToken(activeScope, activeToken)
+            setActiveBackofficeScope(activeScope)
+          }
+        } catch {
+          // Cookie expirado ou não existe — usuário não autenticado
+          setLoading(false)
+          return
+        }
+      }
+
+      if (!activeToken) {
         setLoading(false)
         return
       }
@@ -145,19 +171,19 @@ export function AuthProvider({ children }) {
       try {
         const response = await api.get('/auth/me', {
           headers: {
-            Authorization: `Bearer ${currentSession.token}`
+            Authorization: `Bearer ${activeToken}`
           }
         })
 
         const authUser = response.data.data.user
-        const resolvedUser = currentSession.scope === 'barber'
-          ? await rehydrateBarberPlan(currentSession.token, authUser)
+        const resolvedUser = activeScope === 'barber'
+          ? await rehydrateBarberPlan(activeToken, authUser)
           : authUser
 
         setUser(resolvedUser)
         setModules(response.data.data.modules || [])
-        setToken(currentSession.token)
-        setScope(currentSession.scope)
+        setToken(activeToken)
+        setScope(activeScope)
       } catch {
         clearStoredToken('barber')
         clearStoredToken('master')
@@ -236,7 +262,12 @@ export function AuthProvider({ children }) {
     return response.data.data
   }
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await api.post('/auth/logout') // limpa o cookie HttpOnly
+    } catch {
+      // Ignorar erro — limpar estado local de qualquer forma
+    }
     clearSession()
   }, [clearSession])
 

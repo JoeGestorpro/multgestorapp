@@ -15,10 +15,14 @@ export default function CollaboratorColumn({
   gridStartMinutes,
   onSelectAppointment,
   onSelectSlot,
-  workingDay
+  workingDay,
+  selectedDate
 }) {
   const slotMinutes = 30
   const slots = Array.from({ length: hourRows * 2 }, (_, index) => gridStartMinutes + (index * slotMinutes))
+  const today = new Date().toISOString().slice(0, 10)
+  const isToday = selectedDate === today
+  const nowMinutes = isToday ? (new Date().getHours() * 60) + new Date().getMinutes() : null
   const opensAt = parseMinutes(workingDay?.opens_at)
   const closesAt = parseMinutes(workingDay?.closes_at)
   const isClosed = workingDay?.is_closed === true
@@ -99,6 +103,12 @@ export default function CollaboratorColumn({
             </div>
           )}
         </>
+      )}
+      {isToday && typeof nowMinutes === 'number' && nowMinutes >= gridStartMinutes && nowMinutes <= gridStartMinutes + (hourRows * 60) && (
+        <div
+          className="agenda-now-indicator"
+          style={{ top: `${(nowMinutes - gridStartMinutes) * pixelsPerMinute}px` }}
+        />
       )}
       {items.map((appointment) => (
         <AppointmentCard

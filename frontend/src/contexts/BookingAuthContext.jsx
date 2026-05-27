@@ -18,7 +18,20 @@ export function BookingAuthProvider({ children }) {
 
   useEffect(() => {
     async function loadUser() {
-      const storedToken = getStoredToken(BOOKING_SCOPE)
+      let storedToken = getStoredToken(BOOKING_SCOPE)
+
+      if (!storedToken) {
+        try {
+          const refreshResponse = await api.post('/booking-auth/refresh')
+          if (refreshResponse.data?.success && refreshResponse.data?.data?.token) {
+            storedToken = refreshResponse.data.data.token
+            setStoredToken(BOOKING_SCOPE, storedToken)
+          }
+        } catch {
+          setLoading(false)
+          return
+        }
+      }
 
       if (!storedToken) {
         setLoading(false)
@@ -26,12 +39,11 @@ export function BookingAuthProvider({ children }) {
       }
 
       try {
-        const response = await api.get('/booking-customer/me', {
+        const response = await api.get('/booking-auth/me', {
           headers: {
             Authorization: `Bearer ${storedToken}`
           }
         })
-
         setUser(response.data.data.user)
         setToken(storedToken)
       } catch {
@@ -60,7 +72,12 @@ export function BookingAuthProvider({ children }) {
     return authUser
   }
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await api.post('/booking-auth/logout')
+    } catch {
+      // Ignorar
+    }
     clearSession()
   }, [clearSession])
 

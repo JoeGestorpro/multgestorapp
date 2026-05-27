@@ -7,7 +7,7 @@ import {
   readPendingBooking
 } from './pendingBooking'
 import { BarberIcon } from '../../components/barber/BarberUI'
-import '../Barber.css'
+import './css/BookingFlow.index.css'
 
 function getErrorMessage(error) {
   return error.response?.data?.error || 'Nao foi possivel fazer login'
@@ -104,25 +104,26 @@ function BookingLogin() {
   }
 
   return (
-    <main className="barber-figma-page">
-      <header className="barber-figma-top-hero">
-        <div className="barber-figma-grid-texture" aria-hidden="true" />
-        <Link className="barber-figma-round-button" to={`/agendar/${slug}`} aria-label="Voltar ao inicio">
-          <BarberIcon name="arrowLeft" />
-        </Link>
-        <div className="barber-figma-hero-title">
-          <h1>BarberGestor</h1>
-          <p>Bem-vindo de volta</p>
+    <div className="booking-page-auth">
+      <header className="booking-auth-hero">
+        <div className="booking-auth-hero-content">
+          <Link className="booking-auth-hero-back" to={`/agendar/${slug}`} aria-label="Voltar ao inicio">
+            <BarberIcon name="arrowLeft" />
+          </Link>
+          <div className="booking-auth-hero-title">
+            <h1>BarberGestor</h1>
+            <p>Bem-vindo de volta</p>
+          </div>
         </div>
       </header>
 
-      <section className="barber-figma-content">
-        <div className="barber-figma-form-card">
+      <section className="booking-auth-content booking-auth-centered">
+        <div className="booking-auth-form-card">
           <h2>Finalize seu agendamento</h2>
           <p>Entre para confirmar seu horario</p>
 
           {pendingSummary && (
-            <div className="barber-booking-pending-summary barber-figma-summary-card">
+            <div className="booking-auth-pending">
               <span>Resumo do horario</span>
               <strong>{pendingSummary.serviceName}</strong>
               <div>
@@ -132,36 +133,40 @@ function BookingLogin() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="barber-figma-form">
-            <label htmlFor="booking-email">E-mail</label>
-            <div className="barber-figma-input-wrap">
-              <BarberIcon name="mail" />
-              <input
-                id="booking-email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="email"
-                placeholder="seu@email.com"
-                required
-              />
+          <form onSubmit={handleSubmit} className="booking-auth-form-wrap">
+            <div className="booking-field">
+              <label htmlFor="booking-email">E-mail</label>
+              <div className="booking-input-wrap">
+                <BarberIcon name="mail" />
+                <input
+                  id="booking-email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
+                  placeholder="seu@email.com"
+                  required
+                />
+              </div>
             </div>
 
-            <label htmlFor="booking-password">Senha</label>
-            <div className="barber-figma-input-wrap">
-              <BarberIcon name="lock" />
-              <input
-                id="booking-password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-                placeholder="********"
-                required
-              />
+            <div className="booking-field">
+              <label htmlFor="booking-password">Senha</label>
+              <div className="booking-input-wrap">
+                <BarberIcon name="lock" />
+                <input
+                  id="booking-password"
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="current-password"
+                  placeholder="********"
+                  required
+                />
+              </div>
             </div>
 
-            {error && <div className="error-message">{error}</div>}
+            {error && <div className="booking-auth-error-box">{error}</div>}
 
             <button type="submit" disabled={submitting || confirmingPending}>
               <span>{submitting || confirmingPending ? 'Confirmando...' : 'Entrar e confirmar'}</span>
@@ -169,12 +174,14 @@ function BookingLogin() {
             </button>
           </form>
 
-          <p className="auth-link">
-            Nao tem uma conta? <Link to={`/agendar/${slug}/cadastro`}>Criar conta</Link>
-          </p>
+          <div className="booking-auth-links">
+            <p>
+              Nao tem uma conta? <Link to={`/agendar/${slug}/cadastro`}>Criar conta</Link>
+            </p>
+          </div>
         </div>
       </section>
-    </main>
+    </div>
   )
 }
 
