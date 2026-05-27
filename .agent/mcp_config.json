@@ -15,10 +15,19 @@
                 "shadcn@latest",
                 "mcp"
             ]
+        },
+        "stitch": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "mcp-remote",
+                "https://stitch.googleapis.com/mcp"
+            ],
+            "env": {
+                "X-Goog-Api-Key": "${STITCH_API_KEY}"
+            }
         }
         //other mcp servers
     }
 }
-
 // setup mcp server in  ~/.gemini\antigravity\mcp_config.json
-

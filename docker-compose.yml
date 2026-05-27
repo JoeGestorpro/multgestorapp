@@ -1,0 +1,110 @@
+# MultGestor — Ambiente de Desenvolvimento Local
+# Uso: docker-compose up -d  (ou: podman-compose up -d)
+#
+# Portas:
+#   Backend:   http://localhost:5000
+#   Frontend:  http://localhost:5173
+#   Postgres:  localhost:5432
+#   PgAdmin:   http://localhost:5050
+
+version: '3.9'
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: multgestor-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: multgestor_dev
+      POSTGRES_USER: multgestor
+      POSTGRES_PASSWORD: multgestor_dev_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U multgestor -d multgestor_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: multgestor-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      DATABASE_URL: postgresql://multgestor:multgestor_dev_pass@postgres:5432/multgestor_dev
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev_jwt_secret_local_apenas
+      APP_BASE_URL: http://localhost:5173
+      API_URL: http://localhost:5000
+      EMAIL_PROVIDER: mock
+      WHATSAPP_PROVIDER: mock
+      WHATSAPP_TOKEN_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/uploads:/app/uploads
+      - /app/node_modules
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: multgestor-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:5000
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
+
+  redis:
+    image: redis:7-alpine
+    container_name: multgestor-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: multgestor-pgadmin
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@multgestor.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+  redis_data:

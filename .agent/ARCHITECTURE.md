@@ -1,16 +1,46 @@
-# Antigravity Kit Architecture
+# MultGestor — Agent Architecture
 
-> Comprehensive AI Agent Capability Expansion Toolkit
+> Atualizado: Maio 2026
+> Base: Antigravity Kit + Agentes e Skills específicos da plataforma MultGestor
 
 ---
 
 ## 📋 Overview
 
-Antigravity Kit is a modular system consisting of:
+Este sistema combina:
 
-- **20 Specialist Agents** - Role-based AI personas
-- **36 Skills** - Domain-specific knowledge modules
-- **11 Workflows** - Slash command procedures
+- **25 Specialist Agents** (20 genéricos + 5 específicos da plataforma)
+- **41 Skills** (36 genéricas + 5 específicas da plataforma)
+- **15 Workflows** (11 genéricos + 4 específicos da plataforma)
+
+### Agentes específicos da plataforma MultGestor:
+- `platform-architect` — guardião da visão de plataforma
+- `event-driven-agent` — guardião do event catalog
+- `multi-tenant-security-agent` — auditor de isolamento tenant
+- `saas-billing-agent` — especialista em Recurring Revenue Engine
+- `observability-agent` — logs, métricas, health checks
+
+### Skills específicas da plataforma:
+- `multi-tenant-patterns` — padrões de isolamento e company_id
+- `event-driven-patterns` — eventos de domínio, outbox, idempotência
+- `create-capability` — extrair feature em capability reutilizável
+- `create-vertical` — criar novo vertical sobre o Core
+- `saas-billing-patterns` — planos, feature flags, gateways
+
+### Workflows específicos da plataforma:
+- `/create-capability` — abstrair feature em capability do Core
+- `/audit-tenant-isolation` — auditar queries sem company_id
+- `/generate-migration` — criar migration versionada e segura
+- `/prepare-release` — checklist completo de release
+
+### Documentos de plataforma (ler SEMPRE):
+- `docs/PLATFORM_ARCHITECTURE.md` — arquitetura completa
+- `docs/DOMAIN_EVENTS_CATALOG.md` — catálogo de eventos
+- `docs/AUDIT_REPORT.md` — relatório de auditoria
+- `.agent/context/critical-fixes.md` — problemas críticos pendentes
+- `.agent/context/platform-capabilities.md` — capabilities do Core
+
+---
 
 ---
 

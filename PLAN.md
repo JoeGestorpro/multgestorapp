@@ -1,855 +1,375 @@
-# PLAN.md — BARBERGESTOR PREMIUM EXPERIENCE
+# Plan.md — Agenda Online Pública Premium (BookingFlow)
 
-## Projeto
-
-MultGestor → módulo BarberGestor
-
-## Objetivo Geral
-
-Transformar o BarberGestor em uma experiência SaaS premium, personalizada para cada barbearia, com onboarding guiado, identidade visual dinâmica, dashboard moderno e experiência mobile-first.
-
-O sistema deve deixar de parecer genérico e passar a transmitir sensação de:
-- software próprio da barbearia
-- profissionalismo
-- sofisticação
-- organização operacional
-- alto valor percebido
+> **Foco:** Reformular a página pública de agendamento (`/agendar/:slug`) em uma landing page premium da barbearia + fluxo de reserva.
 
 ---
 
-# VISÃO ESTRATÉGICA
+## 1. Diagnóstico do Problema Atual
 
-## Resultado Esperado
+### O que funciona hoje:
+- Fluxo de etapas funcional (serviço → profissional → data/hora → resumo → auth → sucesso)
+- Tema escuro com verde neon (#a3ff12)
+- CSS com glassmorphism já implementado
+- Login, cadastro e perfil migrados para tema consistente
 
-Quando o cliente entrar no BarberGestor, ele deve sentir:
+### O que está RUIM:
 
-> "Esse sistema foi feito para minha barbearia."
+| Problema | Impacto |
+|----------|---------|
+| Tela parece formulário genérico | Cliente não sente que está na barbearia |
+| Sem identidade visual da barbearia | Apenas o nome no header, sem apresentação |
+| Sem hero/banner | Primeira impressão fraca, zero impacto visual |
+| Sem informações de contato/local | Cliente não vê endereço, WhatsApp, horários |
+| Desktop = mobile esticado | Não aproveita espaço em tela grande |
+| Zero diferenciais visuais | Não há fotos, descrição, selos de qualidade |
+| Dados limitados do backend | API retorna só `{ id, name, slug }` da empresa |
 
-O sistema deve:
-- usar identidade visual da empresa
-- mostrar branding da barbearia
-- ter onboarding guiado
-- reduzir confusão no primeiro uso
-- gerar efeito wow pós-compra
-- aumentar retenção
-- aumentar percepção de valor
-- melhorar experiência operacional diária
+### Estado atual do backend:
 
----
-
-# PILARES PRINCIPAIS
-
-1. **Onboarding Premium** — Fluxo guiado pós-compra
-2. **Personalização Visual** — Sistema assume identidade da barbearia
-3. **Dashboard Premium** — Experiência operacional moderna
-4. **Mobile First** — Experiência pensada para barbeiros usando celular
-5. **Sensação SaaS Internacional** — UI moderna, limpa, rápida e refinada
-
----
-
-# ESCOPO FUNCIONAL
-
----
-
-# FASE 1 — FUNDAÇÃO VISUAL
-
-## Objetivo
-
-Criar base técnica da personalização visual.
-
----
-
-## 1. Theme System por Tenant
-
-### Criar estrutura:
-- ThemeProvider
-- useTenantTheme
-- CSS Variables dinâmicas
-
-### Responsabilidade:
-Aplicar:
-- logo
-- nome da empresa
-- cores
-- branding
-- wallpaper
-- acentos visuais
-
----
-
-## 2. Estrutura de tema
-
-### Dados esperados da empresa
-
-```ts
+**API `GET /barber/public/:slug/booking-info`** retorna:
+```json
 {
-  company_id,
-  company_name,
-  logo_url,
-  primary_color,
-  secondary_color,
-  accent_color,
-  wallpaper_url,
-  onboarding_completed
+  "company": { "id": "...", "name": "Barbearia X", "slug": "barbearia-x" },
+  "services": [{ id, name, description, price, icon, estimated_time_minutes }],
+  "collaborators": [{ id, name, nickname, avatar_url, available_for_booking }],
+  "settings": { timezone, slot_interval_minutes, ... }
 }
 ```
 
+**Tabela `companies`** possui apenas: `id`, `name`, `niche_type`, `status`, `created_at`, `public_booking_slug` — sem `description`, `banner_url`, `logo_url`, `phone`, `address`, `instagram`, `working_hours`, `gallery`.
+
+**Estratégia:** Usar fallbacks/mocks no frontend, estrutura preparada para quando o backend fornecer dados reais.
+
 ---
 
-## 3. Arquivo de variáveis CSS
+## 2. Proposta de Layout
 
-### Estrutura base
+### Mobile (primeiro):
+```
+┌──────────────────────────┐
+│  🖼️ HERO/BANNER          │
+│   Nome da Barbearia      │
+│   "Sua barbearia..."     │
+│   [💈 Agendar Horário]   │  ← CTA principal
+├──────────────────────────┤
+│ 📍 Informações           │  ← Cards: endereço, WhatsApp, horários
+│ 🏆 Diferenciais          │  ← "Profissionais experts", "Ambiente premium"
+│ 👨‍💼 Equipe               │  ← Avatares dos profissionais
+│ 💈 Serviços/Preços       │  ← Preview dos serviços
+├──────────────────────────┤
+│   [💈 Agendar Horário]   │  ← Botão CTA no fim (ou fixo)
+└──────────────────────────┘
+```
+Após clicar "Agendar", entra no fluxo de etapas atual, mas com visual refinado.
 
-```css
-/* styles/barber-theme.css */
-:root {
-  /* Padrão (fallback) */
-  --bg-primary: #0f0f0f;
-  --bg-secondary: #1a1a1a;
-  --bg-card: #242424;
-  --text-primary: #ffffff;
-  --text-secondary: #a0a0a0;
-  --accent: #d4af37;
-  --accent-hover: #b8962f;
-  --border: rgba(255,255,255,0.08);
-  --shadow: 0 4px 6px rgba(0,0,0,0.3);
+### Desktop (≥ 1024px):
 
-  /* Dinâmico (substituído via JS/ThemeProvider) */
-  --theme-primary: var(--accent);
-  --theme-secondary: var(--bg-secondary);
-  --theme-border: color-mix(in srgb, var(--theme-primary) 20%, transparent);
-  --theme-glow: color-mix(in srgb, var(--theme-primary) 30%, transparent);
+```
+┌─────────────────────────────────────────────────────────┐
+│ ┌─────────────────────────┐  ┌────────────────────────┐ │
+│ │      HERO/BANNER        │  │  📋 AGENDAMENTO        │ │
+│ │      Nome + tagline     │  │  ┌──────────────────┐  │ │
+│ │      [Agendar]          │  │  │ 1. Serviço       │  │ │
+│ │                         │  │  │ 2. Profissional  │  │ │
+│ │      📍 Informações     │  │  │ 3. Data/Hora     │  │ │
+│ │      🏆 Diferenciais    │  │  │ 4. Resumo        │  │ │
+│ │      👨‍💼 Equipe         │  │  │    [Confirmar]   │  │ │
+│ │      🖼️ Galeria         │  │  └──────────────────┘  │ │
+│ │                         │  │  sidebar sticky        │ │
+│ └─────────────────────────┘  └────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. Estrutura Desktop (Split Layout)
+
+```
+Desktop (≥ 1024px)
+├── .booking-desktop-layout (display: grid; grid-template-columns: 1fr 460px;)
+│   ├── .booking-landing (left column, scroll)
+│   │   ├── .booking-landing-hero     → Hero image + overlay + CTA
+│   │   ├── .booking-landing-info     → Grid 2x2 info cards
+│   │   ├── .booking-landing-about    → Descrição da barbearia
+│   │   ├── .booking-landing-diffs    → Diferenciais com ícones
+│   │   ├── .booking-landing-team     → Avatares da equipe
+│   │   └── .booking-landing-gallery  → Grid de fotos
+│   │
+│   └── .booking-side-card (sticky top: 24px)
+│       ├── Mini header "Agende seu horário"
+│       ├── Step indicator (progresso)
+│       └── Conteúdo do step atual (reutilizar BookingFlow steps)
+│           ├── Serviço
+│           ├── Profissional
+│           ├── Data/Hora
+│           ├── Resumo
+│           ├── Auth
+│           └── Sucesso
+```
+
+---
+
+## 4. Estrutura Mobile
+
+```
+Mobile (< 1024px)
+├── .booking-mobile-layout
+│   ├── .booking-mobile-hero (full viewport height)
+│   │   ├── Banner imagem de fundo com gradiente overlay
+│   │   ├── Nome + descrição + tagline
+│   │   └── CTA "Agendar Horário"
+│   │
+│   ├── .booking-landing-content (scrollável)
+│   │   ├── Info cards (2 colunas)
+│   │   ├── Sobre
+│   │   ├── Diferenciais
+│   │   ├── Equipe
+│   │   └── Galeria
+│   │
+│   └── .booking-mobile-cta (botão fixo inferior)
+│       └── "Agendar Horário" → abre fluxo de etapas
+│
+└── .booking-flow-panel (quando ativo)
+    ├── Header com "Voltar" + nome da barbearia
+    └── Steps (serviço, profissional, data/hora, resumo, auth, sucesso)
+```
+
+---
+
+## 5. Componentes a Criar/Alterar
+
+### Novos componentes em `frontend/src/pages/booking/`:
+
+| Componente | Descrição |
+|------------|-----------|
+| `BookingLanding.data.js` | Dados mockados/fallback + constantes |
+| `BookingLandingHero.jsx` | Banner hero responsivo (full/mobile) |
+| `BookingLandingInfo.jsx` | Cards de informações (endereço, WhatsApp, etc) |
+| `BookingLandingAbout.jsx` | Seção "Sobre a barbearia" |
+| `BookingLandingDifferentials.jsx` | Grid de diferenciais com ícones |
+| `BookingLandingTeam.jsx` | Preview da equipe |
+| `BookingLandingGallery.jsx` | Galeria de fotos (mock) |
+| `BookingSideCard.jsx` | Sidebar sticky do fluxo de agendamento (desktop) |
+| `BookingDesktopLayout.jsx` | Container split layout desktop |
+| `BookingMobileLayout.jsx` | Container hero + conteúdo + CTA mobile |
+
+### Arquivos a modificar:
+
+| Arquivo | Mudança |
+|---------|---------|
+| `BookingFlow.jsx` | Adicionar modo `LANDING` vs `BOOKING`; renderizar landing antes das etapas |
+| `BookingFlow.css` | ~800 linhas novas: hero, info cards, diferenciais, equipe, galeria, split layout, side card, mobile flow |
+
+### NÃO modificar:
+- `BookingLogin.jsx`, `BookingSuccess.jsx`, `PublicBookingSignup.jsx`, `BookingProfile.jsx` (já migrados, intactos)
+- Backend (dados mockados no frontend por enquanto)
+- Lógica de agendamento existente (serviço, profissional, slot, resumo, auth)
+
+---
+
+## 6. Dados Mockados/Fallback
+
+Criar `BookingLanding.data.js`:
+
+```js
+export const FALLBACK_COMPANY = {
+  description: 'Há mais de 10 anos transformando o visual dos nossos clientes com estilo, tradição e modernidade.',
+  banner_url: '/assets/hero-bg.jpg',
+  logo_url: null,
+  phone: '(11) 99999-9999',
+  whatsapp: '5511999999999',
+  address: 'Rua Exemplo, 123 - Centro',
+  instagram: '@barbearia',
+  working_hours: [
+    { day: 'Seg-Sex', hours: '08:00 - 19:00' },
+    { day: 'Sáb', hours: '08:00 - 17:00' },
+    { day: 'Dom', hours: 'Fechado' },
+  ],
+  rating: 4.8,
+  reviews_count: 127,
+  gallery: [/* URLs mock */],
+  differentials: [
+    { icon: 'star', title: 'Profissionais Experts', desc: 'Equipe certificada com anos de experiência' },
+    { icon: 'shield', title: 'Ambiente Premium', desc: 'Espaço climatizado e confortável' },
+    { icon: 'clock', title: 'Pontualidade', desc: 'Respeitamos seu horário' },
+    { icon: 'spray', title: 'Produtos Importados', desc: 'Linha profissional importada' },
+  ]
 }
 ```
 
----
-
-## 4. Hook useTenantTheme
-
-### Estrutura
-
-```ts
-// hooks/useTenantTheme.ts
-const useTenantTheme = () => {
-  const { company } = useAuth();
-
-  const theme = useMemo(() => ({
-    primary: company?.primary_color || '#d4af37',
-    secondary: company?.secondary_color || '#1a1a1a',
-    accent: company?.accent_color || '#b8962f',
-    logo: company?.logo_url,
-    name: company?.company_name,
-    wallpaper: company?.wallpaper_url,
-  }), [company]);
-
-  return theme;
-};
-```
+**Estrutura preparada para dados reais** — quando o backend fornecer estes campos, basta substituir `FALLBACK_COMPANY` pelos dados da API.
 
 ---
 
-## 5. ThemeProvider
+## 7. Plano de Implementação Seguro
 
-### Estrutura
+### Fase 1: Estrutura de dados
+1. Criar `BookingLanding.data.js` com fallbacks e helpers
+2. Criar hook `useLandingData` que mescla API + fallback
 
-```tsx
-// context/ThemeContext.tsx
-<ThemeProvider>
-  <Shell>
-    {children}
-  </Shell>
-</ThemeProvider>
+### Fase 2: Hero + Info Cards
+3. Criar `BookingLandingHero.jsx` — banner full-width com gradiente, nome, CTA
+4. Criar `BookingLandingInfo.jsx` — grid 2x2 de info cards com ícones
+5. Adicionar CSS correspondente
 
-// Aplica data-theme-primary no document.body
-// Injeta CSS variables dinamicamente
-```
+### Fase 3: Sobre + Diferenciais + Equipe
+6. Criar `BookingLandingAbout.jsx` — seção de descrição
+7. Criar `BookingLandingDifferentials.jsx` — 4 cards com ícone + título + descrição
+8. Criar `BookingLandingTeam.jsx` — grid de avatares dos colaboradores
 
----
+### Fase 4: Split Layout Desktop
+9. Criar `BookingDesktopLayout.jsx` — grid 2 colunas
+10. Criar `BookingSideCard.jsx` — container sticky com steps
+11. Modificar `BookingFlow.jsx` para renderizar landing ou steps baseado em estado `showBooking`
 
-## 6. Componentes afetados
+### Fase 5: Mobile Flow
+12. Criar `BookingMobileLayout.jsx` — hero + conteúdo + CTA fixo
+13. Integrar com `BookingFlow.jsx` — ao clicar CTA, mostrar steps
 
-- Shell (header, sidebar)
-- Todos os cards (StatCard, ChartCard, BarberCard, etc)
-- Botões primários
-- Badges e highlights
-- Links e CTAs
-- Bordas e separadores
-
----
-
-# FASE 2 — ONBOARDING PREMIUM
-
-## Objetivo
-
-Guia fluido pós-compra com wizard de configuração.
+### Fase 6: Refinamento
+14. Galeria (`BookingLandingGallery.jsx`)
+15. Animações de scroll (reveal)
+16. Testes responsivos e build final
 
 ---
 
-## 1. Tela de Boas-Vindas
+## 8. Checklist de Testes
 
-### Estrutura:
-- Logo da empresa em destaque
-- Mensagem de parabéns
-- Preview do dashboard (mock)
-- Tempo estimado de configuração
-- CTA principal: "Começar configuração"
-- CTA secundário: "Ver demo primeiro"
-
-### Emotional triggers:
-- Animação de entrada com fade
-- Logo com scale suave
-- Música/ícone de celebração
-- Progress preview
+- [ ] Build sem erros (`npm run build`)
+- [ ] Mobile: hero aparece primeiro, CTA leva ao fluxo de etapas
+- [ ] Desktop: layout split, side card sticky
+- [ ] Fluxo completo de agendamento funciona (serviço → profissional → data/hora → resumo → auth → sucesso)
+- [ ] Login/Cadastro com tema consistente
+- [ ] Tela de sucesso com animação de celebração
+- [ ] Responsivo: 320px, 640px, 768px, 1024px, 1440px
+- [ ] Botão "Voltar" funciona em todas as etapas
+- [ ] Fallback visual quando API não retorna dados
+- [ ] Scroll suave e animações não travam (testar `prefers-reduced-motion`)
+- [ ] Nenhuma regressão na agenda interna do barbeiro
 
 ---
 
-## 2. Wizard de Setup
+## 9. Regras de Implementação
 
-### Etapas:
-
-**Etapa 1: Sua Marca**
-- Upload de logo (drag & drop)
-- Preview ao vivo
-- Nome da barbearia
-- Cor primária (color picker)
-- Cor secundária (opcional)
-- Frase/slogan (opcional)
-
-**Etapa 2: Seu Endereço**
-- Campo de endereço (Google Places autocomplete)
-- Telefone
-- WhatsApp (com link direto)
-- Horário de funcionamento (grid visual por dia)
-- Mapa preview
-
-**Etapa 3: Sua Equipe**
-- Cadastro do dono/gerente (já pré-preenchido)
-- Convite para colaboradores (email, link, QR code)
-- Skip option clara
-
-**Etapa 4: Seus Serviços**
-- Serviço principal (sugestão baseada no tipo da barbearia)
-- Preço + duração
-- Adicionar mais ou "pular"
-- Templates: "Barbearia clássica", "Barbearia moderna", "Barbearia + estética"
-
-**Etapa 5: Configuração Completa**
-- Celebração visual (confetti, badge)
-- Resumo do que foi configurado
-- CTA para primeiro atendimento
-- Redirect para dashboard
+1. **Não quebrar backend ou APIs existentes** — fallbacks no frontend
+2. **Não remover etapas atuais** — apenas reorganizar e embrulhar
+3. **Dados mockados são provisórios** — estruturar para fácil migração quando backend fornecer
+4. **Mobile-first** em todas as decisões de layout
+5. **Priorizar CSS puro sobre JS** para animações e transições
+6. **Manter acessibilidade** (aria-labels, contraste, foco visível)
+7. **Código limpo e comentado em português** — fácil de manter
 
 ---
 
-## 3. Progresso Visual
+## 10. Refinamentos Visuais Pós-Implementação da Agenda Online
 
-### Barra de progresso:
-- Visível durante todo wizard
-- Etapas concluídas com checkmark
-- Etapa atual destacada
-- Etapas restantes com número
+> Seção adicionada após a conclusão das 6 fases do plano original.
+> Refinamentos aplicados exclusivamente no frontend para elevar o padrão visual da landing page.
 
-### Badge de conclusão:
-- Badge "Barbearia configurada" no perfil
-- Badge "Fundador" após primeira semana
+### 10.1 Hero com informações da barbearia
 
----
+O hero exibe agora, além do nome e tagline:
 
-## 4. Checklist de Setup
+- **Endereço** — ícone `home` + texto do endereço (fallback: "Endereço não informado")
+- **Horário de funcionamento** — ícone `clock` + dia/hora do primeiro período cadastrado
+- **Avaliação** — estrelas douradas com rating (ex: ★★★★☆ 4.8) + número de avaliações
 
-### Sidebar ou modal:
-- Verificação visual do que está completo
-- "Falta configurar" com destaque
-- Sugestão da próxima etapa
-- Acesso direto para cada item
+As informações aparecem em uma row flexível entre a tagline e o CTA, melhorando a primeira impressão e entregando dados úteis sem scroll.
 
----
+**Arquivos alterados:**
+- `BookingLandingHero.jsx` — adicionado bloco `.booking-hero-info` com itens dinâmicos
+- `BookingFlow.css` — classes `.booking-hero-info`, `.booking-hero-info-item`, `.booking-hero-rating`, `.booking-hero-stars`
 
-# FASE 3 — DASHBOARD PREMIUM
+### 10.2 Imagem de fundo/banner com fallback elegante
 
-## Objetivo
+Se a empresa não possui `banner_url`, o hero usa uma imagem de fallback do Unsplash (landscape de barbearia). O gradiente escuro `rgba(7,9,13,0.2) → rgba(7,9,13,0.75) → var(--bf-bg)` garante legibilidade do texto mesmo em imagens claras. O overlay com grid sutil de linhas verdes neon adiciona textura premium.
 
-UI operacional moderna, clara e sofisticada.
+**Imagem de fallback alterada** para não conflitar com a galeria (antes usava a mesma foto).
 
----
+**Arquivos alterados:**
+- `BookingLandingHero.jsx` — constante `HERO_BG` alterada para `photo-1558618666-fcd25c85f82e`
+- `BookingLanding.data.js` — primeiro item do `MOCK_GALLERY` alterado para `photo-1596728325488-58c87691e9af`
 
-## 1. Hero Card de Boas-vindas
+### 10.3 Divisores visuais entre seções
 
-### Estrutura:
-- Saudação contextual (hora do dia)
-- Logo da empresa
-- Resumo rápido do dia
-- Quick stats inline: atendimentos | faturamento | equipe
-- CTA principal se vazio
-
-### Exemplo:
-```
-┌─────────────────────────────────────────────────────────────┐
-│ [Logo]                      Bom dia, Felipe                │
-│                                                             │
-│ Você tem 8 atendimentos hoje. Fature R$1.250,00.           │
-│                                                             │
-│ [8 hoje] [R$1.250] [4 na equipe]                          │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 2. Seção de Agenda Rápida
-
-### Desktop:
-- Cards horizontais滑动
-- Próximos 3-5 atendimentos
-- Informações essenciais: cliente, horário, serviço
-- Quick actions: confirmar, remarcar, cancelar
-
-### Mobile:
-- Swipeable cards
-- Tap para expandir
-- Ações principais via bottom sheet
-
----
-
-## 3. Cards de Ranking
-
-### Estrutura:
-- Título + badge de posição
-- Top 3 com destaque visual
-- Posição, nome, valor
-- Barra de progresso relativo
-- Cor primária aplicada na borda/accents
-
-### Animação:
-- Entrada staggered
-- Atualização com count-up suave
-
----
-
-## 4. Gráficos Modernos
-
-### Faturamento (7 dias):
-- Bar chart com cantos arredondados
-- Hover com tooltip estilizado
-- Tema aplicado nas cores
-- Altura mínima: 280px
-- Responsive
-
-### Mix de Pagamentos:
-- Bar chart horizontal
-- Percentual + valor
-- Cores por método
-- Labels claros
-
----
-
-## 5. Atendimentos Recentes
-
-### Card item:
-- Avatar/iniciais do cliente
-- Nome do serviço + cliente
-- Colaborador
-- Método de pagamento (badge colorido)
-- Valor
-- Data/hora
-
-### Desktop: lista vertical com scroll suave
-### Mobile: cards horizontais滑动
-
----
-
-## 6. Empty States Premium
-
-### Estrutura:
-- Ilustração ou ícone customizado
-- Título descritivo
-- Descrição helpful
-- CTA de ação
-
-### Exemplos:
-- "Nenhum atendimento hoje" + botão para novo
-- "Sem colaboradores" + convite
-- "Nenhum serviço" + adicionar
-- "Sem vendas ainda" + registrar
-
----
-
-## 7. Skeleton Loaders
-
-### Implementação:
-- Shimmer animation suave
-- Formato idêntico ao conteúdo real
-- Transição suave para conteúdo real
-
----
-
-## 8. Micro-interações
-
-### Estados:
-- Hover: card lift (translateY -4px)
-- Click: scale down sutil (0.98)
-- Loading: skeleton shimmer
-- Success: checkmark animation
-- Error: shake + border red
-- Update: count-up number
-
-### Transições:
-- Todas: 200ms ease-out
-- Page transitions: fade + slide
-- Modal: scale + fade
-
----
-
-# FASE 4 — MOBILE FIRST
-
-## Objetivo
-
-Experiência premium para barbeiros usando celular.
-
----
-
-## 1. Bottom Navigation
-
-### Itens:
-- Home (Dashboard)
-- Agenda
-- Caixa
-- Stats
-- Config
-
-### Especificações:
-- Altura: 64px
-- Ícones: 24x24
-- Touch target: 48x48
-- Indicador ativo com cor primária
-
----
-
-## 2. Header Mobile
-
-### Estrutura:
-- Menu hamburger (left)
-- Logo + nome (center)
-- Notificações + perfil (right)
-
-### Especificações:
-- Altura: 56px
-- Sticky
-- Blur background option
-
----
-
-## 3. Quick Actions FAB
-
-### Botão flutuante:
-- Posição: bottom-right, 24px de margem
-- Tamanho: 56x56
-- Cor: primária
-- Ícone: + (novo atendimento)
-- Shadow elevado
-
----
-
-## 4. Cards Mobile
-
-### Estrutura otimizada:
-- Full width
-- Padding generoso (16px)
-- Información essencial
-- Ações inline ou bottom sheet
-- Swipe gestures
-
-### Swipe actions:
-- Right: confirmar
-- Left: remarcar/cancelar
-
----
-
-## 5. Thumb Zone
-
-### Zonas de toque:
-- Zona primária: centro-inferior (ação principal)
-- Zona secundária: cards interativos
-- Zona de navegação: bottom nav
-
-### Touch targets:
-- Mínimo: 44x44px
-- Recomendado: 48x48px
-
----
-
-## 6. Pull to Refresh
-
-### Implementação:
-- Indicador de loading no topo
-- Spinner com branding
-- Feedback de atualização
-
----
-
-## 7. Responsive Breakpoints
-
-### Sistema:
-- Mobile: < 768px
-- Tablet: 768px - 1024px
-- Desktop: > 1024px
-
-### Adaptação:
-- Cards: 1 coluna mobile → 2-3 desktop
-- Sidebar: drawer mobile → fixo desktop
-- Grid: fluido mobile →固定 desktop
-
----
-
-# FASE 5 — EXTRAS PREMIUM
-
-## Objetivo
-
-Diferenciais que aumentam percepção de valor.
-
----
-
-## 1. Badge System
-
-### Badges conquistáveis:
-- 🎉 "Primeiro passo" — Após setup completo
-- 🔥 "No ritmo" — 7 dias consecutivos de uso
-- 💰 "Contador" — Primeiro R$1.000 em vendas
-- 👥 "Expansão" — 5 colaboradores
-- ⭐ "Excellence" — 100 atendimentos
-- 🏆 "Veterano" — 1 ano de uso
-
-### Exibição:
-- Perfil do usuário
-- Sidebar (opcional)
-- Tela de boas-vindas
-
----
-
-## 2. Confetti Celebrations
-
-### Triggers:
-- Setup completo
-- Primeiro atendimento
-- Marco de vendas
-- Badge desbloqueado
-
-### Implementação:
-- Animação de 2-3 segundos
-- Cores do tema da barbearia
-- Não invasivo
-
----
-
-## 3. Relatório de Progresso
-
-### Weekly email ou in-app:
-- "Sua semana: R$X em vendas"
-- "+X atendimentos vs semana passada"
-- "Top performer da equipe"
-- "Serviço mais vendido"
-
----
-
-## 4. Video Onboarding
-
-### Conteúdo:
-- Vídeo de 60 segundos de explicação
-- Telas do sistema em uso real
-- Narração ou texto animado
-- Disponível para revisitar
-
----
-
-## 5. Personalização de Wallpaper
-
-### Opções:
-- Padrão geométrico sutil
-- Gradiente radial
-- Foto da barbearia com blur
-- Padrão noise texture
-- Upload customizado
-
----
-
-## 6. AI Theme Suggestions
-
-### Funcionalidade:
-- Sugerir tema baseado no nome da barbearia
-- Paleta de cores harmônicas
-- Exemplos visuais
-
----
-
-## 7. Tutorial Interativo
-
-### Funcionalidade:
-- Tooltips nos principais elementos
-- Spotlight highlighting
-- Skip option
-- Progresso salvo
-
----
-
-# COMPONENTES A CRIAR
-
-## Fase 1
-
-| Componente | Arquivo | Descrição |
-|------------|---------|------------|
-| ThemeProvider | context/ThemeContext.tsx | Provider de tema |
-| useTenantTheme | hooks/useTenantTheme.ts | Hook para acessar tema |
-| ThemeStyles | components/ThemeStyles.tsx | Injeta CSS variables |
-| CustomizableShell | components/CustomizableShell.tsx | Shell com tema |
-
----
-
-## Fase 2
-
-| Componente | Arquivo | Descrição |
-|------------|---------|------------|
-| WelcomeScreen | components/onboarding/WelcomeScreen.tsx | Tela de parabéns |
-| SetupWizard | components/onboarding/SetupWizard.tsx | Wizard de configuração |
-| StepBrand | components/onboarding/StepBrand.tsx | Etapa: marca |
-| StepAddress | components/onboarding/StepAddress.tsx | Etapa: endereço |
-| StepTeam | components/onboarding/StepTeam.tsx | Etapa: equipe |
-| StepServices | components/onboarding/StepServices.tsx | Etapa: serviços |
-| StepComplete | components/onboarding/StepComplete.tsx | Etapa: conclusão |
-| ProgressBar | components/onboarding/ProgressBar.tsx | Barra de progresso |
-| SetupChecklist | components/onboarding/SetupChecklist.tsx | Checklist lateral |
-
----
-
-## Fase 3
-
-| Componente | Arquivo | Descrição |
-|------------|---------|------------|
-| HeroWelcomeCard | components/barber/HeroWelcomeCard.tsx | Card de boas-vindas |
-| ModernRankingCard | components/barber/ModernRankingCard.tsx | Card de ranking |
-| SalesChartModern | components/barber/SalesChartModern.tsx | Gráfico moderno |
-| RecentActivityCard | components/barber/RecentActivityCard.tsx | Atendimentos recentes |
-| CustomEmptyState | components/common/CustomEmptyState.tsx | Estado vazio customizado |
-| SkeletonLoader | components/common/SkeletonLoader.tsx | Loading skeleton |
-| ConfettiCelebration | components/common/ConfettiCelebration.tsx | Celebração |
-
----
-
-## Fase 4
-
-| Componente | Arquivo | Descrição |
-|------------|---------|------------|
-| BottomNav | components/mobile/BottomNav.tsx | Navegação inferior |
-| MobileHeader | components/mobile/MobileHeader.tsx | Header mobile |
-| SwipeableCard | components/mobile/SwipeableCard.tsx | Card com swipe |
-| QuickActionsFAB | components/mobile/QuickActionsFAB.tsx | Botão flutuante |
-| BottomSheet | components/mobile/BottomSheet.tsx | Sheet inferior |
-
----
-
-## Fase 5
-
-| Componente | Arquivo | Descrição |
-|------------|---------|------------|
-| BadgeSystem | components/badges/BadgeSystem.tsx | Sistema de badges |
-| BadgeCard | components/badges/BadgeCard.tsx | Card de badge |
-| ProgressReport | components/reports/ProgressReport.tsx | Relatório de progresso |
-| VideoPlayer | components/onboarding/VideoPlayer.tsx | Player de vídeo |
-| TutorialSpotlight | components/tutorial/TutorialSpotlight.tsx | Tutorial interativo |
-
----
-
-# ESTRUTURA DE ARQUIVOS
+Criado componente `.booking-section-divider` — um `<hr>` com gradiente horizontal `transparent → var(--bf-border) → transparent` que separa visualmente cada bloco da landing:
 
 ```
-frontend/src/
-├── context/
-│   └── ThemeContext.tsx
-├── hooks/
-│   └── useTenantTheme.ts
-├── components/
-│   ├── ThemeStyles.tsx
-│   ├── CustomizableShell.tsx
-│   ├── common/
-│   │   ├── CustomEmptyState.tsx
-│   │   ├── SkeletonLoader.tsx
-│   │   └── ConfettiCelebration.tsx
-│   ├── onboarding/
-│   │   ├── WelcomeScreen.tsx
-│   │   ├── SetupWizard.tsx
-│   │   ├── StepBrand.tsx
-│   │   ├── StepAddress.tsx
-│   │   ├── StepTeam.tsx
-│   │   ├── StepServices.tsx
-│   │   ├── StepComplete.tsx
-│   │   ├── ProgressBar.tsx
-│   │   └── SetupChecklist.tsx
-│   ├── barber/
-│   │   ├── HeroWelcomeCard.tsx
-│   │   ├── ModernRankingCard.tsx
-│   │   ├── SalesChartModern.tsx
-│   │   └── RecentActivityCard.tsx
-│   ├── mobile/
-│   │   ├── BottomNav.tsx
-│   │   ├── MobileHeader.tsx
-│   │   ├── SwipeableCard.tsx
-│   │   ├── QuickActionsFAB.tsx
-│   │   └── BottomSheet.tsx
-│   └── badges/
-│       ├── BadgeSystem.tsx
-│       └── BadgeCard.tsx
-└── styles/
-    ├── barber-theme.css
-    └── variables.css
+Hero → divisor → Info Cards → divisor → Sobre → divisor →
+Diferenciais → divisor → Equipe → divisor → Galeria
 ```
 
----
+Isso elimina o aspecto de "lista plana" e dá ritmo visual à página.
 
-# BACKEND — ALTERAÇÕES NECESSÁRIAS
+**Arquivos alterados:**
+- `BookingDesktopLayout.jsx` — adicionados 5 divisores entre seções
+- `BookingMobileLayout.jsx` — adicionados 5 divisores entre seções
+- `BookingFlow.css` — classe `.booking-section-divider` com `<hr>` gradiente e responsividade
 
-## Entidade Company
+### 10.4 Seção "Sobre a barbearia" mais decorada
 
-```sql
-ALTER TABLE companies ADD COLUMN logo_url TEXT;
-ALTER TABLE companies ADD COLUMN primary_color VARCHAR(7) DEFAULT '#d4af37';
-ALTER TABLE companies ADD COLUMN secondary_color VARCHAR(7) DEFAULT '#1a1a1a';
-ALTER TABLE companies ADD COLUMN accent_color VARCHAR(7) DEFAULT '#b8962f';
-ALTER TABLE companies ADD COLUMN wallpaper_url TEXT;
-ALTER TABLE companies ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE;
-ALTER TABLE companies ADD COLUMN setup_progress INTEGER DEFAULT 0;
-```
+- Ícone decorativo de aspas (`<svg>` quote path) em verde neon com opacidade 30%
+- Parágrafo com `border-left` sutil (2px) e `padding-left` para efeito de citação
+- Layout preservado: título + texto, mas com tratamento editorial premium
 
-## Endpoints
+**Arquivos alterados:**
+- `BookingLandingAbout.jsx` — adicionado `.booking-about-quote` com SVG
+- `BookingFlow.css` — classes `.booking-about-quote` e `p` com borda esquerda
 
-```ts
-// GET /api/company/:id/theme
-// Retorna tema configurado da empresa
+### 10.5 Galeria responsiva
 
-// PUT /api/company/:id/theme
-// Atualiza tema da empresa
+Em telas ≤ 640px, a galeria muda de `grid-template-columns: repeat(2)` com primeiro item oculto para `repeat(2)` com primeiro item ocupando `grid-column: 1 / -1` e `aspect-ratio: 16/9`. Antes a 3ª imagem era escondida — agora todas aparecem com destaque na primeira.
 
-// PUT /api/company/:id/onboarding
-// Marca onboarding como completo
+**Arquivos alterados:**
+- `BookingFlow.css` — media query `.booking-gallery-item:first-child` com full-width
 
-// POST /api/company/:id/wizard
-// Salva configuração do wizard
-```
+### 10.6 Melhor organização mobile e desktop
 
----
+- **Semântica dos InfoCards corrigida:** cards não interativos (endereço, horário, Instagram) usam `<div>` em vez de `<button>`, eliminando elementos focáveis falsos. Apenas o card WhatsApp mantém `<button>` com `onClick`.
+- **Cursor diferenciado:** classe `.booking-info-card--clickable` aplica `cursor: pointer` e hover/active effects apenas em cards clicáveis.
+- **Hero responsivo:** informações extras no hero com `flex-wrap` e `gap` adaptável no mobile (12px → 8px).
 
-# ORDEM DE IMPLEMENTAÇÃO
+**Arquivos alterados:**
+- `BookingLandingInfo.jsx` — render condicional `button`/`div` + classe modifier
+- `BookingFlow.css` — `.booking-info-card--clickable` e ajustes no hover
 
-## Sprint 1: Fundação Técnica
-- ThemeProvider
-- CSS Variables
-- useTenantTheme hook
-- Aplicar tema na Shell
+### 10.7 Checklist de validação visual
 
-## Sprint 2: Onboarding Core
-- WelcomeScreen
-- SetupWizard (4 etapas)
-- ProgressBar
-- API de save
+- [ ] Hero exibe nome, descrição, endereço, horário e avaliação visíveis sem scroll
+- [ ] Imagem de fundo cobre o hero sem distorção
+- [ ] Gradiente overlay mantém texto legível em qualquer imagem
+- [ ] Divisores sutis entre todas as seções da landing
+- [ ] Seção "Sobre" com aspas decorativas e borda esquerda visíveis
+- [ ] Galeria exibe 3 imagens no mobile com primeira em destaque (16:9)
+- [ ] Cards de informação não interativos (endereço, horário, Instagram) não mostram cursor pointer
+- [ ] Card de WhatsApp clicável mantém hover/active effects
+- [ ] Nenhum botão falso ou elemento focável indevido no DOM
+- [ ] Build (`npm run build`) compila sem erros ou warnings novos
+- [ ] Nenhuma funcionalidade de agendamento foi alterada ou removida
+- [ ] Nenhum arquivo do backend foi tocado
 
-## Sprint 3: Dashboard Premium
-- HeroWelcomeCard
-- ModernRankingCard
-- SkeletonLoader
-- EmptyStates
-- Micro-interações
+### 10.8 Garantia de não alteração no backend
 
-## Sprint 4: Mobile Foundation
-- BottomNav
-- Responsive cards
-- SwipeableCard
-- QuickActionsFAB
+Todos os refinamentos desta seção foram aplicados **exclusivamente no frontend** e **não afetam**:
 
-## Sprint 5: Celebrações
-- ConfettiCelebration
-- BadgeSystem
-- ProgressReport
-- VideoPlayer
-
-## Sprint 6: Polish
-- Tutorial interativo
-- AI theme suggestions
-- Wallpaper customizado
-- Ajustes finais
+- Backend (Node.js + Express + PostgreSQL)
+- Autenticação (login, cadastro, JWT, authStorage)
+- Rotas da aplicação (nenhuma rota criada, alterada ou removida)
+- Regras de agendamento (conflito de horários, validação de slots, lógica de serviços/profissionais)
+- Fluxo de etapas existente (serviço → profissional → data/hora → resumo → auth → sucesso)
+- Componentes de autenticação (`BookingLogin.jsx`, `PublicBookingSignup.jsx`, `BookingSuccess.jsx`, `BookingProfile.jsx`)
+- API de dados (nenhuma chamada nova ao backend foi adicionada)
 
 ---
 
-# PRIORIDADES
+## 11. Conclusão
 
-## Alta Prioridade (Impacto imediato)
-1. ThemeProvider + CSS Variables
-2. Logo no header/sidebar
-3. Onboarding Wizard
-4. Empty states premium
-5. Skeleton loaders
+A transformação da agenda online pública em landing page premium requer:
 
-## Média Prioridade (Valor percebido)
-1. Bottom navigation mobile
-2. Quick actions FAB
-3. Confetti celebrations
-4. Badge system básico
-5. Hero welcome card
+1. **Criação de ~8 novos componentes** para a landing page
+2. **~800+ linhas de CSS** para hero, info cards, diferenciais, equipe, galeria, split layout
+3. **Modificação controlada do `BookingFlow.jsx`** para integrar landing + steps
+4. **Dados mockados** que serão substituídos por dados reais do backend futuramente
+5. **Preservação total** da lógica de agendamento existente
 
-## Baixa Prioridade (Diferencial)
-1. Video onboarding
-2. AI theme suggestions
-3. Tutorial interativo
-4. Wallpaper customizado
-5. Gamificação avançada
-
----
-
-# MATRIZ DE RISCO
-
-| Risco | Probabilidade | Impacto | Mitigação |
-|-------|---------------|---------|-----------|
-| Performance com CSS vars | Média | Médio | Testar em dispositivos low-end |
-| Conflito de tema | Baixa | Alto | Isolamento via CSS modules |
-| Atraso no backend | Alta | Alto | Mockar dados no frontend inicialmente |
-| Complexidade do wizard | Média | Médio | Dividir em etapas menores |
-| Mobile performance | Alta | Médio | Lazy loading, code splitting |
-
----
-
-# MÉTRICAS DE SUCESSO
-
-## Quantitativas
-- Taxa de conclusão do onboarding
-- Tempo médio de configuração
-- Taxa de retenção D7, D30
-- NPS no primeiro uso
-- % de usuários que personalizam cores
-
-## Qualitativas
-- Feedback "parece um sistema próprio"
-- Redução de tickets de suporte
-- Satisfação no onboarding
-- Percepção de valor premium
-
----
-
-# CHECKLIST DE QUALIDADE
-
-- [ ] Tema se aplica corretamente a todos os componentes
-- [ ] Logo aparece em todos os pontos estratégicos
-- [ ] Onboarding não tem campos duplicados
-- [ ] Wizard salva dados corretamente
-- [ ] Empty states têm CTAs claros
-- [ ] Skeleton loaders idênticos ao conteúdo real
-- [ ] Mobile não tem overflow horizontal
-- [ ] Touch targets >= 44px
-- [ ] Animações suaves (60fps)
-- [ ] Performance: LCP < 2.5s
-- [ ] Accessibilidade: contraste WCAG AA
-
----
-
-## Próximo Passo
-
-Começar pela **FASE 1 — Sprint 1**:
-- Criar ThemeProvider
-- Criar hook useTenantTheme
-- Criar arquivo de CSS Variables
-- Aplicar logo no Shell/Header
+O resultado final deve parecer um **site profissional de barbearia** — não um formulário de agendamento. O cliente sente que está visitando a barbearia antes de reservar.
