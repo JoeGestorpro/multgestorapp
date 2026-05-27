@@ -3,70 +3,72 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '..', '.env'), quiet: true });
 const pool = require('../src/config/database');
 
+// Ordem de execução. Adicionar novas migrations SEMPRE ao final.
+// Formato do nome: YYYYMMDD_NNN_descricao.sql
 const migrations = [
-  'auth-security.sql',
-  'master-dashboard.sql',
-  'master-finance.sql',
-  'master-admin.sql',
-  'barber.sql',
-  'client-booking.sql',
-  'first-access.sql'
+  { version: '20260101_001', file: 'auth-security.sql' },
+  { version: '20260101_002', file: 'master-dashboard.sql' },
+  { version: '20260101_003', file: 'master-finance.sql' },
+  { version: '20260101_004', file: 'master-admin.sql' },
+  { version: '20260101_005', file: 'barber.sql' },
+  { version: '20260101_006', file: 'client-booking.sql' },
+  { version: '20260101_007', file: 'first-access.sql' },
+  { version: '20260101_008', file: 'booking-landing.sql' },
+  { version: '20260101_009', file: 'crm-tables.sql' },
+  { version: '20260101_010', file: 'migrations-availability.sql' },
+  { version: '20260101_011', file: 'outbox.sql' },
+  { version: '20260101_012', file: 'integration-configs.sql' },
+  { version: '20260101_013', file: 'migration-starts-at-ends-at.sql' },
+  { version: '20260526_014', file: 'clima.sql' },
+  { version: '20260526_015', file: 'clima_appointments.sql' },
+  { version: '20260526_016', file: 'trial_email_log.sql' },
+  { version: '20260526_017', file: 'rls_tenant_tables.sql' },
 ];
 
-async function verifyPinRecoverySchema() {
-  const tableResult = await pool.query(
-    `SELECT table_name
-     FROM information_schema.tables
-     WHERE table_schema = 'public'
-       AND table_name = 'pin_reset_tokens'
-     LIMIT 1`
-  );
+async function ensureMigrationsTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version     TEXT PRIMARY KEY,
+      name        TEXT NOT NULL,
+      applied_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      duration_ms INTEGER
+    )
+  `);
+}
 
-  const userColumnsResult = await pool.query(
-    `SELECT column_name
-     FROM information_schema.columns
-     WHERE table_schema = 'public'
-       AND table_name = 'users'
-     ORDER BY ordinal_position`
-  );
+async function getAppliedMigrations() {
+  const result = await pool.query('SELECT version FROM schema_migrations');
+  return new Set(result.rows.map(r => r.version));
+}
 
-  const pinTokenColumnsResult = await pool.query(
-    `SELECT column_name
-     FROM information_schema.columns
-     WHERE table_schema = 'public'
-       AND table_name = 'pin_reset_tokens'
-     ORDER BY ordinal_position`
-  );
-
-  const requiredPinResetColumns = [
-    'id',
-    'company_id',
-    'user_id',
-    'email',
-    'token_hash',
-    'expires_at',
-    'used_at',
-    'created_at'
-  ];
-
-  const userColumns = new Set(userColumnsResult.rows.map((row) => row.column_name));
-  const pinResetColumns = new Set(pinTokenColumnsResult.rows.map((row) => row.column_name));
-
-  if (!userColumns.has('pin_hash')) {
-    throw new Error('Migration incompleta: coluna users.pin_hash nao existe no banco alvo.');
+async function applyMigration(version, file, applied) {
+  if (applied.has(version)) {
+    console.log(`[skip]  ${version} — ${file} (já aplicada)`);
+    return;
   }
 
-  if (tableResult.rowCount === 0) {
-    throw new Error('Migration incompleta: tabela pin_reset_tokens nao existe no banco alvo.');
+  const filePath = path.resolve(__dirname, '..', 'src', 'database', file);
+
+  if (!fs.existsSync(filePath)) {
+    console.warn(`[warn]  ${version} — arquivo não encontrado: ${filePath}`);
+    return;
   }
 
-  const missingPinResetColumns = requiredPinResetColumns.filter((columnName) => !pinResetColumns.has(columnName));
+  const sql = fs.readFileSync(filePath, 'utf8');
+  const start = Date.now();
 
-  if (missingPinResetColumns.length > 0) {
-    throw new Error(`Migration incompleta: faltam colunas em pin_reset_tokens: ${missingPinResetColumns.join(', ')}`);
-  }
+  await pool.query(sql);
 
-  console.log('[migrate] schema de recuperacao de PIN confirmado com sucesso');
+  const duration = Date.now() - start;
+
+  await pool.query(
+    `INSERT INTO schema_migrations (version, name, duration_ms)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (version) DO NOTHING`,
+    [version, file.replace('.sql', ''), duration]
+  );
+
+  console.log(`[ok]    ${version} — ${file} (${duration}ms)`);
 }
 
 (async () => {
@@ -74,22 +76,29 @@ async function verifyPinRecoverySchema() {
     ? pool.getDatabaseTargetSummary()
     : { label: 'banco desconhecido' };
 
-  console.log(`[migrate] banco alvo: ${target.label}`);
+  console.log(`\n[migrate] banco alvo: ${target.label}\n`);
 
-  for (const migration of migrations) {
-    const filePath = path.resolve(__dirname, '..', 'src', 'database', migration);
+  await ensureMigrationsTable();
+  const applied = await getAppliedMigrations();
 
-    if (fs.existsSync(filePath)) {
-      await pool.query(fs.readFileSync(filePath, 'utf8'));
-      console.log(`Migration aplicada: ${migration}`);
-    }
+  for (const { version, file } of migrations) {
+    await applyMigration(version, file, applied);
   }
 
-  await verifyPinRecoverySchema();
+  // Verificação de integridade pós-migration
+  const result = await pool.query(
+    `SELECT table_name FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_name = 'pin_reset_tokens'`
+  );
 
+  if (result.rowCount === 0) {
+    throw new Error('Verificação falhou: tabela pin_reset_tokens não encontrada.');
+  }
+
+  console.log('\n[migrate] todas as migrations aplicadas com sucesso.\n');
   await pool.end();
-})().catch(async (error) => {
-  console.error(error);
+})().catch(async (err) => {
+  console.error('[migrate] ERRO:', err.message);
   await pool.end();
   process.exit(1);
 });

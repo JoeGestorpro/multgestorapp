@@ -6,6 +6,18 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view_own_dashboard BOOLEAN NOT NU
 ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view_own_reports BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS public_booking_slug TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS logo_url TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS primary_color TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS secondary_color TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS accent_color TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS wallpaper_url TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS address_line TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS state TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS business_description TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS public_display_name TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS business_email TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_companies_public_booking_slug_unique
   ON companies(public_booking_slug)
