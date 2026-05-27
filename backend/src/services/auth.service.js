@@ -1,20 +1,26 @@
+const { appLogger } = require('../shared/core/logger');
+const {
+  ValidationError,
+  UnauthorizedError,
+  ForbiddenError,
+  NotFoundError,
+  ConflictError,
+  AppError,
+} = require('../shared/core/errors');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
 const emailService = require('./email/email.service');
-const { getCompanyPlanSnapshot } = require('./company-plan.service');
+const { sendTrialEmail } = require('./email/trial-emails.service');
+const { getCompanyPlanSnapshot, getCompanyPlanSchemaConfig } = require('./company-plan.service');
 const { normalizeFeaturePlanType } = require('../utils/planFeatures');
-
-const BARBER_ADMIN_ROLES = ['admin', 'owner', 'collaborator'];
-const BOOKING_CUSTOMER_ROLES = ['client', 'booking_customer'];
-const MASTER_ROLES = ['master_admin'];
-
-function createError(message, statusCode) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-}
+const {
+  BARBER_ADMIN_ROLES,
+  BOOKING_CUSTOMER_ROLES,
+  MASTER_ROLES,
+  inferAuthScope
+} = require('../shared/core/auth/roles');
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -25,34 +31,17 @@ function logAuthDebug(label, details = {}) {
     return;
   }
 
-  console.log(`[AUTH DEBUG] ${label}`, details);
+  appLogger.debug({ details }, `[AUTH DEBUG] ${label}`);
 }
 
-async function columnExists(tableName, columnName) {
-  const result = await pool.query(
-    `SELECT 1
-     FROM information_schema.columns
-     WHERE table_schema = 'public'
-       AND table_name = $1
-       AND column_name = $2
-     LIMIT 1`,
-    [tableName, columnName]
-  );
-
-  return result.rowCount > 0;
-}
-
+// Usa getCompanyPlanSchemaConfig() de company-plan.service.js — cacheada com TTL de 5min.
+// Evita 3 queries information_schema por login/refresh (eliminado hot path não-cacheado).
 async function getCompanyPlanQueryConfig() {
-  const [hasPlanType, hasPlanStatus, hasTrialEndsAt] = await Promise.all([
-    columnExists('companies', 'plan_type'),
-    columnExists('companies', 'plan_status'),
-    columnExists('companies', 'trial_ends_at')
-  ]);
-
+  const config = await getCompanyPlanSchemaConfig();
   return {
-    selectPlanType: hasPlanType ? 'companies.plan_type' : "'trial'::text AS plan_type",
-    selectPlanStatus: hasPlanStatus ? 'companies.plan_status' : "'active'::text AS plan_status",
-    selectTrialEndsAt: hasTrialEndsAt ? 'companies.trial_ends_at' : 'NULL::timestamp AS trial_ends_at'
+    selectPlanType:    config.hasPlanType    ? 'companies.plan_type'    : "'trial'::text AS plan_type",
+    selectPlanStatus:  config.hasPlanStatus  ? 'companies.plan_status'  : "'active'::text AS plan_status",
+    selectTrialEndsAt: config.hasTrialEndsAt ? 'companies.trial_ends_at': 'NULL::timestamp AS trial_ends_at',
   };
 }
 
@@ -61,25 +50,9 @@ function getPositiveIntEnv(name, fallback) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
-function inferAuthScope(role) {
-  if (MASTER_ROLES.includes(role)) {
-    return 'master';
-  }
-
-  if (BOOKING_CUSTOMER_ROLES.includes(role)) {
-    return 'booking_customer';
-  }
-
-  if (BARBER_ADMIN_ROLES.includes(role)) {
-    return 'barber_admin';
-  }
-
-  return null;
-}
-
 function signToken(user, authScope = inferAuthScope(user.role)) {
   if (!process.env.JWT_SECRET) {
-    throw createError('JWT_SECRET nao configurado', 500);
+    throw new AppError('JWT_SECRET nao configurado', 500, 'CONFIGURATION_ERROR');
   }
 
   const isBookingCustomer = authScope === 'booking_customer';
@@ -97,6 +70,28 @@ function signToken(user, authScope = inferAuthScope(user.role)) {
       can_launch_sales: Boolean(user.can_launch_sales),
       can_view_own_dashboard: user.can_view_own_dashboard !== false,
       can_view_own_reports: user.can_view_own_reports !== false
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '1h' }
+  );
+}
+
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: '/'
+};
+
+function generateRefreshToken(userId, role, companyId, authScope) {
+  return jwt.sign(
+    {
+      id: userId,
+      role,
+      company_id: companyId,
+      auth_scope: authScope,
+      token_type: 'refresh'
     },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
@@ -252,7 +247,7 @@ async function findUserWithCompanyByEmail(email) {
       email,
       userFound: false
     });
-    throw createError('Credenciais invalidas', 401);
+    throw new UnauthorizedError('Credenciais invalidas');
   }
 
   logAuthDebug('login_lookup', {
@@ -300,7 +295,7 @@ async function findBookingCustomerByEmail(email, companySlug = null) {
   );
 
   if (result.rowCount === 0) {
-    throw createError('Credenciais invalidas', 401);
+    throw new UnauthorizedError('Credenciais invalidas');
   }
 
   return {
@@ -312,18 +307,18 @@ async function findBookingCustomerByEmail(email, companySlug = null) {
 
 function ensureActiveUser(user, options = {}) {
   if (!user.is_active) {
-    throw createError('Usuario inativo', 403);
+    throw new ForbiddenError('Usuario inativo');
   }
 
   if (options.requireVerifiedEmail && (!user.email_verified || user.status !== 'active')) {
-    throw createError('Confirme seu e-mail para continuar', 403);
+    throw new ForbiddenError('Confirme seu e-mail para continuar');
   }
 }
 
 function assertScopeCompatibility(user, authScope) {
   if (authScope === 'booking_customer') {
     if (!BOOKING_CUSTOMER_ROLES.includes(user.role)) {
-      throw createError('Este login e exclusivo para clientes finais do agendamento', 403);
+      throw new ForbiddenError('Este login e exclusivo para clientes finais do agendamento');
     }
 
     return;
@@ -331,7 +326,7 @@ function assertScopeCompatibility(user, authScope) {
 
   if (authScope === 'barber_admin') {
     if (!BARBER_ADMIN_ROLES.includes(user.role)) {
-      throw createError('Este login e exclusivo para dono, admin ou colaborador da barbearia', 403);
+      throw new ForbiddenError('Este login e exclusivo para dono, admin ou colaborador da barbearia');
     }
 
     return;
@@ -339,7 +334,7 @@ function assertScopeCompatibility(user, authScope) {
 
   if (authScope === 'master') {
     if (!MASTER_ROLES.includes(user.role)) {
-      throw createError('Este login e exclusivo para administradores master', 403);
+      throw new ForbiddenError('Este login e exclusivo para administradores master');
     }
   }
 }
@@ -371,11 +366,11 @@ async function register(data) {
   const nicheType = data.niche_type || data.nicheType || null;
 
   if (!name || !email || !password) {
-    throw createError('Nome, email e senha sao obrigatorios', 400);
+    throw new ValidationError('Nome, email e senha sao obrigatorios');
   }
 
   if (password.length < 6) {
-    throw createError('A senha deve ter pelo menos 6 caracteres', 400);
+    throw new ValidationError('A senha deve ter pelo menos 6 caracteres');
   }
 
   const client = await pool.connect();
@@ -389,7 +384,7 @@ async function register(data) {
     );
 
     if (existingUser.rowCount > 0) {
-      throw createError('Email ja cadastrado', 409);
+      throw new ConflictError('Email ja cadastrado');
     }
 
     const companyResult = await client.query(
@@ -411,6 +406,13 @@ async function register(data) {
 
     await client.query('COMMIT');
 
+    // Enviar email de boas-vindas (nao bloqueia o registro)
+    try {
+      await sendTrialEmail('welcome', { ...company, email });
+    } catch (err) {
+      appLogger.warn({ err, companyId: company.id }, '[TrialEmail] Falha ao enviar welcome email');
+    }
+
     const user = {
       ...userResult.rows[0],
       company_name: company.name,
@@ -430,7 +432,7 @@ async function register(data) {
     await client.query('ROLLBACK');
 
     if (error.code === '23505') {
-      throw createError('Email ja cadastrado', 409);
+      throw new ConflictError('Email ja cadastrado');
     }
 
     throw error;
@@ -445,7 +447,7 @@ async function login(data, options = {}) {
   const requestedAuthScope = options.authScope || null;
 
   if (!email || !password) {
-    throw createError('Email e senha sao obrigatorios', 400);
+    throw new ValidationError('Email e senha sao obrigatorios');
   }
 
   const user = await findUserWithCompanyByEmail(email);
@@ -469,13 +471,13 @@ async function login(data, options = {}) {
   });
 
   if (!passwordMatches) {
-    throw createError('Credenciais invalidas', 401);
+    throw new UnauthorizedError('Credenciais invalidas');
   }
 
   const modules = await getCompanyModules(user.company_id);
 
   if (requestedAuthScope === 'barber_admin' && !modules.some((module) => module.slug === 'barber')) {
-    throw createError('Modulo BarberGestor nao liberado para esta empresa', 403);
+    throw new ForbiddenError('Modulo BarberGestor nao liberado para esta empresa');
   }
 
   return buildSession(user, modules, authScope);
@@ -487,23 +489,23 @@ async function loginBookingCustomer(data) {
   const requestedCompanySlug = String(data.companySlug || data.company_slug || '').trim().toLowerCase();
 
   if (!email || !password || !requestedCompanySlug) {
-    throw createError('Email, senha e companySlug sao obrigatorios', 400);
+    throw new ValidationError('Email, senha e companySlug sao obrigatorios');
   }
 
   const customer = await findBookingCustomerByEmail(email, requestedCompanySlug);
 
   if (!customer.email_verified || customer.status !== 'active') {
-    throw createError('Confirme seu e-mail para continuar', 403);
+    throw new ForbiddenError('Confirme seu e-mail para continuar');
   }
 
   if (customer.status === 'blocked') {
-    throw createError('Cliente bloqueado para este agendamento', 403);
+    throw new ForbiddenError('Cliente bloqueado para este agendamento');
   }
 
   const passwordMatches = await bcrypt.compare(password, customer.password_hash);
 
   if (!passwordMatches) {
-    throw createError('Credenciais invalidas', 401);
+    throw new UnauthorizedError('Credenciais invalidas');
   }
 
   await pool.query(
@@ -548,17 +550,17 @@ async function getAuthenticatedUser(userId, options = {}) {
     );
 
     if (result.rowCount === 0) {
-      throw createError('Cliente nao encontrado', 404);
+      throw new NotFoundError('Cliente nao encontrado');
     }
 
     const customer = result.rows[0];
 
     if (customer.status === 'blocked') {
-      throw createError('Cliente bloqueado para este agendamento', 403);
+      throw new ForbiddenError('Cliente bloqueado para este agendamento');
     }
 
     if (!customer.email_verified || customer.status !== 'active') {
-      throw createError('Confirme seu e-mail para continuar', 403);
+      throw new ForbiddenError('Confirme seu e-mail para continuar');
     }
 
     return {
@@ -597,7 +599,7 @@ async function getAuthenticatedUser(userId, options = {}) {
   );
 
   if (result.rowCount === 0) {
-    throw createError('Usuario nao encontrado', 404);
+    throw new NotFoundError('Usuario nao encontrado');
   }
 
   const user = await resolveUserPlan(result.rows[0]);
@@ -623,7 +625,7 @@ async function validateFirstAccessToken(token) {
   const accessToken = String(token || '').trim();
 
   if (!accessToken) {
-    throw createError('Token e obrigatorio', 400);
+    throw new ValidationError('Token e obrigatorio');
   }
 
   const result = await pool.query(
@@ -647,17 +649,17 @@ async function validateFirstAccessToken(token) {
   );
 
   if (result.rowCount === 0) {
-    throw createError('Token invalido', 404);
+    throw new NotFoundError('Token invalido');
   }
 
   const row = result.rows[0];
 
   if (row.used_at) {
-    throw createError('Token ja utilizado', 410);
+    throw new AppError('Token ja utilizado', 410, 'TOKEN_USED');
   }
 
   if (row.is_expired) {
-    throw createError('Token expirado', 410);
+    throw new AppError('Token expirado', 410, 'TOKEN_EXPIRED');
   }
 
   return {
@@ -680,7 +682,7 @@ async function requestFirstAccess(data, meta = {}) {
   const expiresInHours = getPositiveIntEnv('FIRST_ACCESS_TOKEN_HOURS', 48);
 
   if (!email) {
-    throw createError('Email e obrigatorio', 400);
+    throw new ValidationError('Email e obrigatorio');
   }
 
   const userResult = await pool.query(
@@ -787,11 +789,11 @@ async function setFirstAccessPassword(data) {
   const password = String(data.password || '');
 
   if (!token || !password) {
-    throw createError('Token e senha sao obrigatorios', 400);
+    throw new ValidationError('Token e senha sao obrigatorios');
   }
 
   if (password.length < 6) {
-    throw createError('A senha deve ter pelo menos 6 caracteres', 400);
+    throw new ValidationError('A senha deve ter pelo menos 6 caracteres');
   }
 
   const client = await pool.connect();
@@ -808,17 +810,17 @@ async function setFirstAccessPassword(data) {
     );
 
     if (tokenResult.rowCount === 0) {
-      throw createError('Token invalido', 404);
+      throw new NotFoundError('Token invalido');
     }
 
     const access = tokenResult.rows[0];
 
     if (access.used_at) {
-      throw createError('Token ja utilizado', 410);
+      throw new AppError('Token ja utilizado', 410, 'TOKEN_USED');
     }
 
     if (access.is_expired) {
-      throw createError('Token expirado', 410);
+      throw new AppError('Token expirado', 410, 'TOKEN_EXPIRED');
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -865,7 +867,7 @@ async function requestPasswordReset(data, meta = {}) {
   const expiresInMinutes = getPositiveIntEnv('PASSWORD_RESET_TOKEN_MINUTES', 60);
 
   if (!email) {
-    throw createError('Email e obrigatorio', 400);
+    throw new ValidationError('Email e obrigatorio');
   }
 
   const userResult = await pool.query(
@@ -953,11 +955,11 @@ async function resetPassword(data) {
   const password = String(data.password || '');
 
   if (!token || !password) {
-    throw createError('Token e senha sao obrigatorios', 400);
+    throw new ValidationError('Token e senha sao obrigatorios');
   }
 
   if (password.length < 6) {
-    throw createError('A senha deve ter pelo menos 6 caracteres', 400);
+    throw new ValidationError('A senha deve ter pelo menos 6 caracteres');
   }
 
   const client = await pool.connect();
@@ -974,17 +976,17 @@ async function resetPassword(data) {
     );
 
     if (tokenResult.rowCount === 0) {
-      throw createError('Token invalido', 404);
+      throw new NotFoundError('Token invalido');
     }
 
     const resetToken = tokenResult.rows[0];
 
     if (resetToken.used_at) {
-      throw createError('Token ja utilizado', 410);
+      throw new AppError('Token ja utilizado', 410, 'TOKEN_USED');
     }
 
     if (resetToken.is_expired) {
-      throw createError('Token expirado', 410);
+      throw new AppError('Token expirado', 410, 'TOKEN_EXPIRED');
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -1035,5 +1037,7 @@ module.exports = {
   validateFirstAccessToken,
   setFirstAccessPassword,
   requestPasswordReset,
-  resetPassword
+  resetPassword,
+  generateRefreshToken,
+  REFRESH_COOKIE_OPTIONS
 };

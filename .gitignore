@@ -63,3 +63,25 @@ Thumbs.db
 # Vercel / Render / cache
 .vercel/
 .cache/
+.vercel
+
+# OpenCode — contém credenciais, nunca commitar
+opencode.json
+
+# Cobertura de testes (artefato de build)
+backend/coverage/
+coverage/
+
+# Logs de erro do backend
+backend/backend.err
+*.err
+
+# Referência de design externa (repo clonado, não faz parte do projeto)
+awesome-design-md/
+
+# Agent runtime e cache (gerado automaticamente)
+.agent/runtime/
+.agent/skills/create-capability/
+.agent/skills/create-vertical/
+.agent/skills/event-driven-patterns/
+.agent/skills/multi-tenant-patterns/
