@@ -1,5 +1,28 @@
+const { appLogger } = require('../shared/core/logger');
 const pool = require('../config/database');
 const { PLAN_FEATURES, normalizeFeaturePlanType } = require('../utils/planFeatures');
+const cacheManager = require('../shared/core/cache/cache-manager');
+
+const PLAN_CACHE_TTL = 60_000;      // 60 s
+const SCHEMA_CACHE_TTL = 5 * 60_000;  // 5 min
+
+async function invalidateSchemaConfigCache() {
+  await cacheManager.del('mg:schema_config');
+}
+
+async function invalidatePlanCache(companyId) {
+  if (companyId) {
+    await cacheManager.del(`mg:plan:${companyId}`);
+    appLogger.debug({ company_id: companyId }, '[plan] cache de snapshot invalidado');
+  } else {
+    await cacheManager.delByPrefix('mg:plan:');
+    appLogger.debug('[plan] cache de snapshot invalidado (todos)');
+  }
+}
+
+async function getCachedSchemaConfig() {
+  return cacheManager.get('mg:schema_config');
+}
 
 const PLAN_DEFINITIONS = {
   trial: {
@@ -105,6 +128,11 @@ function getPlanFeatures(planType) {
 }
 
 async function getCompanyPlanSchemaConfig() {
+  const cached = await getCachedSchemaConfig();
+  if (cached) {
+    return cached;
+  }
+
   const [
     hasPlanType,
     hasPlanStatus,
@@ -131,7 +159,7 @@ async function getCompanyPlanSchemaConfig() {
     columnExists('subscriptions', 'trial_ends_at')
   ]);
 
-  return {
+  const config = {
     hasPlanType,
     hasPlanStatus,
     hasTrialEndsAt,
@@ -144,6 +172,9 @@ async function getCompanyPlanSchemaConfig() {
     hasUpdatedAtOnSubscriptions,
     hasTrialEndsAtOnSubscriptions
   };
+
+  await cacheManager.set('mg:schema_config', config, SCHEMA_CACHE_TTL);
+  return config;
 }
 
 function buildCompanyPlanSnapshot(company) {
@@ -275,12 +306,23 @@ function logPlanDebug(snapshot) {
     return;
   }
 
-  console.log(
-    `[PLAN DEBUG] company_id=${snapshot.company_id} plan=${snapshot.plan_type} status=${snapshot.plan_status} source=${snapshot.source}${snapshot.subscription_status ? ` subscription_status=${snapshot.subscription_status}` : ''}`
-  );
+  appLogger.debug({ company_id: snapshot.company_id, plan: snapshot.plan_type, status: snapshot.plan_status, source: snapshot.source, subscription_status: snapshot.subscription_status || undefined }, '[PLAN DEBUG]');
+}
+
+async function _setPlanSnapshotCache(companyId, snapshot) {
+  await cacheManager.set(`mg:plan:${companyId}`, snapshot, PLAN_CACHE_TTL);
+}
+
+async function _getPlanSnapshotCache(companyId) {
+  return cacheManager.get(`mg:plan:${companyId}`);
 }
 
 async function getCompanyPlanSnapshot(companyId) {
+  const cachedSnapshot = await _getPlanSnapshotCache(companyId);
+  if (cachedSnapshot) {
+    return cachedSnapshot;
+  }
+
   const schemaConfig = await getCompanyPlanSchemaConfig();
 
   const companyColumns = ['id', 'status', 'created_at'];
@@ -355,16 +397,19 @@ async function getCompanyPlanSnapshot(companyId) {
 
       if (isPaidPlanType(subscriptionSnapshot.plan_type) && subscriptionSnapshot.plan_status === 'active') {
         logPlanDebug(subscriptionSnapshot);
+        await _setPlanSnapshotCache(companyId, subscriptionSnapshot);
         return subscriptionSnapshot;
       }
 
       if (schemaConfig.hasPlanType && company.plan_type) {
         logPlanDebug(companyPlanSnapshot);
+        await _setPlanSnapshotCache(companyId, companyPlanSnapshot);
         return companyPlanSnapshot;
       }
 
       if (!isPaidPlanType(companyPlanSnapshot.plan_type) || companyPlanSnapshot.plan_status !== 'active') {
         logPlanDebug(subscriptionSnapshot);
+        await _setPlanSnapshotCache(companyId, subscriptionSnapshot);
         return subscriptionSnapshot;
       }
     }
@@ -372,6 +417,7 @@ async function getCompanyPlanSnapshot(companyId) {
 
   if (schemaConfig.hasPlanType && company.plan_type) {
     logPlanDebug(companyPlanSnapshot);
+    await _setPlanSnapshotCache(companyId, companyPlanSnapshot);
     return companyPlanSnapshot;
   }
 
@@ -391,6 +437,7 @@ async function getCompanyPlanSnapshot(companyId) {
   };
 
   logPlanDebug(fallbackSnapshot);
+  await _setPlanSnapshotCache(companyId, fallbackSnapshot);
   return fallbackSnapshot;
 }
 
@@ -401,5 +448,8 @@ module.exports = {
   resolveMaxCollaborators,
   isPlanActive,
   getPlanFeatures,
-  getCompanyPlanSnapshot
+  getCompanyPlanSnapshot,
+  getCompanyPlanSchemaConfig,
+  invalidateSchemaConfigCache,
+  invalidatePlanCache
 };

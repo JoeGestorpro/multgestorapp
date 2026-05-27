@@ -1,3 +1,4 @@
+const { appLogger } = require('../../shared/core/logger');
 const { Resend } = require('resend');
 
 function resolveFromAddress() {
@@ -35,11 +36,7 @@ function createResendProvider() {
       const isTestMode = process.env.RESEND_TEST_MODE === 'true';
       const finalTo = message.to;
 
-      console.log('[RESEND DEBUG]', {
-        testMode: isTestMode,
-        from: process.env.EMAIL_FROM || '',
-        to: finalTo
-      });
+      appLogger.debug({ testMode: isTestMode, from: process.env.EMAIL_FROM || '', to: finalTo }, '[RESEND DEBUG]');
 
       const response = await resend.emails.send({
         from,
@@ -53,10 +50,7 @@ function createResendProvider() {
       });
 
       if (response.error) {
-        console.error('[resend] Erro ao enviar e-mail:', {
-          error: response.error.message,
-          to: finalTo
-        });
+        appLogger.error({ error: response.error.message, to: finalTo }, '[resend] Erro ao enviar e-mail');
         const error = new Error(response.error.message || 'Falha ao enviar email via Resend');
         error.statusCode = response.error.statusCode;
         error.name = response.error.name;

@@ -1,12 +1,8 @@
+const { appLogger } = require('../../shared/core/logger');
+const { ValidationError, UnauthorizedError, NotFoundError, AppError } = require('../../shared/core/errors');
 const pool = require('../../config/database');
 const masterService = require('../master.service');
 const emailService = require('../email/email.service');
-
-function createError(message, statusCode) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-}
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -44,11 +40,11 @@ function validateWebhookSecret(req) {
   const expectedSecret = normalizeText(process.env.KIWIFY_WEBHOOK_SECRET);
 
   if (!expectedSecret) {
-    throw createError('KIWIFY_WEBHOOK_SECRET nao configurado', 500);
+    throw new AppError('KIWIFY_WEBHOOK_SECRET nao configurado', 500, 'CONFIGURATION_ERROR');
   }
 
   if (resolveWebhookSecret(req) !== expectedSecret) {
-    throw createError('Webhook nao autorizado', 401);
+    throw new UnauthorizedError('Webhook nao autorizado');
   }
 }
 
@@ -136,7 +132,7 @@ async function requireFinanceTables() {
 
   const row = result.rows[0] || {};
   if (!row.payment_gateway_events || !row.invoices || !row.subscription_events) {
-    throw createError('Migrations financeiras nao aplicadas', 503);
+    throw new AppError('Migrations financeiras nao aplicadas', 503, 'MIGRATION_PENDING');
   }
 }
 
@@ -471,7 +467,7 @@ async function ensureFirstAccess(company, customer) {
       expiresAt: generated.firstAccess.expires_at
     });
   } catch (error) {
-    console.error('[kiwify-first-access-email-error]', error);
+    appLogger.error({ err: error }, '[kiwify-first-access-email-error]');
   }
 
   return generated;
@@ -520,7 +516,7 @@ async function processKiwifyWebhook(payload, req) {
   const { subscriptionStatus, invoiceStatus } = mapEventToStatuses(event.eventType);
 
   if (!customer.email && ['compra_aprovada', 'subscription_renewed', 'purchase_approved', 'renewed'].includes(event.eventType)) {
-    throw createError('Payload do webhook sem email do cliente', 400);
+    throw new ValidationError('Payload do webhook sem email do cliente');
   }
 
   const rawBody = JSON.stringify(payload || {});
@@ -644,7 +640,7 @@ async function processKiwifyWebhook(payload, req) {
         [event.eventId, error.message]
       );
     } catch (updateError) {
-      console.error('[kiwify-webhook-error-log-failed]', updateError);
+      appLogger.error({ err: updateError }, '[kiwify-webhook-error-log-failed]');
     }
 
     throw error;

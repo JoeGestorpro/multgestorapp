@@ -1,27 +1,18 @@
 const jwt = require('jsonwebtoken');
-
-const BARBER_ADMIN_ROLES = ['admin', 'owner', 'collaborator'];
-const BOOKING_CUSTOMER_ROLES = ['client', 'booking_customer'];
-const MASTER_ROLES = ['master_admin'];
+const { createReqLogger } = require('../shared');
+const {
+  BARBER_ADMIN_ROLES,
+  BOOKING_CUSTOMER_ROLES,
+  MASTER_ROLES,
+  inferAuthScope: inferAuthScopeFromRole
+} = require('../shared/core/auth/roles');
 
 function inferAuthScope(user = {}) {
   if (user.auth_scope) {
     return user.auth_scope;
   }
 
-  if (MASTER_ROLES.includes(user.role)) {
-    return 'master';
-  }
-
-  if (BOOKING_CUSTOMER_ROLES.includes(user.role)) {
-    return 'booking_customer';
-  }
-
-  if (BARBER_ADMIN_ROLES.includes(user.role)) {
-    return 'barber_admin';
-  }
-
-  return null;
+  return inferAuthScopeFromRole(user.role);
 }
 
 function reject(res, statusCode, error) {
@@ -54,6 +45,8 @@ function requireAuth(req, res, next) {
       company_id: payload.company_id || null,
       auth_scope: inferAuthScope(payload)
     };
+
+    req.log = createReqLogger(req);
 
     return next();
   } catch (error) {

@@ -1,225 +1,202 @@
 const masterService = require('../services/master.service');
 const masterFinanceService = require('../services/master-finance.service');
+const { asyncHandler, success } = require('../shared');
 
-function sendError(res, error, fallbackMessage) {
-  const statusCode = error.statusCode || 500;
-
-  return res.status(statusCode).json({
-    success: false,
-    error: statusCode === 500 ? fallbackMessage : error.message
-  });
-}
-
-function wrap(handler, fallbackMessage) {
-  return async function wrappedHandler(req, res) {
-    try {
-      await handler(req, res);
-    } catch (error) {
-      console.error(fallbackMessage, error);
-      sendError(res, error, fallbackMessage);
-    }
-  };
-}
-
-const getDashboard = wrap(async (req, res) => {
+const getDashboard = asyncHandler(async (req, res) => {
   const dashboard = await masterService.getDashboardData();
-  res.json({ success: true, data: dashboard });
+  return success(res, dashboard);
 }, 'Erro ao carregar dashboard master');
 
-const listCompanies = wrap(async (req, res) => {
+const listCompanies = asyncHandler(async (req, res) => {
   const companies = await masterService.listCompanies(req.query);
-  res.json({ success: true, data: companies });
+  return success(res, companies);
 }, 'Erro ao listar empresas');
 
-const getCompany = wrap(async (req, res) => {
+const getCompany = asyncHandler(async (req, res) => {
   const company = await masterService.getCompany(req.params.id);
-  res.json({ success: true, data: company });
+  return success(res, company);
 }, 'Erro ao carregar empresa');
 
-const createCompany = wrap(async (req, res) => {
+const createCompany = asyncHandler(async (req, res) => {
   const company = await masterService.createCompany(req.body, req.user);
-  res.status(201).json({ success: true, data: company });
+  return success(res, company, { statusCode: 201 });
 }, 'Erro ao criar empresa');
 
-const updateCompany = wrap(async (req, res) => {
+const updateCompany = asyncHandler(async (req, res) => {
   const company = await masterService.updateCompany(req.params.id, req.body, req.user);
-  res.json({ success: true, data: company });
+  return success(res, company);
 }, 'Erro ao atualizar empresa');
 
-const deleteCompany = wrap(async (req, res) => {
+const deleteCompany = asyncHandler(async (req, res) => {
   await masterService.deleteCompany(req.params.id, req.user);
-  res.json({ success: true, message: 'Empresa removida com sucesso' });
+  return success(res, null, { message: 'Empresa removida com sucesso' });
 }, 'Erro ao remover empresa');
 
-const updateCompanyStatus = wrap(async (req, res) => {
+const updateCompanyStatus = asyncHandler(async (req, res) => {
   const company = await masterService.updateCompanyStatus(req.params.id, req.body.status, req.user);
-  res.json({ success: true, data: company });
+  return success(res, company);
 }, 'Erro ao alterar status da empresa');
 
-const updateCompanyPlan = wrap(async (req, res) => {
+const updateCompanyPlan = asyncHandler(async (req, res) => {
   const companyId = req.params.clientId || req.params.id;
   const company = await masterService.updateCompanyPlan(companyId, req.body, req.user);
-  res.json({ success: true, data: company });
+  return success(res, company);
 }, 'Erro ao alterar plano da empresa');
 
-const listModules = wrap(async (req, res) => {
+const listModules = asyncHandler(async (req, res) => {
   const modules = await masterService.listModules();
-  res.json({ success: true, data: modules });
+  return success(res, modules);
 }, 'Erro ao listar modulos');
 
-const getModule = wrap(async (req, res) => {
+const getModule = asyncHandler(async (req, res) => {
   const module = await masterService.getModule(req.params.id);
-  res.json({ success: true, data: module });
+  return success(res, module);
 }, 'Erro ao carregar modulo');
 
-const createModule = wrap(async (req, res) => {
+const createModule = asyncHandler(async (req, res) => {
   const module = await masterService.createModule(req.body, req.user);
-  res.status(201).json({ success: true, data: module });
+  return success(res, module, { statusCode: 201 });
 }, 'Erro ao criar modulo');
 
-const updateModule = wrap(async (req, res) => {
+const updateModule = asyncHandler(async (req, res) => {
   const module = await masterService.updateModule(req.params.id, req.body, req.user);
-  res.json({ success: true, data: module });
+  return success(res, module);
 }, 'Erro ao atualizar modulo');
 
-const updateModuleStatus = wrap(async (req, res) => {
+const updateModuleStatus = asyncHandler(async (req, res) => {
   const module = await masterService.updateModuleStatus(req.params.id, req.body.is_active, req.user);
-  res.json({ success: true, data: module });
+  return success(res, module);
 }, 'Erro ao alterar status do modulo');
 
-const deleteModule = wrap(async (req, res) => {
+const deleteModule = asyncHandler(async (req, res) => {
   const result = await masterService.deleteModule(req.params.id, req.user);
-  res.json({ success: true, data: result, message: result.deactivated ? 'Modulo inativado por possuir vinculos' : 'Modulo removido com sucesso' });
+  return success(res, result, { message: result.deactivated ? 'Modulo inativado por possuir vinculos' : 'Modulo removido com sucesso' });
 }, 'Erro ao remover modulo');
 
-const activateModuleForCompany = wrap(async (req, res) => {
+const activateModuleForCompany = asyncHandler(async (req, res) => {
   const companyModule = await masterService.activateModuleForCompany(req.body, req.user);
-  res.status(201).json({ success: true, data: companyModule });
+  return success(res, companyModule, { statusCode: 201 });
 }, 'Erro ao vincular modulo');
 
-const deactivateModuleForCompany = wrap(async (req, res) => {
+const deactivateModuleForCompany = asyncHandler(async (req, res) => {
   const companyModule = await masterService.deactivateModuleForCompany(req.body, req.user);
-  res.json({ success: true, data: companyModule });
+  return success(res, companyModule);
 }, 'Erro ao desativar modulo da empresa');
 
-const listCompanyModules = wrap(async (req, res) => {
+const listCompanyModules = asyncHandler(async (req, res) => {
   const companyModules = await masterService.listCompanyModules(req.query);
-  res.json({ success: true, data: companyModules });
+  return success(res, companyModules);
 }, 'Erro ao listar modulos por empresa');
 
-const listCompanyModulesByCompany = wrap(async (req, res) => {
+const listCompanyModulesByCompany = asyncHandler(async (req, res) => {
   const companyModules = await masterService.listCompanyModules({ companyId: req.params.companyId });
-  res.json({ success: true, data: companyModules });
+  return success(res, companyModules);
 }, 'Erro ao listar modulos da empresa');
 
-const listSubscriptions = wrap(async (req, res) => {
+const listSubscriptions = asyncHandler(async (req, res) => {
   const subscriptions = await masterService.listSubscriptions(req.query);
-  res.json({ success: true, data: subscriptions });
+  return success(res, subscriptions);
 }, 'Erro ao listar assinaturas');
 
-const getSubscription = wrap(async (req, res) => {
+const getSubscription = asyncHandler(async (req, res) => {
   const subscription = await masterService.getSubscription(req.params.id);
-  res.json({ success: true, data: subscription });
+  return success(res, subscription);
 }, 'Erro ao carregar assinatura');
 
-const createSubscription = wrap(async (req, res) => {
+const createSubscription = asyncHandler(async (req, res) => {
   const subscription = await masterService.createSubscription(req.body, req.user);
-  res.status(201).json({ success: true, data: subscription });
+  return success(res, subscription, { statusCode: 201 });
 }, 'Erro ao criar assinatura');
 
-const updateSubscription = wrap(async (req, res) => {
+const updateSubscription = asyncHandler(async (req, res) => {
   const subscription = await masterService.updateSubscription(req.params.id, req.body, req.user);
-  res.json({ success: true, data: subscription });
+  return success(res, subscription);
 }, 'Erro ao atualizar assinatura');
 
-const updateSubscriptionStatus = wrap(async (req, res) => {
+const updateSubscriptionStatus = asyncHandler(async (req, res) => {
   const subscription = await masterService.updateSubscriptionStatus(req.params.id, req.body.status, req.user);
-  res.json({ success: true, data: subscription });
+  return success(res, subscription);
 }, 'Erro ao alterar status da assinatura');
 
-const listActivations = wrap(async (req, res) => {
+const listActivations = asyncHandler(async (req, res) => {
   const activations = await masterService.listActivations(req.query);
-  res.json({ success: true, data: activations });
+  return success(res, activations);
 }, 'Erro ao listar ativacoes');
 
-const getActivationLink = wrap(async (req, res) => {
+const getActivationLink = asyncHandler(async (req, res) => {
   const activation = await masterService.getActivationLink(req.params.id, req.user);
-  res.json({ success: true, data: activation });
+  return success(res, activation);
 }, 'Erro ao carregar link de ativacao');
 
-const resendActivation = wrap(async (req, res) => {
+const resendActivation = asyncHandler(async (req, res) => {
   await masterService.resendActivation(req.params.id, req.user);
-  res.json({ success: true, message: 'Ativacao reenviada com sucesso' });
+  return success(res, null, { message: 'Ativacao reenviada com sucesso' });
 }, 'Erro ao reenviar ativacao');
 
-const cancelActivation = wrap(async (req, res) => {
+const cancelActivation = asyncHandler(async (req, res) => {
   await masterService.cancelActivation(req.params.id, req.user);
-  res.json({ success: true, message: 'Ativacao cancelada com sucesso' });
+  return success(res, null, { message: 'Ativacao cancelada com sucesso' });
 }, 'Erro ao cancelar ativacao');
 
-const getSettings = wrap(async (req, res) => {
+const getSettings = asyncHandler(async (req, res) => {
   const settings = await masterService.getSettings();
-  res.json({ success: true, data: settings });
+  return success(res, settings);
 }, 'Erro ao carregar configuracoes');
 
-const updateSettings = wrap(async (req, res) => {
+const updateSettings = asyncHandler(async (req, res) => {
   const settings = await masterService.updateSettings(req.body, req.user);
-  res.json({ success: true, data: settings });
+  return success(res, settings);
 }, 'Erro ao salvar configuracoes');
 
-const listAuditLogs = wrap(async (req, res) => {
+const listAuditLogs = asyncHandler(async (req, res) => {
   const logs = await masterService.listAuditLogs(req.query);
-  res.json({ success: true, data: logs });
+  return success(res, logs);
 }, 'Erro ao listar logs de auditoria');
 
-const generateFirstAccess = wrap(async (req, res) => {
+const generateFirstAccess = asyncHandler(async (req, res) => {
   const result = await masterService.generateFirstAccess(req.body, req.user);
-  res.status(201).json({ success: true, data: result });
+  return success(res, result, { statusCode: 201 });
 }, 'Erro ao gerar primeiro acesso');
 
-const createManualCompanyAccess = wrap(async (req, res) => {
+const createManualCompanyAccess = asyncHandler(async (req, res) => {
   const companyId = req.params.clientId || req.params.id;
   const user = await masterService.createManualCompanyAccess(companyId, req.body, req.user);
-  res.status(201).json({
-    success: true,
-    message: 'Acesso manual criado com sucesso.',
-    user
-  });
+  return success(res, user, { statusCode: 201, message: 'Acesso manual criado com sucesso.' });
 }, 'Erro ao criar acesso manual');
 
-const getFinanceOverview = wrap(async (req, res) => {
+const getFinanceOverview = asyncHandler(async (req, res) => {
   const overview = await masterFinanceService.getFinanceOverview();
-  res.json({ success: true, data: overview });
+  return success(res, overview);
 }, 'Erro ao carregar overview financeiro');
 
-const getFinanceMrr = wrap(async (req, res) => {
+const getFinanceMrr = asyncHandler(async (req, res) => {
   const series = await masterFinanceService.getMrrSeries(req.query.months);
-  res.json({ success: true, data: series });
+  return success(res, series);
 }, 'Erro ao carregar serie de MRR');
 
-const getFinanceRevenueByModule = wrap(async (req, res) => {
+const getFinanceRevenueByModule = asyncHandler(async (req, res) => {
   const report = await masterFinanceService.getRevenueByModule();
-  res.json({ success: true, data: report });
+  return success(res, report);
 }, 'Erro ao carregar receita por modulo');
 
-const getFinanceRevenueByGateway = wrap(async (req, res) => {
+const getFinanceRevenueByGateway = asyncHandler(async (req, res) => {
   const report = await masterFinanceService.getRevenueByGateway();
-  res.json({ success: true, data: report });
+  return success(res, report);
 }, 'Erro ao carregar receita por gateway');
 
-const listFinanceSubscriptions = wrap(async (req, res) => {
+const listFinanceSubscriptions = asyncHandler(async (req, res) => {
   const subscriptions = await masterFinanceService.listFinanceSubscriptions(req.query);
-  res.json({ success: true, data: subscriptions });
+  return success(res, subscriptions);
 }, 'Erro ao listar assinaturas financeiras');
 
-const listFinanceEvents = wrap(async (req, res) => {
+const listFinanceEvents = asyncHandler(async (req, res) => {
   const events = await masterFinanceService.listFinanceEvents(req.query);
-  res.json({ success: true, data: events });
+  return success(res, events);
 }, 'Erro ao listar eventos financeiros');
 
-const listFinanceAlerts = wrap(async (req, res) => {
+const listFinanceAlerts = asyncHandler(async (req, res) => {
   const alerts = await masterFinanceService.getFinancialAlerts();
-  res.json({ success: true, data: alerts });
+  return success(res, alerts);
 }, 'Erro ao listar alertas financeiros');
 
 module.exports = {

@@ -1,13 +1,6 @@
 const authService = require('../services/auth.service');
-
-function sendError(res, error) {
-  const statusCode = error.statusCode || 500;
-
-  return res.status(statusCode).json({
-    success: false,
-    error: statusCode === 500 ? 'Erro interno do servidor' : error.message
-  });
-}
+const { asyncHandler, success } = require('../shared');
+const { generateRefreshToken, REFRESH_COOKIE_OPTIONS } = require('../services/auth.service');
 
 function getRequestMeta(req) {
   return {
@@ -16,172 +9,252 @@ function getRequestMeta(req) {
   };
 }
 
-async function register(req, res) {
-  try {
-    const result = await authService.register(req.body);
+const register = asyncHandler(async (req, res) => {
+  const result = await authService.register(req.body);
 
-    return res.status(201).json({
-      success: true,
-      message: 'Cadastro realizado com sucesso',
-      data: result
+  return success(res, result, { statusCode: 201, message: 'Cadastro realizado com sucesso' });
+});
+
+const login = asyncHandler(async (req, res) => {
+  const result = await authService.login(req.body, {
+    authScope: 'barber_admin'
+  });
+
+  const refreshToken = generateRefreshToken(
+    result.user.id,
+    result.user.role,
+    result.user.company_id,
+    'barber_admin'
+  );
+
+  res.cookie('mg_refresh_barber', refreshToken, REFRESH_COOKIE_OPTIONS);
+
+  return success(res, result, { message: 'Login realizado com sucesso' });
+});
+
+const masterLogin = asyncHandler(async (req, res) => {
+  const result = await authService.login(req.body, {
+    authScope: 'master'
+  });
+
+  const refreshToken = generateRefreshToken(
+    result.user.id,
+    result.user.role,
+    result.user.company_id,
+    'master'
+  );
+
+  res.cookie('mg_refresh_master', refreshToken, REFRESH_COOKIE_OPTIONS);
+
+  return success(res, result, { message: 'Login master realizado com sucesso' });
+});
+
+const bookingLogin = asyncHandler(async (req, res) => {
+  const result = await authService.loginBookingCustomer(req.body);
+
+  const refreshToken = generateRefreshToken(
+    result.user.id,
+    result.user.role,
+    result.user.company_id,
+    'booking_customer'
+  );
+
+  res.cookie('mg_refresh_booking', refreshToken, REFRESH_COOKIE_OPTIONS);
+
+  return success(res, result, { message: 'Login do cliente realizado com sucesso' });
+});
+
+const me = asyncHandler(async (req, res) => {
+  const session = await authService.getAuthenticatedUser(req.user.id, {
+    authScope: req.user.auth_scope
+  });
+
+  return success(res, session);
+});
+
+const bookingMe = asyncHandler(async (req, res) => {
+  const session = await authService.getAuthenticatedUser(req.user.customer_id || req.user.id, {
+    authScope: 'booking_customer',
+    customerId: req.user.customer_id || req.user.id
+  });
+
+  return success(res, session);
+});
+
+const validateFirstAccess = asyncHandler(async (req, res) => {
+  const result = await authService.validateFirstAccessToken(req.body.token || req.query.token);
+
+  return success(res, result);
+});
+
+const requestFirstAccess = asyncHandler(async (req, res) => {
+  await authService.requestFirstAccess(req.body, getRequestMeta(req));
+
+  return success(res, null, { message: 'Se o email estiver cadastrado, enviaremos as instrucoes de primeiro acesso.' });
+});
+
+const setFirstAccessPassword = asyncHandler(async (req, res) => {
+  await authService.setFirstAccessPassword(req.body);
+
+  return success(res, null, { message: 'Senha definida com sucesso' });
+});
+
+const forgotPassword = asyncHandler(async (req, res) => {
+  await authService.requestPasswordReset(req.body, getRequestMeta(req));
+
+  return success(res, null, { message: 'Se o email estiver cadastrado, enviaremos as instrucoes de redefinicao.' });
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  await authService.resetPassword(req.body);
+
+  return success(res, null, { message: 'Senha redefinida com sucesso' });
+});
+
+const refresh = asyncHandler(async (req, res) => {
+  const refreshToken = req.cookies?.mg_refresh_barber
+    || req.cookies?.mg_refresh_master
+    || req.cookies?.mg_refresh_booking;
+
+  if (!refreshToken) {
+    return res.status(401).json({
+      success: false,
+      error: 'Sessao expirada. Faca login novamente.'
     });
-  } catch (error) {
-    console.error('Erro no register:', error);
-    return sendError(res, error);
   }
-}
 
-async function login(req, res) {
   try {
-    const result = await authService.login(req.body, {
-      authScope: 'barber_admin'
-    });
+    const payload = jwt.verify(refreshToken, process.env.JWT_SECRET);
+
+    if (payload.token_type !== 'refresh') {
+      return res.status(401).json({
+        success: false,
+        error: 'Token invalido.'
+      });
+    }
+
+    const pool = require('../config/database');
+
+    // Booking customer refresh
+    if (payload.auth_scope === 'booking_customer') {
+      const result = await pool.query(
+        `SELECT
+           booking_customers.id,
+           booking_customers.company_id,
+           booking_customers.name,
+           booking_customers.phone,
+           booking_customers.email,
+           booking_customers.email_verified,
+           booking_customers.status,
+           booking_customers.source,
+           booking_customers.last_login_at,
+           booking_customers.created_at,
+           companies.name AS company_name,
+           companies.niche_type,
+           companies.public_booking_slug AS company_public_booking_slug
+         FROM booking_customers
+         INNER JOIN companies ON companies.id = booking_customers.company_id
+         WHERE booking_customers.id = $1
+         LIMIT 1`,
+        [payload.id]
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(401).json({
+          success: false,
+          error: 'Cliente nao encontrado.'
+        });
+      }
+
+      const customer = result.rows[0];
+      const { sanitizeBookingCustomer } = require('../services/auth.service');
+      const sanitized = sanitizeBookingCustomer(customer);
+
+      const newAccessToken = jwt.sign(
+        {
+          id: customer.id,
+          user_id: null,
+          customer_id: customer.id,
+          email: customer.email,
+          role: 'booking_customer',
+          auth_scope: 'booking_customer',
+          company_id: customer.company_id,
+          can_launch_sales: false,
+          can_view_own_dashboard: false,
+          can_view_own_reports: false
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      return res.json({
+        success: true,
+        data: {
+          token: newAccessToken,
+          user: sanitized
+        }
+      });
+    }
+
+    // Barber / Master refresh
+    const result = await pool.query(
+      `SELECT u.*, c.name as company_name
+       FROM users u
+       LEFT JOIN companies c ON c.id = u.company_id
+       WHERE u.id = $1 AND COALESCE(u.is_deleted, false) = false
+       LIMIT 1`,
+      [payload.id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(401).json({
+        success: false,
+        error: 'Usuario nao encontrado.'
+      });
+    }
+
+    const user = result.rows[0];
+    const { sanitizeUser } = require('../services/auth.service');
+    const sanitized = sanitizeUser(user);
+
+    const newAccessToken = jwt.sign(
+      {
+        id: user.id,
+        user_id: user.id,
+        customer_id: null,
+        email: user.email,
+        role: user.role,
+        auth_scope: payload.auth_scope,
+        company_id: user.company_id,
+        can_launch_sales: Boolean(user.can_launch_sales),
+        can_view_own_dashboard: user.can_view_own_dashboard !== false,
+        can_view_own_reports: user.can_view_own_reports !== false
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
 
     return res.json({
       success: true,
-      message: 'Login realizado com sucesso',
-      data: result
+      data: {
+        token: newAccessToken,
+        user: sanitized
+      }
     });
-  } catch (error) {
-    console.error('Erro no login:', error);
-    return sendError(res, error);
+  } catch (err) {
+    return res.status(401).json({
+      success: false,
+      error: 'Sessao expirada. Faca login novamente.'
+    });
   }
-}
+});
 
-async function masterLogin(req, res) {
-  try {
-    const result = await authService.login(req.body, {
-      authScope: 'master'
-    });
+const logout = asyncHandler(async (req, res) => {
+  res.clearCookie('mg_refresh_barber', { ...REFRESH_COOKIE_OPTIONS, maxAge: 0 });
+  res.clearCookie('mg_refresh_master', { ...REFRESH_COOKIE_OPTIONS, maxAge: 0 });
 
-    return res.json({
-      success: true,
-      message: 'Login master realizado com sucesso',
-      data: result
-    });
-  } catch (error) {
-    console.error('Erro no login master:', error);
-    return sendError(res, error);
-  }
-}
-
-async function bookingLogin(req, res) {
-  try {
-    const result = await authService.loginBookingCustomer(req.body);
-
-    return res.json({
-      success: true,
-      message: 'Login do cliente realizado com sucesso',
-      data: result
-    });
-  } catch (error) {
-    console.error('Erro no login do cliente:', error);
-    return sendError(res, error);
-  }
-}
-
-async function me(req, res) {
-  try {
-    const session = await authService.getAuthenticatedUser(req.user.id, {
-      authScope: req.user.auth_scope
-    });
-
-    return res.json({
-      success: true,
-      data: session
-    });
-  } catch (error) {
-    console.error('Erro no me:', error);
-    return sendError(res, error);
-  }
-}
-
-async function bookingMe(req, res) {
-  try {
-    const session = await authService.getAuthenticatedUser(req.user.customer_id || req.user.id, {
-      authScope: 'booking_customer',
-      customerId: req.user.customer_id || req.user.id
-    });
-
-    return res.json({
-      success: true,
-      data: session
-    });
-  } catch (error) {
-    console.error('Erro no me do cliente:', error);
-    return sendError(res, error);
-  }
-}
-
-async function validateFirstAccess(req, res) {
-  try {
-    const result = await authService.validateFirstAccessToken(req.body.token || req.query.token);
-
-    return res.json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    console.error('Erro no validate first access:', error);
-    return sendError(res, error);
-  }
-}
-
-async function requestFirstAccess(req, res) {
-  try {
-    await authService.requestFirstAccess(req.body, getRequestMeta(req));
-
-    return res.json({
-      success: true,
-      message: 'Se o email estiver cadastrado, enviaremos as instrucoes de primeiro acesso.'
-    });
-  } catch (error) {
-    console.error('Erro no request first access:', error);
-    return sendError(res, error);
-  }
-}
-
-async function setFirstAccessPassword(req, res) {
-  try {
-    await authService.setFirstAccessPassword(req.body);
-
-    return res.json({
-      success: true,
-      message: 'Senha definida com sucesso'
-    });
-  } catch (error) {
-    console.error('Erro no set first access password:', error);
-    return sendError(res, error);
-  }
-}
-
-async function forgotPassword(req, res) {
-  try {
-    await authService.requestPasswordReset(req.body, getRequestMeta(req));
-
-    return res.json({
-      success: true,
-      message: 'Se o email estiver cadastrado, enviaremos as instrucoes de redefinicao.'
-    });
-  } catch (error) {
-    console.error('Erro no forgot password:', error);
-    return sendError(res, error);
-  }
-}
-
-async function resetPassword(req, res) {
-  try {
-    await authService.resetPassword(req.body);
-
-    return res.json({
-      success: true,
-      message: 'Senha redefinida com sucesso'
-    });
-  } catch (error) {
-    console.error('Erro no reset password:', error);
-    return sendError(res, error);
-  }
-}
+  return res.json({ success: true });
+});
 
 module.exports = {
   register,
@@ -190,9 +263,11 @@ module.exports = {
   bookingLogin,
   me,
   bookingMe,
-  requestFirstAccess,
   validateFirstAccess,
+  requestFirstAccess,
   setFirstAccessPassword,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  refresh,
+  logout
 };

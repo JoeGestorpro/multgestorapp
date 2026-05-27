@@ -1,3 +1,4 @@
+const { appLogger } = require('../shared/core/logger');
 const { Pool } = require('pg');
 
 function getDatabaseTargetSummary() {
@@ -46,10 +47,25 @@ let hasLoggedDatabaseTarget = false;
 pool.on('connect', () => {
   if (!hasLoggedDatabaseTarget) {
     hasLoggedDatabaseTarget = true;
-    console.log(`[database] conectado em ${databaseTarget.label}`);
+    appLogger.info({ target: databaseTarget.label }, '[database] conectado');
   }
 });
 
 pool.getDatabaseTargetSummary = getDatabaseTargetSummary;
+
+/**
+ * Executa uma função dentro de um contexto de tenant (RLS).
+ * Define app.current_company_id via SET LOCAL, que reseta automaticamente
+ * ao fim da transação.
+ */
+async function withTenantContext(client, companyId, fn) {
+  if (!companyId) {
+    throw new Error('companyId obrigatorio para withTenantContext');
+  }
+  await client.query('SET LOCAL app.current_company_id = $1', [companyId]);
+  return fn(client);
+}
+
+pool.withTenantContext = withTenantContext;
 
 module.exports = pool;

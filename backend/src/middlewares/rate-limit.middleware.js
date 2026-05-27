@@ -3,6 +3,15 @@ function createRateLimit(options = {}) {
   const max = options.max || 5;
   const hits = new Map();
 
+  // Remove entradas expiradas periodicamente para evitar memory leak.
+  // .unref() garante que o timer nao impeca o processo de encerrar normalmente.
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of hits) {
+      if (value.resetAt <= now) hits.delete(key);
+    }
+  }, windowMs).unref();
+
   return function rateLimit(req, res, next) {
     const now = Date.now();
     const key = `${req.ip}:${req.method}:${req.originalUrl}`;

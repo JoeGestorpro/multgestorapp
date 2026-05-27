@@ -1,10 +1,5 @@
 const pool = require('../config/database');
-
-function createError(message, statusCode) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-}
+const { AppError } = require('../shared/core/errors');
 
 const ACTIVE_STATUSES = ['active', 'trialing'];
 const LATE_STATUSES = ['past_due', 'late', 'overdue'];
@@ -453,7 +448,7 @@ async function getFinancialAlerts() {
 }
 
 module.exports = {
-  createError,
+  AppError,
   getFinanceOverview,
   getMrrSeries,
   getRevenueByModule,
