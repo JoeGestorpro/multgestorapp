@@ -1,6 +1,7 @@
 const authService = require('../services/auth.service');
 const { asyncHandler, success } = require('../shared');
 const { generateRefreshToken, REFRESH_COOKIE_OPTIONS } = require('../services/auth.service');
+const jwt = require('jsonwebtoken');
 
 function getRequestMeta(req) {
   return {

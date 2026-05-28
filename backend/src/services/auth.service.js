@@ -404,6 +404,19 @@ async function register(data) {
       [name, email, passwordHash, 'admin', company.id]
     );
 
+    // Ativar modulo correspondente ao nicho da empresa, se existir no catalogo
+    if (nicheType) {
+      await client.query(
+        `INSERT INTO company_modules (company_id, module_id, status, activated_at)
+         SELECT $1, modules.id, 'active', NOW()
+         FROM modules
+         WHERE modules.slug = $2
+           AND modules.is_active = true
+         ON CONFLICT (company_id, module_id) DO NOTHING`,
+        [company.id, nicheType]
+      );
+    }
+
     await client.query('COMMIT');
 
     // Enviar email de boas-vindas (nao bloqueia o registro)
@@ -419,13 +432,15 @@ async function register(data) {
       niche_type: company.niche_type
     };
 
+    const modules = await getCompanyModules(company.id);
+
     return {
       token: signToken(user, 'barber_admin'),
       user: sanitizeUser({
         ...user,
         auth_scope: 'barber_admin'
       }),
-      modules: [],
+      modules,
       company
     };
   } catch (error) {
@@ -1039,5 +1054,7 @@ module.exports = {
   requestPasswordReset,
   resetPassword,
   generateRefreshToken,
-  REFRESH_COOKIE_OPTIONS
+  REFRESH_COOKIE_OPTIONS,
+  sanitizeUser,
+  sanitizeBookingCustomer
 };

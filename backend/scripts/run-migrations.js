@@ -6,6 +6,7 @@ const pool = require('../src/config/database');
 // Ordem de execução. Adicionar novas migrations SEMPRE ao final.
 // Formato do nome: YYYYMMDD_NNN_descricao.sql
 const migrations = [
+  { version: '20251231_000', file: 'base-schema.sql' },
   { version: '20260101_001', file: 'auth-security.sql' },
   { version: '20260101_002', file: 'master-dashboard.sql' },
   { version: '20260101_003', file: 'master-finance.sql' },

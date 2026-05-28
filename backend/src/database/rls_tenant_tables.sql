@@ -124,10 +124,8 @@ CREATE POLICY tenant_isolation ON booking_customers
 -- Tabelas auxiliares tenant
 -- ============================================
 
-ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON settings;
-CREATE POLICY tenant_isolation ON settings
-  USING (company_id = current_setting('app.current_company_id', true)::uuid);
+-- NOTA: settings é tabela GLOBAL (configurações da plataforma master-admin).
+-- Não possui company_id e NÃO deve ter RLS tenant. Ver master-admin.sql.
 
 ALTER TABLE integration_configs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON integration_configs;

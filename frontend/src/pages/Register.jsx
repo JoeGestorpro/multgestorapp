@@ -38,7 +38,8 @@ function Register() {
       await register({
         name: form.name,
         email: form.email,
-        password: form.password
+        password: form.password,
+        niche_type: 'barber'
       })
       navigate('/barber/login', {
         replace: true,

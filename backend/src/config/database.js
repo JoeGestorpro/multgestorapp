@@ -37,9 +37,8 @@ const databaseTarget = getDatabaseTargetSummary();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  // SSL apenas fora de testes locais: Postgres CI container não tem SSL habilitado
+  ssl: process.env.NODE_ENV === 'test' ? false : { rejectUnauthorized: false },
 });
 
 let hasLoggedDatabaseTarget = false;
