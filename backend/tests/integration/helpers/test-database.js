@@ -39,8 +39,8 @@ async function getTestPool() {
 async function insertCompany(companyData) {
   const db = await getTestPool()
   const result = await db.query(
-    `INSERT INTO companies (id, name, niche_type, public_booking_slug, status, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO companies (id, name, niche_type, public_booking_slug, status)
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING *`,
     [
       companyData.id,
@@ -48,7 +48,6 @@ async function insertCompany(companyData) {
       companyData.niche_type || 'barber',
       companyData.public_booking_slug,
       companyData.status || 'active',
-      companyData.is_active !== false,
     ]
   )
   return result.rows[0]
@@ -60,7 +59,7 @@ async function insertUser(userData) {
   const hashedPassword = await bcrypt.hash(userData.password || 'testpass123', 10)
 
   const result = await db.query(
-    `INSERT INTO users (id, name, email, password, role, company_id, is_active)
+    `INSERT INTO users (id, name, email, password_hash, role, company_id, is_active)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING id, name, email, role, company_id, is_active`,
     [
