@@ -11,6 +11,7 @@ const {
   insertCollaborator,
   insertService,
   insertAppointment,
+  activatePlan,
   activateModule,
   cleanupTestData,
   shutdownTestPool,
@@ -88,6 +89,10 @@ describeDb('Tenant Isolation — Integration Tests', () => {
     await activateModule(companyA.id, 'barber')
     await activateModule(companyB.id, 'barber')
 
+    // Activate profissional plan — required for advanced_schedule feature (appointments)
+    await activatePlan(companyA.id, 'profissional')
+    await activatePlan(companyB.id, 'profissional')
+
     // Create users
     userA = createUserForCompany(companyA.id, 'admin')
     userB = createUserForCompany(companyB.id, 'admin')
@@ -128,6 +133,9 @@ describeDb('Tenant Isolation — Integration Tests', () => {
     if (typeof mainPool.end === 'function') {
       await mainPool.end().catch(() => {})
     }
+    // Close Redis client (created when REDIS_URL is set in CI) to avoid Jest open handles
+    const redisClient = require('../../src/shared/core/cache/redis-client')
+    await redisClient.quit().catch(() => {})
   })
 
   describe('1. Cross-tenant blocking', () => {
