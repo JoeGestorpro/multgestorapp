@@ -11,10 +11,35 @@ jobs:
     name: Run CI before deploy
     uses: ./.github/workflows/ci.yml
 
+  # ─── Run Database Migrations ─────────────────────────────────────────────
+  run-migrations:
+    name: Run Database Migrations
+    needs: ci
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run database migrations
+        run: npm run migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
   # ─── Deploy Backend → Render ──────────────────────────────────────────────
   deploy-backend:
     name: Deploy Backend (Render)
-    needs: ci
+    needs: run-migrations
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Render deploy
