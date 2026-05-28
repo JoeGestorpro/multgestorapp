@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import Barber from '../Barber'
 import { WelcomeScreen, SetupWizard } from '../../components/onboarding'
 import { TutorialSpotlight } from '../../components/tutorial'
@@ -70,7 +69,6 @@ const TUTORIAL_STEPS = [
 ]
 
 function BarberDashboard() {
-  const navigate = useNavigate()
   const { user, isBarberAuthenticated, token } = useAuth()
   const { companyId: _companyId } = useTenantTheme()
   const [showWelcome, setShowWelcome] = useState(false)

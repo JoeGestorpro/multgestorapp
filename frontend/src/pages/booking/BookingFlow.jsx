@@ -371,7 +371,6 @@ const TimeSlots = memo(function TimeSlots({ slots, selected, onSelect, loading }
   }
 
   const available = slots.filter(s => s.available)
-  const unavailable = slots.filter(s => !s.available)
 
   return (
     <div className="booking-slots">

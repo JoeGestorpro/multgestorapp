@@ -42,7 +42,7 @@ function ColorRow({ label, value, onChange }) {
   )
 }
 
-function PreviewCard({ form, onCtaClick }) {
+function PreviewCard({ form, onCtaClick: _onCtaClick }) {
   const colors = useMemo(() => ({
     primary: form.booking_primary_color || '#a3ff12',
     secondary: form.booking_secondary_color || '#0c1017',

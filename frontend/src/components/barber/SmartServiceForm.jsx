@@ -104,7 +104,7 @@ function SmartServiceForm({
   isSaving,
   onSaveAndContinue,
   onDuplicate: _onDuplicate,
-  services
+  services: _services
 }) {
   const nameRef = useRef(null)
   const [selectedTemplate, setSelectedTemplate] = useState(null)

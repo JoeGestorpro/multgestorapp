@@ -10,8 +10,6 @@ import {
 import ServiceIcon from '../../components/barber/ServiceIcon'
 import SmartServiceForm from '../../components/barber/SmartServiceForm'
 import {
-  SERVICE_ICON_OPTIONS,
-  normalizeServiceIcon,
   getServiceCategory,
   getCategoryConfig
 } from '../../components/barber/ServiceIcon.utils'
@@ -54,13 +52,7 @@ function Servicos({
   onSaveAndContinue,
   services
 }) {
-  const [iconCategory, _setIconCategory] = useState('all')
   const [activeCategory, setActiveCategory] = useState('all')
-
-  const visibleIcons = useMemo(() => {
-    if (iconCategory === 'all') return SERVICE_ICON_OPTIONS
-    return SERVICE_ICON_OPTIONS.filter((option) => option.category === iconCategory)
-  }, [iconCategory])
 
   const categoryCounts = useMemo(() => {
     const counts = { all: services.length }
