@@ -9,9 +9,9 @@ import BookingSideCard from './BookingSideCard'
 
 function BookingDesktopLayout({
   company,
-  services,
+  services: _services,
   collaborators,
-  settings,
+  settings: _settings,
   stepsChildren,
   flowState,
   onStartBooking,

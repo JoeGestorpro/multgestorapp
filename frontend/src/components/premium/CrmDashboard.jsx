@@ -120,8 +120,6 @@ export default function CrmDashboard({ variant = 'list', initialTab }) {
   const activeCount = useMemo(() => customers.filter(c => c.status === 'active').length, [customers])
   const pendingCount = useMemo(() => customers.filter(c => c.status === 'pending').length, [customers])
   const blockedCount = useMemo(() => customers.filter(c => c.status === 'blocked').length, [customers])
-  const vipCustomers = useMemo(() => customers.filter(c => c.loyalty_level === 'vip' || c.loyalty_level === 'fiel'), [customers])
-
   const isBirthdayMonth = useMemo(() => {
     const hoje = new Date()
     const mesAtual = hoje.getMonth() + 1
@@ -172,7 +170,6 @@ export default function CrmDashboard({ variant = 'list', initialTab }) {
     ) : '-' },
     { key: 'loyalty_level', label: 'Fidelidade', render: (row) => {
       if (!row.loyalty_level) return '-'
-      const colors = { novo: 'var(--pm-text-muted)', regular: 'var(--pm-gold)', fiel: 'var(--pm-primary)', vip: 'var(--pm-primary)' }
       const labels = { novo: 'Novo', regular: 'Regular', fiel: 'Fiel', vip: 'VIP' }
       return (
         <PremiumBadge

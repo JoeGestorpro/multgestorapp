@@ -54,7 +54,7 @@ function Servicos({
   onSaveAndContinue,
   services
 }) {
-  const [iconCategory, setIconCategory] = useState('all')
+  const [iconCategory, _setIconCategory] = useState('all')
   const [activeCategory, setActiveCategory] = useState('all')
 
   const visibleIcons = useMemo(() => {

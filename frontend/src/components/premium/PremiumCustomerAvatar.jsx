@@ -16,7 +16,7 @@ function getStatusColor(status) {
   return colors[status] || 'var(--pm-text-muted)'
 }
 
-export default function PremiumCustomerAvatar({ name, email, avatarUrl, status, size = 48, showStatus, onClick }) {
+export default function PremiumCustomerAvatar({ name, email: _email, avatarUrl, status, size = 48, showStatus, onClick }) {
   const hasImage = !!avatarUrl
 
   return (

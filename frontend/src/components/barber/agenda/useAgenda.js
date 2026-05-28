@@ -43,7 +43,7 @@ export default function useAgenda({
   appointmentsOverview = { appointments: [], summary: {} },
   scheduleBlocks = [],
   workingHours = [],
-  user,
+  user: _user,
   isCollaborator,
   loggedInCollaboratorId,
   canManageCash,

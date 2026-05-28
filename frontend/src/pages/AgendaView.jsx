@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Button, Card, Empty } from '../components/design-system'
 import { BarberTable } from '../components/barber/BarberUI'
 import AgendaGrid from '../components/barber/agenda/AgendaGrid'

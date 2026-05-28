@@ -169,7 +169,7 @@ const emptySale = {
   items: []
 }
 
-const saleWizardSteps = [
+const _saleWizardSteps = [
   { key: 'start', label: 'Iniciar atendimento' },
   { key: 'client', label: 'Cliente' },
   { key: 'items', label: 'Servicos/produtos' },
@@ -619,7 +619,7 @@ function buildSalesParams(filters) {
   return params
 }
 
-function advanceTone(status) {
+function _advanceTone(status) {
   return {
     approved: 'approved',
     pending: 'pending',
@@ -628,7 +628,7 @@ function advanceTone(status) {
   }[status] || 'neutral'
 }
 
-function advanceLabel(status) {
+function _advanceLabel(status) {
   return {
     approved: 'Aprovado',
     pending: 'Pendente',
@@ -637,7 +637,7 @@ function advanceLabel(status) {
   }[status] || status || 'Nao informado'
 }
 
-function appointmentTone(status) {
+function _appointmentTone(status) {
   return {
     scheduled: 'pending',
     confirmed: 'approved',
@@ -649,7 +649,7 @@ function appointmentTone(status) {
   }[status] || 'neutral'
 }
 
-function appointmentLabel(status) {
+function _appointmentLabel(status) {
   return {
     scheduled: 'Agendado',
     confirmed: 'Confirmado',
@@ -665,7 +665,7 @@ function collaboratorDisplayName(collaborator) {
   return collaborator?.name || collaborator?.collaborator_name || collaborator?.nickname || 'Colaborador'
 }
 
-function formatAppointmentSlot(appointment) {
+function _formatAppointmentSlot(appointment) {
   if (!appointment?.starts_at) {
     return '-'
   }
@@ -896,7 +896,7 @@ function Barber() {
   const { user, modules, logout, planLoading } = useAuth()
   const { primaryColor, companyName: themeCompanyName, logoUrl, wallpaperUrl } = useTenantTheme()
   const [activeView, setActiveView] = useState(() => getInitialBarberView(window.location.pathname))
-  const [useNewAtendimentoLayout, setUseNewAtendimentoLayout] = useState(true)
+  const [useNewAtendimentoLayout, _setUseNewAtendimentoLayout] = useState(true)
   const [dashboard, setDashboard] = useState(emptyDashboard)
   const [appointmentsOverview, setAppointmentsOverview] = useState(emptyAppointmentsOverview)
   const [services, setServices] = useState([])
@@ -942,11 +942,11 @@ function Barber() {
   const [approvalPin, setApprovalPin] = useState('')
   const [deleteSaleId, setDeleteSaleId] = useState('')
   const [deleteReason, setDeleteReason] = useState('')
-  const [deletePassword, setDeletePassword] = useState('')
+  const [_deletePassword, setDeletePassword] = useState('')
   const [deletePin, setDeletePin] = useState('')
   const [submittingSale, setSubmittingSale] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(() => window.innerWidth <= 768)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [_sidebarOpen, setSidebarOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -964,7 +964,7 @@ function Barber() {
   })
   const [companyProfileSaving, setCompanyProfileSaving] = useState(false)
   const [logoPreview, setLogoPreview] = useState('')
-  const [settingsTab, setSettingsTab] = useState('general')
+  const [_settingsTab, _setSettingsTab] = useState('general')
   const [settingsSection, setSettingsSection] = useState('menu')
   const [brandingForm, setBrandingForm] = useState({ logo_url: '', name: '', display_name: '', primary_color: '#a3ff12', secondary_color: '#0c1017', accent_color: '#7fe11e' })
   const [brandingLoading, setBrandingLoading] = useState(false)
@@ -1495,7 +1495,7 @@ function Barber() {
     }))
   }
 
-  function handleLogoSelect(event) {
+  function _handleLogoSelect(event) {
     const file = event.target.files?.[0]
     if (!file) return
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
@@ -1514,7 +1514,7 @@ function Barber() {
     reader.readAsDataURL(file)
   }
 
-  function handleLogoRemove() {
+  function _handleLogoRemove() {
     setLogoPreview('')
     setSettingsData((current) => ({
       ...current,
@@ -1559,7 +1559,7 @@ function Barber() {
     }
   }
 
-  async function handleLogoColorsSubmit(event) {
+  async function _handleLogoColorsSubmit(event) {
     event.preventDefault()
     setError('')
     setSuccess('')
@@ -1579,7 +1579,7 @@ function Barber() {
 
     try {
       setCompanyProfileSaving(true)
-      const response = await api.put('/barber/company/theme', payload)
+      await api.put('/barber/company/theme', payload)
       setSuccess('Identidade visual atualizada com sucesso.')
     } catch (err) {
       setError(err.response?.data?.error || 'Nao foi possivel atualizar a identidade visual.')
@@ -2038,7 +2038,7 @@ function Barber() {
     }
   }
 
-  function addSaleItem() {
+  function _addSaleItem() {
     const itemType = selectedSaleItemType
     const source = selectedSaleSource
     const itemId = itemType === 'product' ? saleForm.productId : saleForm.serviceId
@@ -2679,7 +2679,7 @@ function Barber() {
     }
   }
 
-  async function deleteAppointment(appointmentId) {
+  async function _deleteAppointment(appointmentId) {
     if (!window.confirm('Excluir permanentemente este agendamento?')) return
 
     setError('')
@@ -3059,7 +3059,7 @@ function Barber() {
     }
   }
 
-  function renderServices() {
+  function _renderServices() {
     return (
       <Servicos
         deletePassword={deleteServicePassword}
@@ -3093,7 +3093,7 @@ function Barber() {
     )
   }
 
-  function renderProducts() {
+  function _renderProducts() {
     return (
       <Produtos
         filters={productFilters}
@@ -3113,7 +3113,7 @@ function Barber() {
     )
   }
 
-  function renderAppointments() {
+  function _renderAppointments() {
     const publicBookingUrl = appointmentsOverview.public_booking_path
       ? `${window.location.origin}${appointmentsOverview.public_booking_path}`
       : ''
@@ -3145,7 +3145,7 @@ function Barber() {
         : [appointmentFilters.collaboratorId]
     const collaboratorsForGrid = collaboratorOptions.filter((collaborator) => selectedCollaboratorIds.includes(collaborator.id))
     const todayDate = new Date().toISOString().slice(0, 10)
-    const todayList = appointmentsWithMeta.filter((appointment) => appointment.dateKey === todayDate)
+    const _todayList = appointmentsWithMeta.filter((appointment) => appointment.dateKey === todayDate)
     const selectedDateLabel = new Intl.DateTimeFormat('pt-BR', {
       weekday: 'long',
       day: '2-digit',
@@ -3252,7 +3252,7 @@ function Barber() {
       }
     })
 
-    const miniCalendar = {
+    const _miniCalendar = {
       monthLabel: new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentMonth),
       days: monthMatrix,
       goPrevMonth: () => {
@@ -3643,7 +3643,7 @@ function Barber() {
     )
   }
 
-  function renderSalesV2() {
+  function _renderSalesV2() {
     const paymentOptions = salePaymentOptions
     const activeCollaborators = collaborators.filter((collaborator) => collaborator.is_active && !collaborator.is_deleted)
     const recentSales = sales.slice(0, 8)
@@ -4352,7 +4352,7 @@ function renderActiveView() {
             setError('')
             try {
               await loadData()
-            } catch (err) {
+            } catch (_err) {
               setError('Nao foi possivel atualizar os dados')
             }
           }}

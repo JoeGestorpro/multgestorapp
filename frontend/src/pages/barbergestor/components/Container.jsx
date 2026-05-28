@@ -8,7 +8,7 @@ const styles = {
   },
 }
 
-export function Container({ children, className = '', as: Component = 'div', style, ...props }) {
+export function Container({ children, className = '', as: Component = 'div', style, ...props }) { // eslint-disable-line no-unused-vars
   return (
     <Component className={className} style={{ ...styles.container, ...style }} {...props}>
       {children}

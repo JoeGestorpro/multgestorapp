@@ -73,7 +73,7 @@ export default function SettingsView({
   const publicBookingUrl = publicBookingSlug ? `${window.location.origin}/agendar/${publicBookingSlug}` : ''
   const onlineMinAdvanceEnabled = settingsData.agenda?.online_min_advance_enabled === true
   const onlineMinAdvanceValue = Number(settingsData.agenda?.online_min_advance_value || 0)
-  const currentLogo = logoPreview || company.logo_url || ''
+  const _currentLogo = logoPreview || company.logo_url || ''
   const bf = brandingForm
   const brandingLogo = brandingLogoPreview || bf.logo_url || ''
 

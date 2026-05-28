@@ -1,4 +1,4 @@
-import { money, collaboratorDisplayName } from '../utils/formatters'
+import { money } from '../utils/formatters'
 import { SummaryCard } from '../../../components/design-system'
 import { BarberButton, BarberEmptyState, BarberIcon, BarberModal, BarberTable } from '../../../components/barber/BarberUI'
 

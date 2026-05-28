@@ -11,8 +11,8 @@ function getInitials(name) {
 }
 
 export default function MobileHeader({
-  title,
-  subtitle,
+  title: _title,
+  subtitle: _subtitle,
   user,
   onMenuClick,
   onNotificationClick,

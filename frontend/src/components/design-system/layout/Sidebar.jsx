@@ -99,7 +99,7 @@ export default function Sidebar({
   primaryColor = null,
   planName = 'Premium',
   user,
-  collapsed = false,
+  collapsed: _collapsed = false,
   className = '',
   ...props
 }) {

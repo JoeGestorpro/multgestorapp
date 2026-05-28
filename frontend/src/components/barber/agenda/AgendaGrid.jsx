@@ -8,14 +8,6 @@ const PIXELS_PER_MINUTE = 1.2
 const DAY_MINUTES = GRID_END_MINUTES - GRID_START_MINUTES
 const HOUR_ROWS = 12
 
-function parseMinutes(timeValue) {
-  if (!timeValue) return null
-  const clean = String(timeValue).slice(0, 5)
-  const [hours, minutes] = clean.split(':').map(Number)
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
-  return (hours * 60) + minutes
-}
-
 function parseDateMinutes(dateValue) {
   if (!dateValue) return null
   const date = new Date(dateValue)

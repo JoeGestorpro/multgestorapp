@@ -1,4 +1,3 @@
-import { getPaymentMethodTone, getPaymentMethodLabel } from '../../../utils/paymentMethods'
 import { money, toLocalDateKey, shortDate, addLocalDateDays, formatServiceName, paymentTone, paymentLabel, advanceTone, advanceLabel, appointmentTone, appointmentLabel, collaboratorDisplayName, formatAppointmentSlot, formatAppointmentRange, buildAppointmentStartsAt, getAppointmentDateKey } from './formatters'
 
 export { money, toLocalDateKey, shortDate, addLocalDateDays, formatServiceName, paymentTone, paymentLabel, advanceTone, advanceLabel, appointmentTone, appointmentLabel, collaboratorDisplayName, formatAppointmentSlot, formatAppointmentRange, buildAppointmentStartsAt, getAppointmentDateKey }

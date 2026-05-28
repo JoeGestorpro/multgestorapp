@@ -10,12 +10,6 @@ function formatMoney(value) {
   }).format(value)
 }
 
-function formatPercent(value, previousValue) {
-  if (!previousValue || previousValue === 0) return '+100%'
-  const change = ((value - previousValue) / previousValue) * 100
-  return change >= 0 ? `+${change.toFixed(0)}%` : `${change.toFixed(0)}%`
-}
-
 export default function ProgressReport({ 
   data = {},
   period = 'week',

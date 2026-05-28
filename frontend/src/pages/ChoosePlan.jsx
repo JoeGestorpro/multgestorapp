@@ -27,7 +27,7 @@ export default function ChoosePlan() {
         setPlans(res.data?.data?.plans || [])
         setLoading(false)
       })
-      .catch(err => {
+      .catch(_err => {
         setError('Nao foi possivel carregar os planos. Tente novamente.')
         setLoading(false)
       })

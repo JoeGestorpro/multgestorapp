@@ -209,7 +209,7 @@ function PreviewCard({ form, onCtaClick }) {
   )
 }
 
-function ImageUpload({ label, value, onUpload, onRemove, uploading, accept = "image/jpeg,image/png,image/webp", maxSize = 2 }) {
+function ImageUpload({ label, value, onUpload, onRemove, uploading, accept = "image/jpeg,image/png,image/webp", maxSize: _maxSize = 2 }) {
   const [isDragging, setIsDragging] = useState(false)
   const [preview, setPreview] = useState(null)
 

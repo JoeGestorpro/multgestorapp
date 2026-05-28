@@ -62,10 +62,10 @@ function getStatusTone(s) {
 function AdminDashboardContent({
   dashboard,
   todaySalesCount,
-  ranking,
-  topCollaborator,
+  ranking: _ranking,
+  topCollaborator: _topCollaborator,
   salesChartData,
-  visibleCollaboratorSummary,
+  visibleCollaboratorSummary: _visibleCollaboratorSummary,
   collaborators,
   user,
   appointmentsOverview,
@@ -85,7 +85,7 @@ function AdminDashboardContent({
 
   const now = new Date()
   const hour = now.getHours()
-  const minute = now.getMinutes()
+  const _minute = now.getMinutes()
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
   const todayStr = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(now)
   const ticketMedio = todaySalesCount > 0 ? dashboard.totalDaySales / todaySalesCount : 0
@@ -106,7 +106,7 @@ function AdminDashboardContent({
 
   const closingHour = 20
   const remainingHours = Math.max(0, closingHour - hour)
-  const remainingLabel = remainingHours > 0
+  const _remainingLabel = remainingHours > 0
     ? `${remainingHours}h de operação`
     : 'Operação encerrada'
 
@@ -512,11 +512,11 @@ function CollaboratorDashboardContent({
   const firstName = user?.name ? user.name.split(' ')[0] : 'colaborador'
   const collaboratorTodayCommission = collaboratorMetrics.today?.commission ?? collaboratorMetrics.todayCommission ?? 0
   const collaboratorTodayBarterTotal = collaboratorMetrics.today?.barterTotal ?? collaboratorMetrics.todayBarterTotal ?? 0
-  const collaboratorTodayBarterCommission = collaboratorMetrics.today?.barterCommission ?? collaboratorMetrics.todayBarterCommission ?? 0
+  const _collaboratorTodayBarterCommission = collaboratorMetrics.today?.barterCommission ?? collaboratorMetrics.todayBarterCommission ?? 0
   const collaboratorWeekCommission = collaboratorMetrics.week?.commission ?? collaboratorMetrics.weekCommission ?? 0
   const collaboratorMonthCommission = collaboratorMetrics.month?.commission ?? collaboratorMetrics.monthCommission ?? 0
   const collaboratorTodayAttendances = collaboratorMetrics.today?.appointments ?? collaboratorMetrics.todayAttendances ?? 0
-  const collaboratorMonthAttendances = collaboratorMetrics.month?.appointments ?? collaboratorMetrics.monthAttendances ?? 0
+  const _collaboratorMonthAttendances = collaboratorMetrics.month?.appointments ?? collaboratorMetrics.monthAttendances ?? 0
   const collaboratorNetBalance = collaboratorMetrics.mySettlementBalance || collaboratorMetrics.netCommission || 0
   const pendingAdvancesCount = advances.filter((advance) => advance.status === 'pending').length
 

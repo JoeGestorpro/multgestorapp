@@ -15,7 +15,7 @@ import ServiceIcon from '../../components/barber/ServiceIcon'
 import CollaboratorAvatar from '../../components/barber/CollaboratorAvatar'
 import { BarberBadge } from '../../components/barber/BarberUI'
 import api from '../../services/api'
-import { anyCollaboratorValue, draftBookingKey, savePendingBooking } from './pendingBooking'
+import { anyCollaboratorValue, draftBookingKey } from './pendingBooking'
 import { getStoredToken } from '../../services/authStorage'
 import { buildCompanyData } from './BookingLanding.data'
 import BookingDesktopLayout from './BookingDesktopLayout'
@@ -66,14 +66,6 @@ function formatDate(value) {
   }).format(new Date(`${value}T12:00:00-04:00`))
 }
 
-function formatShortDate(value) {
-  if (!value) return ''
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: 'short'
-  }).format(new Date(value))
-}
-
 function buildStartsAt(date, time) {
   if (!date || !time) return ''
   const parsed = new Date(`${date}T${time}:00`)
@@ -84,12 +76,6 @@ function isLogged() {
   return Boolean(getStoredToken('booking'))
 }
 
-function formatGreeting() {
-  const hour = new Date().getHours()
-  if (hour < 12) return 'Bom dia'
-  if (hour < 18) return 'Boa tarde'
-  return 'Boa noite'
-}
 
 function BookingHeader({ company, currentStep, onBack, showBack }) {
   return (
@@ -162,7 +148,7 @@ const ServiceCard = memo(function ServiceCard({ service, selected, onSelect }) {
   )
 })
 
-const ProfessionalCard = memo(function ProfessionalCard({ collaborator, selected, onSelect, allowAny }) {
+const ProfessionalCard = memo(function ProfessionalCard({ collaborator, selected, onSelect, allowAny: _allowAny }) {
   const isAny = collaborator.id === anyCollaboratorValue || collaborator.isAny
 
   return (
@@ -198,7 +184,7 @@ const MONTHS_SHORT = [
   'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
 ]
 
-const Calendar = memo(function Calendar({ selectedDate, onSelect, minDate }) {
+const Calendar = memo(function Calendar({ selectedDate, onSelect, minDate: _minDate }) {
   const [viewDate, setViewDate] = useState(() => {
     const d = new Date()
     d.setDate(1)
@@ -416,7 +402,7 @@ const TimeSlots = memo(function TimeSlots({ slots, selected, onSelect, loading }
   )
 })
 
-const BookingSummary = memo(function BookingSummary({ form, service, collaborator, company, onConfirm, loading }) {
+const BookingSummary = memo(function BookingSummary({ form, service, collaborator, company: _company, onConfirm, loading }) {
   const dateLabel = form.appointmentDate ? formatDate(form.appointmentDate) : ''
   const collaboratorName = collaborator?.name || collaborator?.nickname || 'A definir'
 
@@ -833,7 +819,7 @@ function BookingFlowSteps({
 
 function BookingFlow() {
   const { slug } = useParams()
-  const navigate = useNavigate()
+  const _navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -850,7 +836,7 @@ function BookingFlow() {
   const flowRef = useRef(null)
   const touchStart = useRef(0)
   const stepDir = useRef(1)
-  const prevStep = useRef(STEPS.SERVICE)
+  const _prevStep = useRef(STEPS.SERVICE)
 
   const selectedService = useMemo(() =>
     services.find(s => s.id === form.serviceId),

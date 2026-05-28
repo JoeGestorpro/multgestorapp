@@ -1,6 +1,6 @@
 import { BarberIcon } from '../../components/barber/BarberUI'
 
-function BookingSideCard({ activeStep, onStart, children, showBooking, company }) {
+function BookingSideCard({ onStart, children, showBooking, company }) {
   const colors = company?.colors || {}
   const ctaBg = colors.primary || 'var(--bf-accent)'
   const ctaTextColor = colors.button_text || '#000000'

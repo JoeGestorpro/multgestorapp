@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react'
-import api from '../../services/api'
 import useAgenda from '../barber/agenda/useAgenda'
 import AppointmentFormModal from './AppointmentFormModal'
 import { CustomerSidePanel } from '../../components/premium'
@@ -46,8 +45,6 @@ export default function AgendaInterna({
 
   const todayDate = useMemo(() => new Date().toISOString().slice(0, 10), [])
   const selectedDate = agenda.appointmentFilters.date || todayDate
-  const isMobile = window.innerWidth <= 768
-
   const safeCollaborators = useMemo(() => {
     if (isCollaborator) {
       const found = (collaborators || []).find(c => c.id === loggedInCollaboratorId)
@@ -333,7 +330,6 @@ export default function AgendaInterna({
                   const minutes = SLOT_START + idx * SLOT_STEP
                   const time = formatTime(minutes)
                   const isHalfHour = minutes % 60 !== 0
-                  const currentMin = SLOT_START
                   const now = new Date()
                   const nowMinutes = now.getHours() * 60 + now.getMinutes()
                   const isPast = now.getDate() === new Date(`${selectedDate}T12:00:00`).getDate() && minutes + SLOT_STEP <= nowMinutes

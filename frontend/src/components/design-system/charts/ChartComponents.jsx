@@ -1,7 +1,7 @@
 import { TrendingUp } from 'lucide-react'
 import '../../../styles/chart-premium.css'
 
-export function ChartTooltip({ active, payload, label, valuePrefix = 'R$' }) {
+export function ChartTooltip({ active, payload, label, valuePrefix: _valuePrefix = 'R$' }) {
   if (!active || !payload?.length) {
     return null
   }

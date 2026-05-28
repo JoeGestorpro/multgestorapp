@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { ShoppingBag, ChevronUp, ChevronDown, Plus } from 'lucide-react'
 import CartItem from './CartItem'
 import PaymentSelector from './PaymentSelector'
@@ -17,11 +17,11 @@ function AtendimentoCart({
   onAmountReceived,
   total,
   commission,
-  net,
+  net: _net,
   onSubmit,
   isSubmitting,
   canManageCash,
-  isCollaborator,
+  isCollaborator: _isCollaborator,
   collaborators,
   onCollaboratorChange,
   selectedCollaboratorId,

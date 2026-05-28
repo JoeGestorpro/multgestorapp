@@ -23,7 +23,7 @@ export default function BookingAvailabilityView() {
   const [collaborators, setCollaborators] = useState([])
   const [workingHours, setWorkingHours] = useState([])
   const [blocks, setBlocks] = useState([])
-  const [settings, setSettings] = useState({})
+  const [_settings, setSettings] = useState({})
   const [activeCollabId, setActiveCollabId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -163,12 +163,6 @@ export default function BookingAvailabilityView() {
   function getFilteredBlocks() {
     if (activeCollabId === null) return blocks
     return blocks.filter(b => !b.collaborator_id || b.collaborator_id === activeCollabId)
-  }
-
-  function activeTabLabel() {
-    if (activeCollabId === null) return 'Geral'
-    const collab = collaborators.find(c => c.id === activeCollabId)
-    return collab?.nickname || collab?.name || 'Profissional'
   }
 
   async function handleSave() {

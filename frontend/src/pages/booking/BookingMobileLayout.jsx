@@ -11,9 +11,7 @@ import BookingFAB from './BookingFAB'
 
 function BookingMobileLayout({
   company,
-  services,
   collaborators,
-  settings,
   stepsChildren,
   flowState,
   onStartBooking,
@@ -47,7 +45,7 @@ function BookingMobileLayout({
     if (onGoBack) onGoBack()
   }
 
-  function handleBack() {
+  function _handleBack() {
     setShowBooking(false)
     if (onGoBack) onGoBack()
   }

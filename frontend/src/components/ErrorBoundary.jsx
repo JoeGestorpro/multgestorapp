@@ -15,7 +15,7 @@ class ErrorBoundary extends Component {
     if (sentry.isEnabled()) {
       sentry.captureException(error, { tags: { component: 'ErrorBoundary' } })
     }
-    if (process.env.NODE_ENV !== 'production') {
+    if (import.meta.env.DEV) {
       // eslint-disable-next-line no-console
       console.error('[ErrorBoundary] Erro capturado:', error, info)
     }

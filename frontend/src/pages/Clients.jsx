@@ -376,10 +376,10 @@ function buildCompanyRecord(company, meta, modules, companyModules, subscription
 
 function Clients() {
   const [companies, setCompanies] = useState([])
-  const [modules, setModules] = useState([])
-  const [companyModules, setCompanyModules] = useState([])
-  const [subscriptions, setSubscriptions] = useState([])
-  const [activations, setActivations] = useState([])
+  const [_modules, setModules] = useState([])
+  const [_companyModules, setCompanyModules] = useState([])
+  const [_subscriptions, setSubscriptions] = useState([])
+  const [_activations, setActivations] = useState([])
   const [planOptions, setPlanOptions] = useState(defaultPlanOptions)
   const [extraNiches, setExtraNiches] = useState([])
   const [filters, setFilters] = useState({ q: '', company_status: '' })

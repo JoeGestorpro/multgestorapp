@@ -72,7 +72,7 @@ const TUTORIAL_STEPS = [
 function BarberDashboard() {
   const navigate = useNavigate()
   const { user, isBarberAuthenticated, token } = useAuth()
-  const { companyId } = useTenantTheme()
+  const { companyId: _companyId } = useTenantTheme()
   const [showWelcome, setShowWelcome] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)

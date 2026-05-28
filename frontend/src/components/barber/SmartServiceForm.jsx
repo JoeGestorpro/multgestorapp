@@ -2,7 +2,6 @@ import { useEffect, useRef, useMemo, useState } from 'react'
 import {
   SERVICE_TEMPLATES,
   inferCategory,
-  inferServiceType,
   getDefaultIconForCategory,
   getSuggestions,
   getCategoryConfig,
@@ -51,7 +50,6 @@ function ServiceSuggestions({ name, onSelect }) {
       <span className="smart-suggestions-label">Sugestoes</span>
       <div className="smart-suggestions-list">
         {suggestions.map((template) => {
-          const catConfig = getCategoryConfig(template.category)
           return (
             <button
               key={template.id}
@@ -105,7 +103,7 @@ function SmartServiceForm({
   isEditing,
   isSaving,
   onSaveAndContinue,
-  onDuplicate,
+  onDuplicate: _onDuplicate,
   services
 }) {
   const nameRef = useRef(null)
@@ -182,19 +180,6 @@ function SmartServiceForm({
     { key: 'premium', label: 'Premium' },
     { key: 'spa', label: 'Spa' }
   ]
-
-  const handleDuplicate = () => {
-    if (services && services.length > 0) {
-      const lastCreated = services[services.length - 1]
-      if (lastCreated) {
-        onFormChange({ target: { name: 'name', value: `${lastCreated.name} (Copia)` } })
-        onFormChange({ target: { name: 'price', value: String(lastCreated.price) } })
-        onFormChange({ target: { name: 'estimatedTimeMinutes', value: String(lastCreated.estimated_time_minutes || lastCreated.estimatedTimeMinutes || '') } })
-        onFormChange({ target: { name: 'icon', value: lastCreated.icon || 'scissors' } })
-        setManualCategoryOverride(true)
-      }
-    }
-  }
 
   const activeIcon = normalizeServiceIcon(form.icon, form.name)
   const catConfig = getCategoryConfig(effectiveCategory)
