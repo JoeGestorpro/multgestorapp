@@ -4,8 +4,8 @@
 
 const crypto = require('crypto')
 
-function createTenantId(prefix = 'tenant') {
-  return `${prefix}-${crypto.randomUUID()}`
+function createTenantId(_prefix = 'tenant') {
+  return crypto.randomUUID()
 }
 
 function createCompanyA(overrides = {}) {
