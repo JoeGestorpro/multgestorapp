@@ -15,17 +15,8 @@ function createIntegrationApp() {
   app.use(requestLogger)
   app.use(tenantContext)
 
-  // 404 handler
-  app.use((req, res) => {
-    res.status(404).json({
-      success: false,
-      error: 'Rota nao encontrada',
-      traceId: req.traceId || null,
-    })
-  })
-
-  // Error handler
-  app.use(errorHandler)
+  // NOTE: 404 and error handlers are added by registerRoutes() AFTER all routes
+  // are mounted. Adding them here would intercept every request before routes run.
 
   return app
 }
@@ -39,6 +30,19 @@ function registerRoutes(app, routes) {
   for (const { path, router } of routes) {
     registerRoute(app, path, router)
   }
+
+  // 404 handler — must come AFTER all routes
+  app.use((req, res) => {
+    res.status(404).json({
+      success: false,
+      error: 'Rota nao encontrada',
+      traceId: req.traceId || null,
+    })
+  })
+
+  // Error handler — must be last
+  app.use(errorHandler)
+
   return app
 }
 

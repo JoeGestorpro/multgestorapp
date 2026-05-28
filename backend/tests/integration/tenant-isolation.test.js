@@ -11,6 +11,7 @@ const {
   insertCollaborator,
   insertService,
   insertAppointment,
+  activateModule,
   cleanupTestData,
   shutdownTestPool,
 } = require('./helpers/test-database')
@@ -83,6 +84,10 @@ describeDb('Tenant Isolation — Integration Tests', () => {
     await insertCompany(companyB)
     TEST_COMPANY_IDS.push(companyA.id, companyB.id)
 
+    // Activate barber module for both test companies
+    await activateModule(companyA.id, 'barber')
+    await activateModule(companyB.id, 'barber')
+
     // Create users
     userA = createUserForCompany(companyA.id, 'admin')
     userB = createUserForCompany(companyB.id, 'admin')
@@ -118,6 +123,11 @@ describeDb('Tenant Isolation — Integration Tests', () => {
   afterAll(async () => {
     await cleanupTestData(TEST_COMPANY_IDS)
     await shutdownTestPool()
+    // Close the shared pg pool used by route handlers to avoid Jest open handles
+    const mainPool = require('../../src/config/database')
+    if (typeof mainPool.end === 'function') {
+      await mainPool.end().catch(() => {})
+    }
   })
 
   describe('1. Cross-tenant blocking', () => {

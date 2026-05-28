@@ -160,6 +160,20 @@ async function insertAppointment(apptData) {
   return result.rows[0]
 }
 
+async function activateModule(companyId, moduleSlug = 'barber') {
+  const db = await getTestPool()
+  await db.query(
+    `INSERT INTO company_modules (company_id, module_id, status, activated_at)
+     SELECT $1, modules.id, 'active', NOW()
+     FROM modules
+     WHERE modules.slug = $2
+       AND modules.is_active = true
+     ON CONFLICT (company_id, module_id) DO UPDATE
+       SET status = 'active', activated_at = NOW()`,
+    [companyId, moduleSlug]
+  )
+}
+
 async function cleanupTestData(companyIds) {
   if (!companyIds || companyIds.length === 0) return
 
@@ -192,6 +206,7 @@ module.exports = {
   insertCollaborator,
   insertService,
   insertAppointment,
+  activateModule,
   cleanupTestData,
   shutdownTestPool,
 }
