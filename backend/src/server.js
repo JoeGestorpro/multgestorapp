@@ -27,7 +27,7 @@ const correlationId = require('./middlewares/correlation-id.middleware');
 const requestLogger = require('./middlewares/request-logger.middleware');
 const errorHandler = require('./middlewares/error-handler.middleware');
 const { tenantContext, registerDefaultConsumers } = require('./shared');
-const { IntegrationManager, resolveWhatsAppProvider, AppointmentIntegrationConsumer, WhatsAppWebhook } = require('./integrations');
+const { IntegrationManager, resolveWhatsAppProvider, AppointmentIntegrationConsumer, WhatsAppWebhook, WhatsAppResolver } = require('./integrations');
 const OutboxWorker = require('./shared/core/outbox/outbox-worker');
 const redisClient = require('./shared/core/cache/redis-client');
 const { runTrialEmailJob } = require('./jobs/trial-email-job');
@@ -54,7 +54,10 @@ const whatsappProvider = resolveWhatsAppProvider({
 });
 integrationManager.registerProvider('whatsapp', whatsappProvider);
 
-const appointmentIntegrationConsumer = new AppointmentIntegrationConsumer(integrationManager);
+const whatsappResolver = new WhatsAppResolver();
+const appointmentIntegrationConsumer = new AppointmentIntegrationConsumer(integrationManager, {
+  whatsappResolver
+});
 appointmentIntegrationConsumer.register();
 appLogger.info('[Integration] Integration layer initialized');
 
