@@ -3,125 +3,9 @@ const { ValidationError, UnauthorizedError, NotFoundError, AppError } = require(
 const pool = require('../../config/database');
 const masterService = require('../master.service');
 const emailService = require('../email/email.service');
+const { KiwifyProvider } = require('../../shared/capabilities/billing/providers/kiwify.provider');
 
-function normalizeText(value) {
-  return String(value || '').trim();
-}
-
-function normalizeEmail(value) {
-  return normalizeText(value).toLowerCase();
-}
-
-function normalizeSlug(value) {
-  return normalizeText(value)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-function resolveWebhookSecret(req) {
-  const authHeader = normalizeText(req.headers.authorization);
-  const bearerToken = authHeader.toLowerCase().startsWith('bearer ')
-    ? authHeader.slice(7).trim()
-    : '';
-
-  return (
-    normalizeText(req.headers['x-kiwify-token']) ||
-    normalizeText(req.headers['x-webhook-token']) ||
-    normalizeText(req.headers['x-kiwify-signature']) ||
-    normalizeText(req.query.token) ||
-    bearerToken
-  );
-}
-
-function validateWebhookSecret(req) {
-  const expectedSecret = normalizeText(process.env.KIWIFY_WEBHOOK_SECRET);
-
-  if (!expectedSecret) {
-    throw new AppError('KIWIFY_WEBHOOK_SECRET nao configurado', 500, 'CONFIGURATION_ERROR');
-  }
-
-  if (resolveWebhookSecret(req) !== expectedSecret) {
-    throw new UnauthorizedError('Webhook nao autorizado');
-  }
-}
-
-function extractCustomer(payload = {}) {
-  const customer = payload.customer || payload.buyer || payload.client || {};
-  return {
-    email: normalizeEmail(customer.email || payload.customer_email || payload.email),
-    name: normalizeText(customer.name || payload.customer_name || payload.name || 'Cliente Kiwify'),
-    document: normalizeText(customer.document || customer.cpf || payload.customer_document),
-    phone: normalizeText(customer.phone || customer.whatsapp || payload.customer_phone)
-  };
-}
-
-function extractCompany(payload = {}, customer = {}) {
-  return {
-    name: normalizeText(
-      payload.company_name ||
-      payload.tenant_name ||
-      payload.business_name ||
-      customer.name ||
-      'Nova empresa'
-    ),
-    email: customer.email || normalizeEmail(payload.company_email),
-    document: customer.document || normalizeText(payload.company_document),
-    phone: customer.phone || normalizeText(payload.company_phone)
-  };
-}
-
-function extractFinancialPayload(payload = {}) {
-  const rawPrice = Number(
-    payload.amount ||
-    payload.price ||
-    payload.total_amount ||
-    payload.subscription_amount ||
-    payload.invoice_amount ||
-    0
-  );
-
-  return {
-    planName: normalizeText(payload.plan_name || payload.offer_name || payload.product_name || payload.product?.name || 'Plano Kiwify'),
-    billingCycle: normalizeSlug(payload.billing_cycle || payload.plan_cycle || payload.recurrence || payload.subscription_cycle) || 'monthly',
-    gateway: normalizeSlug(payload.gateway || payload.gateway_name || payload.payment_gateway) || 'kiwify',
-    moduleKey: normalizeSlug(payload.module_key || payload.product_key || payload.module_slug || payload.product?.slug),
-    price: Number.isFinite(rawPrice) ? rawPrice : 0,
-    paidAt: payload.paid_at || payload.approved_at || payload.payment_date || null,
-    dueAt: payload.due_at || payload.next_due_date || payload.expiration_date || null,
-    currentPeriodEnd: payload.current_period_end || payload.next_due_date || null,
-    currentPeriodStart: payload.current_period_start || payload.subscription_started_at || payload.created_at || null,
-    invoiceId: normalizeText(payload.invoice_id || payload.charge_id || payload.payment_id || payload.order_id),
-    subscriptionExternalId: normalizeText(payload.subscription_id || payload.subscription_code || payload.order_subscription_id),
-    customerExternalId: normalizeText(payload.customer_id || payload.buyer_id)
-  };
-}
-
-function extractEvent(payload = {}) {
-  const eventType = normalizeSlug(
-    payload.event_type ||
-    payload.event ||
-    payload.type ||
-    payload.webhook_event ||
-    payload.status
-  );
-
-  const baseEventId = normalizeText(
-    payload.event_id ||
-    payload.id ||
-    payload.webhook_id ||
-    payload.transaction_id ||
-    payload.invoice_id ||
-    payload.order_id
-  );
-
-  return {
-    eventType: eventType || 'unknown',
-    eventId: baseEventId || `kiwify-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`
-  };
-}
+const kiwifyProvider = new KiwifyProvider();
 
 async function requireFinanceTables() {
   const result = await pool.query(
@@ -473,47 +357,25 @@ async function ensureFirstAccess(company, customer) {
   return generated;
 }
 
-function mapEventToStatuses(eventType) {
-  switch (eventType) {
-    case 'compra-aprovada':
-    case 'compra_aprovada':
-    case 'purchase-approved':
-    case 'purchase_approved':
-    case 'subscription-renewed':
-    case 'subscription_renewed':
-    case 'renewed':
-      return { subscriptionStatus: 'active', invoiceStatus: 'paid' };
-    case 'subscription-late':
-    case 'subscription_late':
-    case 'late':
-    case 'past-due':
-    case 'past_due':
-    case 'overdue':
-      return { subscriptionStatus: 'late', invoiceStatus: 'overdue' };
-    case 'subscription-canceled':
-    case 'subscription_canceled':
-    case 'canceled':
-      return { subscriptionStatus: 'canceled', invoiceStatus: 'canceled' };
-    case 'compra-reembolsada':
-    case 'compra_reembolsada':
-    case 'refunded':
-      return { subscriptionStatus: 'refunded', invoiceStatus: 'refunded' };
-    case 'chargeback':
-      return { subscriptionStatus: 'suspended', invoiceStatus: 'chargeback' };
-    default:
-      return { subscriptionStatus: 'pending', invoiceStatus: 'pending' };
-  }
-}
-
 async function processKiwifyWebhook(payload, req) {
-  validateWebhookSecret(req);
+  let isValid
+  try {
+    isValid = kiwifyProvider.verifySignature(req)
+  } catch (err) {
+    throw new AppError(err.message, 500, 'CONFIGURATION_ERROR')
+  }
+  if (!isValid) {
+    throw new UnauthorizedError('Webhook nao autorizado')
+  }
+
   await requireFinanceTables();
 
-  const event = extractEvent(payload);
-  const customer = extractCustomer(payload);
-  const companyData = extractCompany(payload, customer);
-  const finance = extractFinancialPayload(payload);
-  const { subscriptionStatus, invoiceStatus } = mapEventToStatuses(event.eventType);
+  const normalized = kiwifyProvider.normalize(payload)
+  const event = { eventType: normalized.event_type, eventId: normalized.event_id }
+  const customer = normalized.customer
+  const companyData = normalized.company
+  const finance = normalized.finance
+  const { subscriptionStatus, invoiceStatus } = normalized.status
 
   if (!customer.email && ['compra_aprovada', 'subscription_renewed', 'purchase_approved', 'renewed'].includes(event.eventType)) {
     throw new ValidationError('Payload do webhook sem email do cliente');

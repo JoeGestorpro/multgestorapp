@@ -7,6 +7,7 @@ const {
 
 const { PaymentProvider } = require('./payment-provider')
 const { BillingProviderRegistry, billingProviderRegistry } = require('./provider-registry')
+const { KiwifyProvider } = require('./providers/kiwify.provider')
 
 module.exports = {
   BILLING_EVENTS,
@@ -15,5 +16,6 @@ module.exports = {
   eventTypeToDomainEvent,
   PaymentProvider,
   BillingProviderRegistry,
-  billingProviderRegistry
+  billingProviderRegistry,
+  KiwifyProvider
 }

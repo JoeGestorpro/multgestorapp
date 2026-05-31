@@ -31,9 +31,13 @@ const { IntegrationManager, resolveWhatsAppProvider, AppointmentIntegrationConsu
 const OutboxWorker = require('./shared/core/outbox/outbox-worker');
 const redisClient = require('./shared/core/cache/redis-client');
 const { runTrialEmailJob } = require('./jobs/trial-email-job');
+const { billingProviderRegistry, KiwifyProvider } = require('./shared/capabilities/billing');
 
 registerDefaultConsumers();
 appLogger.info('[EventBus] Default consumers registered');
+
+billingProviderRegistry.register('kiwify', KiwifyProvider);
+appLogger.info('[Billing] Kiwify provider registered');
 
 // Handlers globais de processo — devem ser registrados cedo, antes de qualquer I/O.
 process.on('unhandledRejection', (reason) => {
