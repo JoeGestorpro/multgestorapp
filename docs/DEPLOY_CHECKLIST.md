@@ -1,7 +1,40 @@
 # Deploy Checklist — Produção MultGestor
 
-> Última atualização: 26/05/2026
+> Última atualização: 31/05/2026
 > Revisar antes de cada deploy para produção.
+
+---
+
+## 0. Fluxo de Release (principal → main)
+
+O desenvolvimento acontece na branch `principal`. O deploy de produção é disparado
+**automaticamente** pelo push/merge na branch `main` (`.github/workflows/deploy.yml`):
+
+```
+push em main → job `ci` (unit + integration + frontend)
+             → `run-migrations` (aplica migrations no banco de PRODUÇÃO)
+             → `deploy-backend` (Render) + `deploy-frontend` (Vercel)
+```
+
+> ⚠️ **Fazer merge `principal → main` DISPARA deploy E migrations em produção.**
+> Não faça o merge sem antes cumprir o checklist deste documento.
+
+### Passo a passo
+1. Confirmar que `principal` está verde no CI (aba Actions) e ver o que entrará:
+   `git log origin/main..principal --oneline`
+2. Cumprir o **Pré-deploy Checklist** (seção 6) e revisar migrations novas (seção 5.1).
+3. Revisar o diff das migrations quanto à **idempotência**
+   (`CREATE TABLE IF NOT EXISTS` / `DROP POLICY IF EXISTS` / `ON CONFLICT`):
+   uma migration não idempotente pode quebrar o job `run-migrations` e abortar o deploy.
+4. Abrir PR `principal → main` com a lista de commits e migrations incluídas.
+5. Após o merge, acompanhar o workflow **Deploy** (Actions) até o fim e rodar a
+   **Pós-deploy Verification** (seção 7).
+6. Gating: se `run-migrations` falhar, o `deploy-backend` NÃO ocorre (`needs`),
+   porém o `deploy-frontend` depende apenas de `ci` — verifique a consistência
+   frontend/backend em caso de falha de migration.
+
+> Secrets obrigatórios de produção estão consolidados nas seções **3** e **9**
+> (backend/Render) e **4** (frontend/Vercel). Não duplicar aqui.
 
 ---
 
