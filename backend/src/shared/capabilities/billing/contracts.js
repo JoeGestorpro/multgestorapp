@@ -135,6 +135,9 @@ function normalizeBillingStatus(eventType) {
     case 'subscription-renewed':
     case 'subscription_renewed':
     case 'renewed':
+    case 'checkout-completed':
+    case 'transparent-completed':
+    case 'subscription-completed':
       return { subscriptionStatus: 'active', invoiceStatus: 'paid' }
     case 'subscription-late':
     case 'subscription_late':
@@ -146,13 +149,20 @@ function normalizeBillingStatus(eventType) {
     case 'subscription-canceled':
     case 'subscription_canceled':
     case 'canceled':
+    case 'subscription-cancelled':
       return { subscriptionStatus: 'canceled', invoiceStatus: 'canceled' }
     case 'compra-reembolsada':
     case 'compra_reembolsada':
     case 'refunded':
+    case 'checkout-refunded':
+    case 'transparent-refunded':
       return { subscriptionStatus: 'refunded', invoiceStatus: 'refunded' }
     case 'chargeback':
+    case 'checkout-disputed':
+    case 'transparent-disputed':
       return { subscriptionStatus: 'suspended', invoiceStatus: 'chargeback' }
+    case 'subscription-trial-started':
+      return { subscriptionStatus: 'trialing', invoiceStatus: 'pending' }
     default:
       return { subscriptionStatus: 'pending', invoiceStatus: 'pending' }
   }
@@ -164,10 +174,13 @@ function eventTypeToDomainEvent(eventType) {
     case 'compra_aprovada':
     case 'purchase-approved':
     case 'purchase_approved':
+    case 'checkout-completed':
+    case 'transparent-completed':
       return 'payment.approved'
     case 'subscription-renewed':
     case 'subscription_renewed':
     case 'renewed':
+    case 'subscription-completed':
       return 'subscription.renewed'
     case 'subscription-late':
     case 'subscription_late':
@@ -179,13 +192,20 @@ function eventTypeToDomainEvent(eventType) {
     case 'subscription-canceled':
     case 'subscription_canceled':
     case 'canceled':
+    case 'subscription-cancelled':
       return 'subscription.canceled'
     case 'compra-reembolsada':
     case 'compra_reembolsada':
     case 'refunded':
+    case 'checkout-refunded':
+    case 'transparent-refunded':
       return 'subscription.refunded'
     case 'chargeback':
+    case 'checkout-disputed':
+    case 'transparent-disputed':
       return 'subscription.chargeback'
+    case 'subscription-trial-started':
+      return 'subscription.created'
     default:
       return 'payment.failed'
   }

@@ -184,7 +184,12 @@ app.use(helmet({
   contentSecurityPolicy: false
 }));
 app.use(cookieParser());
-app.use(express.json({ limit: '3mb' }));
+app.use(express.json({
+  limit: '3mb',
+  verify(req, res, buf) {
+    req.rawBody = buf
+  }
+}));
 app.use(correlationId);
 app.use(requestLogger);
 app.use(tenantContext);

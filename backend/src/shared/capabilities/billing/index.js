@@ -9,8 +9,10 @@ const { PaymentProvider } = require('./payment-provider')
 const { BillingProviderRegistry, billingProviderRegistry } = require('./provider-registry')
 const { BillingManager } = require('./billing-manager')
 const { KiwifyProvider } = require('./providers/kiwify.provider')
+const { AbacatePayProvider } = require('./providers/abacatepay.provider')
 
 billingProviderRegistry.register('kiwify', KiwifyProvider)
+billingProviderRegistry.register('abacatepay', AbacatePayProvider)
 const billingManager = new BillingManager(billingProviderRegistry)
 
 module.exports = {
@@ -23,5 +25,6 @@ module.exports = {
   billingProviderRegistry,
   BillingManager,
   billingManager,
-  KiwifyProvider
+  KiwifyProvider,
+  AbacatePayProvider
 }
