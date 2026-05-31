@@ -3,8 +3,9 @@ const { appLogger } = require('../../shared/core/logger')
 const { INTEGRATION_CHANNELS } = require('../contracts')
 
 class AppointmentIntegrationConsumer {
-  constructor(integrationManager) {
+  constructor(integrationManager, options = {}) {
     this.integrationManager = integrationManager
+    this.whatsappResolver = options.whatsappResolver || null
     this.logger = appLogger.child({ module: 'AppointmentIntegrationConsumer' })
   }
 
@@ -32,7 +33,7 @@ class AppointmentIntegrationConsumer {
       }
     }
 
-    const result = await this.integrationManager.send(
+    const result = await this._sendWithResolver(
       INTEGRATION_CHANNELS.WHATSAPP,
       whatsappPayload,
       { company_id }
@@ -70,7 +71,7 @@ class AppointmentIntegrationConsumer {
       }
     }
 
-    const result = await this.integrationManager.send(
+    const result = await this._sendWithResolver(
       INTEGRATION_CHANNELS.WHATSAPP,
       whatsappPayload,
       { company_id }
@@ -83,6 +84,25 @@ class AppointmentIntegrationConsumer {
     }, 'Appointment canceled integration processed')
 
     return result
+  }
+
+  async _sendWithResolver(channel, payload, metadata) {
+    if (this.whatsappResolver) {
+      try {
+        const provider = await this.whatsappResolver.resolveProviderForCompany(metadata.company_id)
+        if (provider) {
+          return {
+            ...await provider.send(payload),
+            channel,
+            company_id: metadata.company_id
+          }
+        }
+      } catch (err) {
+        this.logger.warn({ error: err.message, company_id: metadata.company_id }, 'Resolver failed, falling back to integration manager')
+      }
+    }
+
+    return this.integrationManager.send(channel, payload, metadata)
   }
 
   register() {

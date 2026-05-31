@@ -170,6 +170,23 @@ class AppointmentService {
       source: 'AppointmentService'
     })
 
+    eventBus.publish('appointment.confirmed', {
+      appointment_id: appointment.id,
+      company_id: companyId,
+      status: 'confirmed',
+      collaborator_id: appointment.collaborator_id,
+      service_id: appointment.service_id,
+      customer_name: appointment.customer_name,
+      customer_phone: appointment.customer_phone,
+      starts_at: appointment.starts_at,
+      ends_at: appointment.ends_at
+    }, {
+      company_id: companyId,
+      aggregate_type: 'appointment',
+      aggregate_id: appointment.id,
+      source: 'AppointmentService'
+    })
+
     return appointment
   }
 

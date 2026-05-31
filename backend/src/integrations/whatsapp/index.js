@@ -1,5 +1,6 @@
 const WhatsAppProvider = require('./whatsapp-provider')
 const createMockWhatsAppProvider = require('./mock-whatsapp.provider')
+const WhatsAppResolver = require('./whatsapp-resolver')
 const { INTEGRATION_CHANNELS } = require('../contracts')
 
 function resolveWhatsAppProvider(config = {}) {
@@ -37,5 +38,6 @@ module.exports = {
   WhatsAppProvider,
   createMockWhatsAppProvider,
   resolveWhatsAppProvider,
+  WhatsAppResolver,
   INTEGRATION_CHANNELS
 }
