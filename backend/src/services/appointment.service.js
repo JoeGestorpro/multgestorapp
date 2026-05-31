@@ -226,7 +226,11 @@ class AppointmentService {
         company_id: companyId,
         status: 'confirmed',
         collaborator_id: existing.collaborator_id,
-        service_id: existing.service_id
+        service_id: existing.service_id,
+        customer_name: existing.customer_name,
+        customer_phone: existing.customer_phone,
+        starts_at: existing.starts_at,
+        ends_at: existing.ends_at
       }, {
         company_id: companyId,
         aggregate_type: 'appointment',
@@ -239,6 +243,8 @@ class AppointmentService {
         company_id: companyId,
         status: 'canceled',
         collaborator_id: existing.collaborator_id,
+        customer_name: existing.customer_name,
+        customer_phone: existing.customer_phone,
         canceled_reason: canceledReason
       }, {
         company_id: companyId,
