@@ -14,7 +14,9 @@ import {
   Save,
   Image,
   Upload,
-  Trash2
+  Trash2,
+  MessageSquare,
+  Send
 } from 'lucide-react'
 
 export default function SettingsView({
@@ -51,7 +53,19 @@ export default function SettingsView({
   handlePinResetSubmit,
   handlePinRecoveryFieldChange,
   resetPinRecoveryFlow,
-  openPinRecovery
+  openPinRecovery,
+  integrationConfig,
+  integrationLoading,
+  integrationSaving,
+  integrationForm,
+  integrationTestPhone,
+  integrationTestResult,
+  integrationTestSending,
+  handleIntegrationFormChange,
+  handleIntegrationSubmit,
+  handleIntegrationDelete,
+  handleIntegrationTest,
+  setIntegrationTestPhone
 }) {
   if (!isAdmin) {
     return (
@@ -232,6 +246,178 @@ export default function SettingsView({
           <span className="barber-overline">Configuracoes da agenda online</span>
         </div>
         <BookingLandingConfig />
+      </>
+    )
+  }
+
+  if (settingsSection === 'integrations') {
+    const isConfigured = integrationConfig && integrationConfig.configured !== false
+    const isEnabled = isConfigured && integrationConfig.integrationEnabled === true
+    const tokenConfigured = isConfigured && integrationConfig.tokenConfigured === true
+
+    let badgeTone = 'danger'
+    let badgeLabel = 'Nao configurado'
+    if (isConfigured) {
+      badgeTone = isEnabled ? 'success' : 'neutral'
+      badgeLabel = isEnabled ? 'Ativo' : 'Inativo'
+    }
+
+    return (
+      <>
+        <div className="barber-settings-back-row">
+          <button className="barber-settings-back-btn" onClick={handleBackToMenu}>
+            <ArrowLeft size={16} />
+            <span>Voltar</span>
+          </button>
+          <span className="barber-overline">Integracao com WhatsApp</span>
+        </div>
+        {integrationLoading ? (
+          <Card padding="md">
+            <p>Carregando configuracao de integracao...</p>
+          </Card>
+        ) : (
+          <section className="barber-grid-two barber-settings-grid">
+            <Card className="barber-settings-card" padding="md">
+              <div className="barber-panel-header">
+                <div>
+                  <span className="barber-overline">WhatsApp Business</span>
+                  <h3>Configuracao da API</h3>
+                  <p>Conecte sua conta do WhatsApp Business API para enviar notificacoes automaticas de agendamento, lembretes e confirmacoes.</p>
+                </div>
+                <BarberBadge tone={badgeTone}>{badgeLabel}</BarberBadge>
+              </div>
+
+              <form className="barber-form-grid" onSubmit={handleIntegrationSubmit}>
+                <label className="barber-settings-field">
+                  <span>Provedor</span>
+                  <select
+                    className="barber-select"
+                    value={integrationForm.providerType}
+                    onChange={(e) => handleIntegrationFormChange('providerType', e.target.value)}
+                  >
+                    <option value="meta_cloud_api">Meta Cloud API</option>
+                    <option value="mock">Mock (teste)</option>
+                  </select>
+                </label>
+
+                <label className="barber-settings-field">
+                  <span>Phone Number ID</span>
+                  <input
+                    value={integrationForm.phoneNumberId || ''}
+                    onChange={(e) => handleIntegrationFormChange('phoneNumberId', e.target.value)}
+                    placeholder="ID do numero de telefone no Meta Business"
+                  />
+                </label>
+
+                <label className="barber-settings-field">
+                  <span>Token de acesso</span>
+                  <input
+                    type="password"
+                    value={integrationForm.accessToken || ''}
+                    onChange={(e) => handleIntegrationFormChange('accessToken', e.target.value)}
+                    placeholder={tokenConfigured ? '•••••••• (token configurado)' : 'Token de acesso permanente do Meta'}
+                  />
+                  <p style={{ fontSize: '0.8rem', opacity: 0.7, margin: '4px 0 0' }}>
+                    {tokenConfigured ? 'Deixe em branco para manter o token atual.' : ''}
+                  </p>
+                </label>
+
+                <label className="barber-settings-field">
+                  <span>Business Account ID</span>
+                  <input
+                    value={integrationForm.businessAccountId || ''}
+                    onChange={(e) => handleIntegrationFormChange('businessAccountId', e.target.value)}
+                    placeholder="ID da conta business (opcional)"
+                  />
+                </label>
+
+                <label className="barber-settings-field">
+                  <span>URL da API</span>
+                  <input
+                    value={integrationForm.apiUrl || ''}
+                    onChange={(e) => handleIntegrationFormChange('apiUrl', e.target.value)}
+                    placeholder="https://graph.facebook.com/v18.0 (opcional)"
+                  />
+                </label>
+
+                <label className="barber-settings-toggle">
+                  <span>Integracao ativa</span>
+                  <input
+                    checked={integrationForm.integrationEnabled}
+                    onChange={(e) => handleIntegrationFormChange('integrationEnabled', e.target.checked)}
+                    type="checkbox"
+                  />
+                </label>
+
+                <div className="barber-settings-actions">
+                  <Button disabled={integrationSaving} type="submit" variant="primary">
+                    <Save />
+                    <span>{integrationSaving ? 'Salvando...' : 'Salvar configuracao'}</span>
+                  </Button>
+                  {isConfigured ? (
+                    <Button onClick={handleIntegrationDelete} type="button" variant="ghost">
+                      <Trash2 />
+                      <span>Remover integracao</span>
+                    </Button>
+                  ) : null}
+                </div>
+              </form>
+            </Card>
+
+            {isEnabled ? (
+              <Card className="barber-settings-card" padding="md">
+                <div className="barber-panel-header">
+                  <div>
+                    <span className="barber-overline">Teste</span>
+                    <h3>Testar integracao</h3>
+                    <p>Envie uma mensagem de teste para validar a conexao com a API do WhatsApp.</p>
+                  </div>
+                </div>
+
+                <form className="barber-form-grid" onSubmit={(e) => { e.preventDefault(); handleIntegrationTest() }}>
+                  <label className="barber-settings-field">
+                    <span>Numero de telefone</span>
+                    <input
+                      value={integrationTestPhone}
+                      onChange={(e) => setIntegrationTestPhone(e.target.value)}
+                      placeholder="5511999999999"
+                    />
+                    <p style={{ fontSize: '0.8rem', opacity: 0.7, margin: '4px 0 0' }}>
+                      Formato internacional sem o sinal de +. Ex: 5511999999999
+                    </p>
+                  </label>
+
+                  <div className="barber-settings-actions">
+                    <Button disabled={integrationTestSending} type="submit" variant="primary">
+                      <Send />
+                      <span>{integrationTestSending ? 'Enviando...' : 'Enviar mensagem de teste'}</span>
+                    </Button>
+                  </div>
+                </form>
+
+                {integrationTestResult ? (
+                  <div style={{
+                    display: 'flex',
+                    gap: 12,
+                    padding: 16,
+                    marginTop: 16,
+                    borderRadius: 8,
+                    background: integrationTestResult.success ? 'var(--success-bg, #e8f5e9)' : 'var(--danger-bg, #ffebee)',
+                    border: `1px solid ${integrationTestResult.success ? 'var(--success, #4caf50)' : 'var(--danger, #ef5350)'}`
+                  }}>
+                    {integrationTestResult.success ? <Check size={20} style={{ flexShrink: 0, marginTop: 2 }} /> : <X size={20} style={{ flexShrink: 0, marginTop: 2 }} />}
+                    <div>
+                      <strong>{integrationTestResult.success ? 'Mensagem enviada com sucesso' : 'Falha no envio'}</strong>
+                      <p style={{ margin: '4px 0 0' }}>
+                        {integrationTestResult.success ? `ID: ${integrationTestResult.messageId}` : (integrationTestResult.error || 'Erro desconhecido')}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+              </Card>
+            ) : null}
+          </section>
+        )}
       </>
     )
   }
@@ -615,6 +801,17 @@ export default function SettingsView({
           <div className="barber-settings-menu-card-content">
             <strong>Configuracoes da agenda online</strong>
             <p>Banner, galeria, texto de apresentacao, layout e preview da agenda publica</p>
+          </div>
+          <ArrowRight size={18} className="barber-settings-menu-card-arrow" />
+        </button>
+
+        <button className="barber-settings-menu-card" onClick={() => { setSettingsSection('integrations') }}>
+          <div className="barber-settings-menu-card-icon">
+            <MessageSquare size={28} />
+          </div>
+          <div className="barber-settings-menu-card-content">
+            <strong>Integrações</strong>
+            <p>Conecte o WhatsApp Business para enviar notificações automáticas de agendamento</p>
           </div>
           <ArrowRight size={18} className="barber-settings-menu-card-arrow" />
         </button>
