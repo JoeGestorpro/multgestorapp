@@ -31,9 +31,12 @@ const { IntegrationManager, resolveWhatsAppProvider, AppointmentIntegrationConsu
 const OutboxWorker = require('./shared/core/outbox/outbox-worker');
 const redisClient = require('./shared/core/cache/redis-client');
 const { runTrialEmailJob } = require('./jobs/trial-email-job');
+const { billingProviderRegistry, KiwifyProvider } = require('./shared/capabilities/billing');
 
 registerDefaultConsumers();
 appLogger.info('[EventBus] Default consumers registered');
+
+// KiwifyProvider is auto-registered in shared/capabilities/billing/index.js
 
 // Handlers globais de processo — devem ser registrados cedo, antes de qualquer I/O.
 process.on('unhandledRejection', (reason) => {
@@ -354,6 +357,16 @@ const outboxWorker = new OutboxWorker(pool, {
     appLogger.error({ err }, '[OutboxWorker] Erro no poll');
   }
 });
+
+const { handleBillingProvisioning } = require('./integrations/consumers');
+outboxWorker.register('payment.approved', handleBillingProvisioning);
+outboxWorker.register('subscription.renewed', handleBillingProvisioning);
+outboxWorker.register('subscription.past_due', handleBillingProvisioning);
+outboxWorker.register('subscription.canceled', handleBillingProvisioning);
+outboxWorker.register('subscription.refunded', handleBillingProvisioning);
+outboxWorker.register('subscription.chargeback', handleBillingProvisioning);
+outboxWorker.register('payment.failed', handleBillingProvisioning);
+appLogger.info('[OutboxWorker] Billing provisioning consumers registered');
 
 outboxWorker.start();
 appLogger.info('[OutboxWorker] Iniciado');
