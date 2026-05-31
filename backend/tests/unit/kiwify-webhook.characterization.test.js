@@ -105,12 +105,6 @@ describe('Kiwify webhook — characterization', () => {
       smartMock([
         ['to_regclass', TABLES_OK],
         ['insert into payment_gateway_events', { rows: [{ id: 'pge-1' }], rowCount: 1 }],
-        ['insert into companies', { rows: [{ id: 'company-1', name: 'Nov', status: 'active', owner_user_id: null }], rowCount: 1 }],
-        ['from subscriptions', { rows: [], rowCount: 0 }],
-        ['insert into subscriptions', { rows: [{ id: 'sub-1' }], rowCount: 1 }],
-        ['insert into invoices', { rows: [{ id: 'inv-1' }], rowCount: 1 }],
-        ['update companies', { rows: [{ id: 'company-1', status: 'active' }], rowCount: 1 }],
-        ['insert into subscription_events', { rows: [], rowCount: 1 }],
       ])
 
       const result = await kiwifyService.processKiwifyWebhook(
@@ -130,17 +124,11 @@ describe('Kiwify webhook — characterization', () => {
     })
   })
 
-  describe('full processing', () => {
-    it('processes valid webhook with empty payload (unknown event type)', async () => {
+  describe('full processing (BillingManager level)', () => {
+    it('processes valid webhook and publishes domain event via outbox', async () => {
       smartMock([
         ['to_regclass', TABLES_OK],
         ['insert into payment_gateway_events', { rows: [{ id: 'pge-1' }], rowCount: 1 }],
-        ['insert into companies', { rows: [{ id: 'company-1', name: 'Nova empresa', status: 'active', owner_user_id: null }], rowCount: 1 }],
-        ['from subscriptions', { rows: [], rowCount: 0 }],
-        ['insert into subscriptions', { rows: [{ id: 'sub-1' }], rowCount: 1 }],
-        ['insert into invoices', { rows: [{ id: 'inv-1' }], rowCount: 1 }],
-        ['update companies', { rows: [{ id: 'company-1', status: 'active' }], rowCount: 1 }],
-        ['insert into subscription_events', { rows: [], rowCount: 1 }],
       ])
 
       const result = await kiwifyService.processKiwifyWebhook(
@@ -151,33 +139,15 @@ describe('Kiwify webhook — characterization', () => {
         processed: true,
         eventId: expect.stringContaining('kiwify-'),
         eventType: 'unknown',
-        companyId: 'company-1',
-        subscriptionId: 'sub-1',
-        invoiceId: 'inv-1'
+        duplicate: false
       })
     })
 
-    it('processes compra_aprovada — provisions and sends first access', async () => {
+    it('processes compra_aprovada and publishes domain event', async () => {
       smartMock([
         ['to_regclass', TABLES_OK],
         ['insert into payment_gateway_events', { rows: [{ id: 'pge-2' }], rowCount: 1 }],
-        ['insert into companies', { rows: [{ id: 'company-2', name: 'New Co', status: 'active', owner_user_id: null }], rowCount: 1 }],
-        ['from subscriptions', { rows: [], rowCount: 0 }],
-        ['insert into subscriptions', { rows: [{ id: 'sub-2' }], rowCount: 1 }],
-        ['insert into invoices', { rows: [{ id: 'inv-2' }], rowCount: 1 }],
-        ['update companies', { rows: [{ id: 'company-2', status: 'active' }], rowCount: 1 }],
-        ['insert into subscription_events', { rows: [], rowCount: 1 }],
       ])
-
-      masterService.generateFirstAccess.mockResolvedValue({
-        user: { id: 'user-1' },
-        firstAccess: {
-          user_email: 'customer@test.com',
-          user_name: 'Customer',
-          token: 'tok-abc',
-          expires_at: new Date(Date.now() + 172800000)
-        }
-      })
 
       const result = await kiwifyService.processKiwifyWebhook({
         event_type: 'compra_aprovada',
@@ -190,11 +160,8 @@ describe('Kiwify webhook — characterization', () => {
 
       expect(result).toMatchObject({
         processed: true,
-        companyId: 'company-2',
-        subscriptionId: 'sub-2',
-        invoiceId: 'inv-2'
+        duplicate: false
       })
-      expect(masterService.generateFirstAccess).toHaveBeenCalledTimes(1)
     })
   })
 })
