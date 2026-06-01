@@ -1,9 +1,14 @@
 const { asyncHandler, success } = require('../shared')
-const kiwifyService = require('../services/webhooks/kiwify.service')
+const { billingManager } = require('../shared/capabilities/billing')
 
 const receiveKiwifyWebhook = asyncHandler(async (req, res) => {
-  const result = await kiwifyService.processKiwifyWebhook(req.body || {}, req)
+  const result = await billingManager.handleWebhook('kiwify', req)
   return success(res, result)
 })
 
-module.exports = { receiveKiwifyWebhook }
+const receiveAbacatepayWebhook = asyncHandler(async (req, res) => {
+  const result = await billingManager.handleWebhook('abacatepay', req)
+  return success(res, result)
+})
+
+module.exports = { receiveKiwifyWebhook, receiveAbacatepayWebhook }

@@ -1,6 +1,6 @@
 const { IntegrationManager } = require('./core')
 const { ProviderRegistry, providerRegistry } = require('./core/provider-registry')
-const { WhatsAppProvider, resolveWhatsAppProvider, createMockWhatsAppProvider } = require('./whatsapp')
+const { WhatsAppProvider, resolveWhatsAppProvider, createMockWhatsAppProvider, WhatsAppResolver } = require('./whatsapp')
 const { AppointmentIntegrationConsumer } = require('./consumers')
 const { WhatsAppWebhook } = require('./webhooks')
 const { integrationConfig, encryption } = require('./config')
@@ -12,6 +12,7 @@ module.exports = {
   ProviderRegistry,
   providerRegistry,
   WhatsAppProvider,
+  WhatsAppResolver,
   resolveWhatsAppProvider,
   createMockWhatsAppProvider,
   AppointmentIntegrationConsumer,

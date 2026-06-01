@@ -53,6 +53,8 @@ services:
       EMAIL_PROVIDER: mock
       WHATSAPP_PROVIDER: mock
       WHATSAPP_TOKEN_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      KIWIFY_WEBHOOK_SECRET: dev_kiwify_secret_local
+      ABACATEPAY_WEBHOOK_SECRET: dev_abacatepay_secret_local
     volumes:
       - ./backend/src:/app/src
       - ./backend/uploads:/app/uploads

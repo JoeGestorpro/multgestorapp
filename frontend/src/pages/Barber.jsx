@@ -58,7 +58,8 @@ import {
   Bell,
   ChevronDown,
   LogOut,
-  Plus
+  Plus,
+  MessageSquare
 } from 'lucide-react'
 import ClientesBarber from './barber/Clientes'
 import { CrmDashboard, CustomerSidePanel } from '../components/premium'
@@ -970,6 +971,20 @@ function Barber() {
   const [brandingLoading, setBrandingLoading] = useState(false)
   const [brandingSaving, setBrandingSaving] = useState(false)
   const [brandingLogoPreview, setBrandingLogoPreview] = useState('')
+  const [integrationConfig, setIntegrationConfig] = useState(null)
+  const [integrationLoading, setIntegrationLoading] = useState(false)
+  const [integrationSaving, setIntegrationSaving] = useState(false)
+  const [integrationForm, setIntegrationForm] = useState({
+    providerType: 'mock',
+    phoneNumberId: '',
+    accessToken: '',
+    businessAccountId: '',
+    apiUrl: '',
+    integrationEnabled: false
+  })
+  const [integrationTestPhone, setIntegrationTestPhone] = useState('')
+  const [integrationTestResult, setIntegrationTestResult] = useState(null)
+  const [integrationTestSending, setIntegrationTestSending] = useState(false)
   const [scheduleBlocks, setScheduleBlocks] = useState([])
   const [workingHours, setWorkingHours] = useState([])
   const [appointmentViewTab, setAppointmentViewTab] = useState('list') // 'calendar', 'list', 'blocks', 'hours'
@@ -1343,6 +1358,8 @@ function Barber() {
   useEffect(() => {
     if (settingsSection === 'branding') {
       loadBranding()
+    } else if (settingsSection === 'integrations') {
+      loadIntegrationConfig()
     }
   }, [settingsSection])
 
@@ -1659,6 +1676,121 @@ function Barber() {
       setError(err.response?.data?.error || 'Erro ao salvar identidade visual.')
     } finally {
       setBrandingSaving(false)
+    }
+  }
+
+  async function loadIntegrationConfig() {
+    setIntegrationLoading(true)
+    setError('')
+    try {
+      const response = await api.get('/barber/integrations/whatsapp')
+      const data = response.data?.data
+      if (data && data.configured !== false) {
+        setIntegrationConfig(data)
+        setIntegrationForm({
+          providerType: data.providerType || 'mock',
+          phoneNumberId: data.phoneNumberId || '',
+          accessToken: '',
+          businessAccountId: data.businessAccountId || '',
+          apiUrl: data.apiUrl || '',
+          integrationEnabled: data.integrationEnabled !== false
+        })
+      } else {
+        setIntegrationConfig(null)
+        setIntegrationForm({
+          providerType: 'mock',
+          phoneNumberId: '',
+          accessToken: '',
+          businessAccountId: '',
+          apiUrl: '',
+          integrationEnabled: false
+        })
+      }
+      setIntegrationTestResult(null)
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao carregar configuracao de integracao.')
+    } finally {
+      setIntegrationLoading(false)
+    }
+  }
+
+  function handleIntegrationFormChange(field, value) {
+    setIntegrationForm((current) => ({ ...current, [field]: value }))
+  }
+
+  async function handleIntegrationSubmit(event) {
+    event.preventDefault()
+    setError('')
+    setSuccess('')
+    setIntegrationSaving(true)
+
+    try {
+      const payload = {
+        providerType: integrationForm.providerType,
+        phoneNumberId: integrationForm.phoneNumberId,
+        businessAccountId: integrationForm.businessAccountId || undefined,
+        apiUrl: integrationForm.apiUrl || undefined,
+        integrationEnabled: integrationForm.integrationEnabled
+      }
+      if (integrationForm.accessToken) {
+        payload.accessToken = integrationForm.accessToken
+      }
+      await api.put('/barber/integrations/whatsapp', payload)
+      setSuccess('Configuracao do WhatsApp salva com sucesso.')
+      await loadIntegrationConfig()
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao salvar configuracao de integracao.')
+    } finally {
+      setIntegrationSaving(false)
+    }
+  }
+
+  async function handleIntegrationDelete() {
+    if (!window.confirm('Deseja realmente remover a integracao com WhatsApp?')) {
+      return
+    }
+    setError('')
+    setSuccess('')
+    try {
+      await api.delete('/barber/integrations/whatsapp')
+      setSuccess('Integracao do WhatsApp removida.')
+      setIntegrationConfig(null)
+      setIntegrationForm({
+        providerType: 'mock',
+        phoneNumberId: '',
+        accessToken: '',
+        businessAccountId: '',
+        apiUrl: '',
+        integrationEnabled: false
+      })
+      setIntegrationTestResult(null)
+      setIntegrationTestPhone('')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao remover integracao.')
+    }
+  }
+
+  async function handleIntegrationTest() {
+    setError('')
+    setIntegrationTestResult(null)
+
+    const phone = integrationTestPhone.replace(/\D/g, '')
+    if (phone.length < 10) {
+      setError('Numero de telefone invalido. Use no minimo 10 digitos (ex: 5511999999999)')
+      return
+    }
+
+    setIntegrationTestSending(true)
+    try {
+      const response = await api.post('/barber/integrations/whatsapp/test', { to: phone })
+      setIntegrationTestResult(response.data?.data || { success: true })
+    } catch (err) {
+      setIntegrationTestResult({
+        success: false,
+        error: err.response?.data?.error || 'Falha ao enviar mensagem de teste.'
+      })
+    } finally {
+      setIntegrationTestSending(false)
     }
   }
 
@@ -4455,6 +4587,18 @@ function renderActiveView() {
           handlePinRecoveryFieldChange={handlePinRecoveryFieldChange}
           resetPinRecoveryFlow={resetPinRecoveryFlow}
           openPinRecovery={openPinRecovery}
+          integrationConfig={integrationConfig}
+          integrationLoading={integrationLoading}
+          integrationSaving={integrationSaving}
+          integrationForm={integrationForm}
+          integrationTestPhone={integrationTestPhone}
+          integrationTestResult={integrationTestResult}
+          integrationTestSending={integrationTestSending}
+          handleIntegrationFormChange={handleIntegrationFormChange}
+          handleIntegrationSubmit={handleIntegrationSubmit}
+          handleIntegrationDelete={handleIntegrationDelete}
+          handleIntegrationTest={handleIntegrationTest}
+          setIntegrationTestPhone={setIntegrationTestPhone}
         />
       default:
         return <DashboardView

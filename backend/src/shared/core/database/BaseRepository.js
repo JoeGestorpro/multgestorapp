@@ -1,9 +1,13 @@
 const pool = require('../../../config/database')
 
 class BaseRepository {
-  constructor(tableName, db = pool) {
+  constructor(tableName, db = pool, { tenantScoped = false } = {}) {
     this.tableName = tableName
     this.db = db
+    // tenantScoped: quando true, create() exige company_id no payload como
+    // rede de segurança (defesa-em-profundidade) contra escrita sem tenant.
+    // Repositórios que sobrescrevem create() com assinatura própria não dependem disto.
+    this.tenantScoped = tenantScoped
   }
 
   async findById(id, companyId) {
@@ -96,6 +100,12 @@ class BaseRepository {
   }
 
   async create(data) {
+    if (this.tenantScoped && (data == null || data.company_id == null)) {
+      throw new Error(
+        `BaseRepository.create: company_id é obrigatório para a tabela tenant-scoped "${this.tableName}"`
+      )
+    }
+
     const keys = Object.keys(data)
     const values = Object.values(data)
     const placeholders = keys.map((_, i) => `$${i + 1}`)
