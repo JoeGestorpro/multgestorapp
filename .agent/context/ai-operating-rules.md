@@ -4,9 +4,38 @@
 
 Estas regras se aplicam a qualquer agente de IA (ChatGPT, Claude Code, OpenCode, OpenForge, Cursor, etc.) que opere neste repositório.
 
-## 1. Sempre Ler o Memory Snapshot Primeiro
+## 1. Recuperação de Contexto Obrigatória (Regra Zero)
 
-Antes de qualquer ação, leia `.agent/context/memory-snapshot.md` para entender o estado atual do projeto.
+> **Nenhuma IA pode implementar código antes de recuperar contexto do Segundo Cérebro, documentação viva, capabilities existentes e estado atual do projeto.**
+
+Esta é a **regra mais importante deste documento**. Ela se aplica a TODO agente em TODA tarefa — não importa o tamanho.
+
+### Checklist mínimo antes de qualquer implementação:
+
+1. **Segundo Cérebro** — leia:
+   - `.agent/context/memory-snapshot.md` — snapshot mestre
+   - `.agent/memory/current-state.md` — estado funcional
+   - `.agent/memory/next-actions.md` — backlog priorizado
+   - `.agent/memory/session-snapshot.md` — última sessão (se relevante)
+
+2. **Documentação viva** — verifique:
+   - `docs/` — documentação oficial do projeto (architecture-decisions, capabilities-map, lessons-learned, runbooks/*, frontend/*)
+   - `docs/capabilities-map.md` — qual capability esta tarefa fortalece?
+   - `docs/runbooks/` — há runbook para esta tarefa?
+
+3. **Capabilities existentes** — antes de criar algo novo, pergunte:
+   - Já existe componente / service / capability equivalente?
+   - Estou prestes a duplicar algo que já existe?
+   - Como esta tarefa se encaixa em: Shared Kernel → Multi-Tenant Engine → Repository Pattern → Event Bus → Integration Layer → Billing → Frontend Foundation Layer?
+
+4. **Estado atual** — leia o relevante:
+   - Backend: `.agent/context/{backend,database,deployment}-rules.md`
+   - Frontend: `.agent/context/frontend-rules.md` + `docs/frontend/*`
+   - Para qualquer área tocada: a skill correspondente em `.agent/skills/`
+
+### Violar esta regra = retrabalho, duplicação, drift arquitetural.
+
+Se a tarefa parecer "simples demais" para esse esforço, ela ainda precisa cumprir o passo 1 (snapshot) e o passo 3 (capabilities). Os outros podem ser pulados com justificativa explícita no relatório.
 
 ## 2. Selecionar Skills e Workflows Reais
 
@@ -113,3 +142,43 @@ Este projeto possui MCPs conectados e disponíveis. Use-os conforme as regras ab
 2. Nunca executar ação destrutiva sem confirmação do usuário.
 3. Preferir leitura/auditoria antes de qualquer escrita.
 4. GitHub, Playwright e Supabase são ferramentas auxiliares — a fonte principal continua sendo o código local e os documentos de arquitetura do projeto.
+
+## 13. Troca de Provedor via API Key
+
+Quando o usuário colar uma nova API Key, siga este fluxo automaticamente:
+
+### 13.1 Detecção do Provedor (pelo prefixo da key)
+
+| Prefixo da Key | Provedor | Modelo Sugerido |
+|----------------|----------|-----------------|
+| `sk-or-v1-` ou `sk-or-` | OpenRouter | openrouter/deepseek/deepseek-chat-v4-0605:free |
+| `sk-proj-` ou `sk-` (32+ chars, sem outro match) | OpenAI | openai/gpt-4o |
+| `sk-ant-` | Anthropic / Claude | anthropic/claude-sonnet-4-20250514 |
+| `AIza` | Google / Gemini | google/gemini-2.5-pro-exp-03-25:free |
+| `gsk_` | Groq | groq/llama-3.3-70b-versatile |
+| `xai-` | xAI / Grok | xai/grok-2-1212 |
+| `pplx-` | Perplexity | perplexity/sonar-pro |
+| `tgp-` | Together AI | together/llama-3.3-70b-chat |
+| `hf_` | HuggingFace | huggingface/huggingface-model |
+| `ds_` ou `sk-` + deepseek.com | DeepSeek | deepseek/deepseek-chat |
+
+### 13.2 Ações a Tomar
+
+1. **Detectar** o provedor pelo prefixo da key.
+2. **Perguntar** ao usuário qual modelo ele quer usar (se chave for OpenRouter, perguntar qual modelo; se for OpenAI/Anthropic/etc, já sugerir o modelo padrão).
+3. **Atualizar** `opencode.json`:
+   - Alterar `provider` para o nome do provedor detectado
+   - Alterar `apiKey` para `${NOME_DA_VARIAVEL}`
+   - Alterar `model` e `small_model` para o modelo escolhido
+4. **Registrar a key como variável USER do Windows** (fonte oficial única):
+   ```powershell
+   [Environment]::SetEnvironmentVariable("OPENROUTER_API_KEY", "sk-or-v1-...", "User")
+   ```
+5. **Confirmar** com o usuário o provedor, modelo e que a troca foi feita.
+6. **Avisar** que a key só valerá após reiniciar o OpenCode.
+
+> ⚠️ NÃO salvar a key no `.env` — a fonte oficial é USER env var.
+
+### 13.3 Exemplo de Resposta
+
+> Detectei key do **OpenRouter**! Confirme o modelo que deseja usar (ex: `deepseek/deepseek-chat-v4-0605:free`). Vou registrar como USER env var e atualizar `opencode.json`.
