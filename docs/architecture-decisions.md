@@ -515,5 +515,13 @@ A cada iteração, o sistema de proteção fica mais inteligente:
 
 ---
 
+## 9. Decision Log (incremental)
+
+| Data | Decisão | Contexto |
+|------|---------|----------|
+| 2026-06-04 | **Notificações WhatsApp permanecem in-process (Event Bus) até a capability de durabilidade (Outbox).** Idempotência garantida na origem (mark-before-emit), não por retry durável. | Lembrete de agendamento (`appointment.reminder`, commit `545282d`). Durabilidade via Outbox é follow-up (`fase2-wa-outbox-durability`), aproveitando a idempotência por handler já entregue no B2. |
+
+---
+
 *Este documento é vinculante para todas as implementações no MultGestor Core.*  
 *Dúvidas arquiteturais devem ser resolvidas consultando o Master Orchestrator ou o arquiteto principal do projeto.*

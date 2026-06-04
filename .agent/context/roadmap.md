@@ -24,6 +24,7 @@ O BarberGestor está operacional e em uso. Funcionalidades implementadas:
 ### Curto Prazo
 
 1. **WhatsApp API** — Integração para notificações e confirmações
+   - ✅ **(2026-06-04)** Provider real Meta Cloud API + resolver per-tenant (token cifrado) + confirmação/cancelamento + **lembrete agendado** (commit `545282d`, APPROVE). ⚠️ em feature branch `fase2/wa-reminder`, ainda não em `main`. Pendência **ops**: token do tenant + template `appointment_reminder` aprovado na Meta. Follow-ups: durabilidade Outbox, multi-janela 24h+2h.
    - Criptografar access_token com `WHATSAPP_TOKEN_ENCRYPTION_KEY`
    - Enviar confirmação de agendamento via WhatsApp
    - Notificar colaborador sobre novo agendamento

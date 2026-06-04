@@ -481,6 +481,30 @@ Inicialmente, conteúdo de marketing, branding e conversão estava misturado com
 
 ---
 
+### 2.14 Auditar a Capability Antes de "Implementar" (e idempotência de jobs)
+
+#### O que aconteceu
+
+A missão "WhatsApp real" foi tratada inicialmente como construção. A auditoria do código revelou que o
+WhatsApp **já estava ~90% pronto**: provider real Meta Cloud API, resolver per-tenant (token cifrado),
+consumer de confirmação/cancelamento e endpoints de config. Faltava **apenas o lembrete agendado**.
+
+#### Lições aprendidas
+
+> **Audite o que já existe antes de implementar.** Metade do trabalho de uma "feature nova" pode já estar no
+> código. Reconstruir o que existe é duplicação (P02) disfarçada de novidade.
+
+> **Job agendado customer-facing exige idempotência na origem.** Marcar o estado (`reminder_sent_at`) **antes**
+> de emitir, com guarda `WHERE ... IS NULL`, garante no-double-send mesmo com ticks concorrentes — sem depender
+> de retry durável. Para timers que disparam mensagem real, idempotência frágil = spam de cliente.
+
+#### O que deve ser feito
+
+- Todo card de "implementar X" começa com auditoria do que já existe (provider/resolver/consumer/rotas).
+- Jobs agendados marcam o estado **antes** do efeito colateral externo; testar o cenário de reentrada.
+
+---
+
 ## 3. Padrões Que Não Devem Voltar
 
 ### 🔴 P01 — God Class

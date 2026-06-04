@@ -1,5 +1,13 @@
 # Estado Atual do Projeto
 
+## Fase 2 — Lembrete WhatsApp (04/06/2026)
+
+**Lembrete de agendamento via WhatsApp** entregue (commit `545282d`, APPROVE). Job agendado idempotente
+(`reminder_sent_at` mark-before-emit) → evento `appointment.reminder` → template via resolver per-tenant.
+- O WhatsApp já era real e per-tenant (provider Meta Cloud API + resolver + confirmação/cancelamento); faltava só o lembrete.
+- ⚠️ **Em feature branch `fase2/wa-reminder`, NÃO em `main`.** Para gerar valor falta ops (token do tenant + template `appointment_reminder` aprovado na Meta).
+- Follow-ups: durabilidade via Outbox (`fase2-wa-outbox-durability`); multi-janela 24h+2h (`fase2-wa-reminder-windows`).
+
 ## Módulo BarberGestor — Funcionalidades Ativas
 
 ### Agenda

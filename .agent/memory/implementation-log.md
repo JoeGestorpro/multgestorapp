@@ -4,6 +4,37 @@ Formato: `[DATA]` — Descrição da tarefa.
 
 ---
 
+## 2026-06-04 — Fase 2 / Receita: Lembrete de agendamento via WhatsApp
+
+**Executor:** OpenCode (Big Pickle) · **Decisão final:** Claude Code — APPROVE (reconciliado)
+**Commit:** `545282d` (branch `fase2/wa-reminder`) · **Testes:** 6/6 lembrete + 676 unit, 0 falhas
+**Modo:** EXECUTE_WITH_REVIEW (customer-facing + timer → foco em idempotência)
+
+> ⚠️ Commit em feature branch; **não está em `main`** (main = c66a2d7, só governança).
+
+### Arquivos criados/alterados (8, allowlist 1:1)
+- `backend/src/jobs/appointment-reminder-job.js` (novo) — scheduler idempotente.
+- `backend/src/integrations/consumers/appointment-integration.consumer.js` — +`handleReminder` + subscribe.
+- `backend/src/shared/core/events/contracts.js` — +evento `appointment.reminder`.
+- `backend/src/database/barber_appointments_reminder.sql` (novo) — `ADD COLUMN reminder_sent_at`.
+- `backend/scripts/run-migrations.js` — registro da migration.
+- `backend/src/server.js` — apenas o `setInterval` do job.
+- `backend/.env.example` — `REMINDER_LEAD_HOURS`, `REMINDER_JOB_INTERVAL_MS`.
+- `backend/tests/unit/appointment-reminder-job.test.js` (novo) — 6 testes.
+
+### O que foi feito
+- Job varre `barber_appointments` `confirmed` com telefone, dentro da janela `REMINDER_LEAD_HOURS` (default 3h),
+  `reminder_sent_at IS NULL`; **marca `reminder_sent_at` ANTES de emitir** (`UPDATE ... WHERE reminder_sent_at IS NULL`)
+  e publica `appointment.reminder` → consumer envia template WhatsApp `appointment_reminder` via resolver per-tenant.
+- Reaproveitou o stack WhatsApp já existente (provider real Meta Cloud API + resolver). Nada reconstruído.
+
+### Decisões
+- Envio via `eventBus` in-process (como confirmação/cancelamento); **durabilidade via Outbox = follow-up** (`fase2-wa-outbox-durability`).
+- Idempotência garantida na origem (mark-before-emit) — não depende de retry durável.
+- Janela única (3h) no MVP; multi-janela 24h+2h é follow-up (`fase2-wa-reminder-windows`).
+
+---
+
 ## 2026-05-25 — SPRINT 1: Infraestrutura e Dívida Técnica
 
 **Executor:** OpenCode (Kimi K2.6) via prompt gerado por Claude Code

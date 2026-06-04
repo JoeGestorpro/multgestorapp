@@ -959,3 +959,12 @@ Uma capability é **automaticamente rejeitada** se:
 | Decisões técnicas | `.agent/memory/decisions.md` |
 | Stack | `.agent/context/stack.md` |
 | Roadmap | `.agent/context/roadmap.md` |
+
+---
+
+## 10. Changelog de Capabilities
+
+| Data | Capability | Mudança |
+|------|-----------|---------|
+| 2026-06-04 | Integration Layer / Comunicação (WhatsApp) | **Fortalecida** — provider real Meta Cloud API + resolver per-tenant (token cifrado) já existentes confirmados; **adicionado lembrete agendado** (job idempotente + evento `appointment.reminder`). Commit `545282d` (feature branch `fase2/wa-reminder`, não em `main`). |
+| 2026-06-04 | Event Bus / Domínio | **+evento** `appointment.reminder` registrado em `contracts.js`. |
