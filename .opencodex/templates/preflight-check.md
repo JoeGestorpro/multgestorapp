@@ -9,6 +9,30 @@
 
 ---
 
+## 🪟 AMBIENTE OFICIAL — Windows + PowerShell (regra permanente, OBRIGATÓRIA)
+
+> Estabelecida em 2026-06-04. Vale para **todo** prompt, `next-task`, auditoria e comando operacional
+> destinado ao OpenCode. É parte do preflight: **antes de executar qualquer `next-task`, confirmar o shell**.
+
+- **Shell padrão = PowerShell (Windows).** Todo comando operacional deve ser **compatível com PowerShell por padrão**.
+- **PROIBIDO** usar comandos Unix/Linux — `head`, `tail`, `grep`, `sed`, `awk`, `xargs` (e similares) —
+  **salvo** quando o executor **confirmar explicitamente** que está em **Git Bash, WSL ou Linux**.
+- Se um card/missão trouxer comandos Unix sem essa confirmação → **traduzir para PowerShell** ou **PARAR e reportar**.
+
+### Equivalências PowerShell (referência canônica)
+| Unix | PowerShell |
+|------|------------|
+| `head -n N` | `Select-Object -First N` |
+| `tail -n N` | `Select-Object -Last N` |
+| `grep "x"` | `Select-String "x"` |
+| `cat arquivo` | `Get-Content arquivo` |
+| `rm -rf caminho` | `Remove-Item -Recurse -Force caminho` |
+
+> Demais: `which` → `(Get-Command nome).Source` · `ls` → `Get-ChildItem` · `2>/dev/null` → `2>$null` ·
+> variáveis `$VAR` → `$env:VAR`. Pipeline `|` existe, mas passa **objetos**, não texto.
+
+---
+
 ## Regras invioláveis (o runner NUNCA faz automaticamente)
 - ❌ NUNCA `git stash`.
 - ❌ NUNCA `git checkout`/troca de branch.

@@ -32,3 +32,10 @@ Stage **seletivo**: `git add` apenas dos arquivos da ALLOWLIST do `next-task.md`
 `/next-task` (preflight ✅ → `current-task.md` running) → implementar → `/complete-task`
 (preencher `completed-task.md`) → se `EXECUTE_WITH_REVIEW`: `/audit-task` → devolver ao Claude Code para
 **decisão final**. Só então o Claude promove a próxima do `backlog.md`.
+
+## Regra #7 — Ambiente oficial: Windows + PowerShell
+Todo comando operacional do runner é **compatível com PowerShell por padrão**. **PROIBIDO** `head`, `tail`,
+`grep`, `sed`, `awk`, `xargs` (e similares Unix), **salvo** confirmação explícita de **Git Bash / WSL / Linux**.
+Usar as equivalências da seção "Ambiente Oficial" do preflight (`head→Select-Object -First`,
+`tail→Select-Object -Last`, `grep→Select-String`, `cat→Get-Content`, `rm -rf→Remove-Item -Recurse -Force`).
+Card com comando Unix sem confirmação → traduzir para PowerShell ou **PARAR e reportar**.

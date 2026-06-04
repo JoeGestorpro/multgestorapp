@@ -505,6 +505,37 @@ consumer de confirmação/cancelamento e endpoints de config. Faltava **apenas o
 
 ---
 
+### 2.15 Ambiente Oficial é Windows + PowerShell — Comandos Unix Quebram o Executor
+
+#### O que aconteceu
+
+Prompts e cards operacionais frequentemente assumem shell Unix (`head`, `tail`, `grep`, `sed`, `awk`,
+`xargs`, `2>/dev/null`). O ambiente **oficial local do MultGestor é Windows + PowerShell**, onde esses
+comandos não existem (ou se comportam diferente), fazendo o executor falhar ou produzir saída inválida.
+
+#### Lição aprendida
+
+> **Escreva comandos compatíveis com PowerShell por padrão.** Comandos Unix (`head`/`tail`/`grep`/`sed`/
+> `awk`/`xargs`) são **proibidos** em cards/missões, salvo confirmação explícita de Git Bash, WSL ou Linux.
+
+#### Equivalências obrigatórias
+
+| Unix | PowerShell |
+|------|------------|
+| `head -n N` | `Select-Object -First N` |
+| `tail -n N` | `Select-Object -Last N` |
+| `grep "x"` | `Select-String "x"` |
+| `cat arquivo` | `Get-Content arquivo` |
+| `rm -rf caminho` | `Remove-Item -Recurse -Force caminho` |
+
+#### O que deve ser feito
+
+- **Preflight obrigatório:** confirmar o shell antes de executar qualquer `next-task`
+  (ver `.opencodex/templates/preflight-check.md` → "Ambiente Oficial — Windows + PowerShell").
+- Cards do Claude Code já nascem com comandos PowerShell; comando Unix sem confirmação de Bash/WSL → traduzir ou PARAR.
+
+---
+
 ## 3. Padrões Que Não Devem Voltar
 
 ### 🔴 P01 — God Class
