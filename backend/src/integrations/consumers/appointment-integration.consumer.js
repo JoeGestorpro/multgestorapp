@@ -86,6 +86,45 @@ class AppointmentIntegrationConsumer {
     return result
   }
 
+  async handleReminder(event) {
+    const { payload, company_id } = event
+
+    this.logger.info({
+      event_id: event.event_id,
+      appointment_id: payload.appointment_id,
+      company_id
+    }, 'Processing appointment.reminder for integration')
+
+    if (!company_id) {
+      this.logger.warn({ event_id: event.event_id }, 'Missing company_id, skipping integration')
+      return
+    }
+
+    const whatsappPayload = {
+      to: payload.customer_phone,
+      template: 'appointment_reminder',
+      variables: {
+        customer_name: payload.customer_name || 'Cliente',
+        appointment_date: payload.starts_at ? new Date(payload.starts_at).toLocaleDateString('pt-BR') : '',
+        appointment_time: payload.starts_at ? new Date(payload.starts_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''
+      }
+    }
+
+    const result = await this._sendWithResolver(
+      INTEGRATION_CHANNELS.WHATSAPP,
+      whatsappPayload,
+      { company_id }
+    )
+
+    this.logger.info({
+      event_id: event.event_id,
+      appointment_id: payload.appointment_id,
+      result
+    }, 'Appointment reminder integration processed')
+
+    return result
+  }
+
   async _sendWithResolver(channel, payload, metadata) {
     if (this.whatsappResolver) {
       try {
@@ -116,6 +155,12 @@ class AppointmentIntegrationConsumer {
       'appointment.canceled',
       (event) => this.handleCanceled(event),
       { consumer_name: 'AppointmentIntegrationConsumer:canceled' }
+    )
+
+    eventBus.subscribe(
+      'appointment.reminder',
+      (event) => this.handleReminder(event),
+      { consumer_name: 'AppointmentIntegrationConsumer:reminder' }
     )
 
     this.logger.info('Appointment integration consumers registered')

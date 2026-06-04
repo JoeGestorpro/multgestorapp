@@ -33,6 +33,7 @@ const { IntegrationManager, resolveWhatsAppProvider, AppointmentIntegrationConsu
 const OutboxWorker = require('./shared/core/outbox/outbox-worker');
 const redisClient = require('./shared/core/cache/redis-client');
 const { runTrialEmailJob } = require('./jobs/trial-email-job');
+const { runAppointmentReminderJob } = require('./jobs/appointment-reminder-job');
 const { billingProviderRegistry, KiwifyProvider } = require('./shared/capabilities/billing');
 
 registerDefaultConsumers();
@@ -433,6 +434,20 @@ setTimeout(() => {
   runTrialEmailJob().catch(err => appLogger.error({ err }, '[TrialEmailJob] Erro no startup'));
 }, 30_000);
 appLogger.info({ intervalMinutes: 60 }, '[TrialEmailJob] Agendado');
+
+// Appointment reminder job — rodar a cada 15min (configurável via REMINDER_JOB_INTERVAL_MS)
+const REMINDER_JOB_INTERVAL_MS = Number(process.env.REMINDER_JOB_INTERVAL_MS || 900000);
+setInterval(async () => {
+  try {
+    await runAppointmentReminderJob();
+  } catch (err) {
+    appLogger.error({ err }, '[AppointmentReminderJob] Erro no job');
+  }
+}, REMINDER_JOB_INTERVAL_MS).unref();
+setTimeout(() => {
+  runAppointmentReminderJob().catch(err => appLogger.error({ err }, '[AppointmentReminderJob] Erro no startup'));
+}, 30_000);
+appLogger.info({ intervalMs: REMINDER_JOB_INTERVAL_MS }, '[AppointmentReminderJob] Agendado');
 
 const server = app.listen(PORT, () => {
   validateRuntimeUrls();
