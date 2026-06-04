@@ -1,42 +1,53 @@
+'use strict';
+
+const cacheManager = require('../shared/core/cache/cache-manager');
+const redisClient = require('../shared/core/cache/redis-client');
+const { appLogger } = require('../shared/core/logger');
+
+let _lastDegradationWarnAt = 0;
+const DEGRADATION_WARN_INTERVAL_MS = 60_000;
+
 function createRateLimit(options = {}) {
   const windowMs = options.windowMs || 15 * 60 * 1000;
   const max = options.max || 5;
-  const hits = new Map();
 
-  // Remove entradas expiradas periodicamente para evitar memory leak.
-  // .unref() garante que o timer nao impeca o processo de encerrar normalmente.
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, value] of hits) {
-      if (value.resetAt <= now) hits.delete(key);
-    }
-  }, windowMs).unref();
+  return async function rateLimit(req, res, next) {
+    const key = `mg:ratelimit:${req.ip}:${req.method}:${req.path}`;
+    const windowKey = `${key}:${Math.floor(Date.now() / windowMs)}`;
 
-  return function rateLimit(req, res, next) {
-    const now = Date.now();
-    const key = `${req.ip}:${req.method}:${req.originalUrl}`;
-    const current = hits.get(key);
-
-    if (!current || current.resetAt <= now) {
-      hits.set(key, {
-        count: 1,
-        resetAt: now + windowMs
-      });
-      return next();
+    if (!redisClient.isAvailable()) {
+      const now = Date.now();
+      if (now - _lastDegradationWarnAt >= DEGRADATION_WARN_INTERVAL_MS) {
+        _lastDegradationWarnAt = now;
+        const logger = req.logger || appLogger;
+        logger.warn('[RateLimit] degradado para memória — Redis indisponível');
+      }
     }
 
-    current.count += 1;
+    try {
+      const count = await cacheManager.incr(windowKey, windowMs);
 
-    if (current.count > max) {
-      return res.status(429).json({
-        success: false,
-        error: 'Muitas tentativas. Tente novamente em alguns minutos.'
-      });
+      res.setHeader('X-RateLimit-Limit', max);
+      res.setHeader('X-RateLimit-Remaining', Math.max(0, max - count));
+      res.setHeader('X-RateLimit-Reset', Math.ceil((Math.floor(Date.now() / windowMs) * windowMs + windowMs) / 1000));
+
+      if (count > max) {
+        return res.status(429).json({
+          success: false,
+          error: 'Muitas tentativas. Tente novamente em alguns minutos.'
+        });
+      }
+
+      next();
+    } catch (err) {
+      // DECISÃO: fail-open — disponibilidade > limite estrito sob falha de Redis
+      const logger = req.logger || appLogger;
+      logger.warn({ err: err.message }, '[RateLimit] erro inesperado — fail-open, request liberada');
+      next();
     }
-
-    hits.set(key, current);
-    return next();
   };
 }
+
+createRateLimit._resetWarnThrottle = () => { _lastDegradationWarnAt = 0; };
 
 module.exports = createRateLimit;

@@ -141,11 +141,26 @@ Render Dashboard → seu serviço backend → Environment → Environment Variab
 
 > ℹ️ Podem ser removidas do Render após o primeiro deploy + seed executado.
 
-### Grupo 9 — Opcionais / futuras
+### Grupo 9 — Redis (OBRIGATÓRIO em produção)
+
+| Variável | Valor | Status |
+|---|---|---|
+| `REDIS_URL` | `redis://default:PASSWORD@host:port` (Upstash, Railway…) | - [ ] |
+
+> ⚠️ **Sem `REDIS_URL` em produção, rate limit cai para memória por-instância** (inútil com múltiplas
+> instâncias Render). O backend emite warn no boot quando `NODE_ENV=production` e `REDIS_URL` ausente.
+>
+> **Decisão fail-open**: se Redis falhar durante uma request, o middleware de rate limit **libera** a
+> request (não bloqueia tráfego legítimo sob falha de infraestrutura). A degradação é observável via:
+> - Log `warn` throttled (máx 1x/60s): `[RateLimit] degradado para memória — Redis indisponível`
+> - Gauge Prometheus `redis_up == 0` (ver seção 10 — Observability)
+>
+> **Alerta recomendado**: `redis_up == 0` por 2 minutos → investigar Redis imediatamente.
+
+### Grupo 10 — Opcionais / futuras
 
 | Variável | Quando adicionar |
 |---|---|
-| `REDIS_URL` | Ao contratar Redis (Upstash, Railway…) |
 | `SENTRY_DSN` | Ao configurar projeto no Sentry |
 | `SMTP_HOST/PORT/USER/PASS/FROM` | Se migrar para SMTP próprio |
 
