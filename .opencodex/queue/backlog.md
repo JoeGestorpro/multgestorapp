@@ -28,8 +28,14 @@
 | B4 Redis Rate Limiting | `fase1-b4-redis-rate-limit` | ✅ APPROVE (`e532285`) | `fase1-b3-observability` ✅ |
 | B2 Outbox Idempotency/Handler | `fase1-b2-outbox-handler-idempotency` | ✅ APPROVE (`e137217`) | `fase1-b4-redis-rate-limit` ✅ |
 | B1 RLS (FUNDAÇÃO) | `fase1-b1-rls-transacao-request` | ✅ APPROVE (`0a85929`) | `fase1-b2-outbox-handler-idempotency` ✅ |
-| B1b-gate `pool.connect` tenant ctx | `fase1-b1b-gate-poolconnect-tenant-context` | ▶️ em `next-task.md` (pending) | `fase1-b1-rls-transacao-request` ✅ |
+| **Reconciliação funcional → main** | `gov-reconcile-functional-to-main` | ▶️ em `next-task.md` (pending) | — (SAFE_TO_RECONCILE; R1 resolvido) |
+| B1b-gate `pool.connect` tenant ctx | `fase1-b1b-gate-poolconnect-tenant-context` | ⛔ blocked | **`gov-reconcile-functional-to-main`** (precisa do código B1 em main/branch) |
 | B1b RLS FORCE em produção | `fase1-b1b-rls-prod-activation` | ⛔ blocked (gated) | `fase1-b1b-gate-poolconnect-tenant-context` |
+
+> 🔁 **Por que a reconciliação entrou na frente:** o trabalho funcional (B1/B2/B3/B4/lembrete) vive só em
+> feature branches; o tip `fase2/wa-reminder` o contém todo. O gate `pool.connect` depende do **código do B1**,
+> ausente de `main`/branch atual. A auditoria (2026-06-04) deu **SAFE_TO_RECONCILE** (overlap vazio, conflito nulo)
+> e **R1 resolvido** (`4071952` enforce company_id já coberto → `fase-1/estabilizacao` superseded, fica de fora).
 
 ## 🗺️ FASE 2 — Receita (WhatsApp / Pagamento)
 
