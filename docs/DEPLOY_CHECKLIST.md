@@ -1,259 +1,356 @@
 # Deploy Checklist — Produção MultGestor
 
-> Última atualização: 31/05/2026
+> Última atualização: 02/06/2026
 > Revisar antes de cada deploy para produção.
+> ⚠️ Nenhum valor real deve ser inserido neste arquivo.
 
 ---
 
-## 0. Fluxo de Release (principal → main)
-
-O desenvolvimento acontece na branch `principal`. O deploy de produção é disparado
-**automaticamente** pelo push/merge na branch `main` (`.github/workflows/deploy.yml`):
+## 0. Fluxo de Release (`principal → main`)
 
 ```
-push em main → job `ci` (unit + integration + frontend)
-             → `run-migrations` (aplica migrations no banco de PRODUÇÃO)
-             → `deploy-backend` (Render) + `deploy-frontend` (Vercel)
+push em main
+  → job ci       (unit-tests + integration-tests + frontend lint/build)
+  → run-migrations  (aplica migrations no Supabase de produção)
+  → deploy-backend  (Render — via Deploy Hook)
+  → deploy-frontend (Vercel — via CLI)
 ```
 
-> ⚠️ **Fazer merge `principal → main` DISPARA deploy E migrations em produção.**
-> Não faça o merge sem antes cumprir o checklist deste documento.
+> ⚠️ Merge `principal → main` **dispara deploy E migrations em produção** automaticamente.
 
-### Passo a passo
-1. Confirmar que `principal` está verde no CI (aba Actions) e ver o que entrará:
-   `git log origin/main..principal --oneline`
-2. Cumprir o **Pré-deploy Checklist** (seção 6) e revisar migrations novas (seção 5.1).
-3. Revisar o diff das migrations quanto à **idempotência**
-   (`CREATE TABLE IF NOT EXISTS` / `DROP POLICY IF EXISTS` / `ON CONFLICT`):
-   uma migration não idempotente pode quebrar o job `run-migrations` e abortar o deploy.
-4. Abrir PR `principal → main` com a lista de commits e migrations incluídas.
-5. Após o merge, acompanhar o workflow **Deploy** (Actions) até o fim e rodar a
-   **Pós-deploy Verification** (seção 7).
-6. Gating: se `run-migrations` falhar, o `deploy-backend` NÃO ocorre (`needs`),
-   porém o `deploy-frontend` depende apenas de `ci` — verifique a consistência
-   frontend/backend em caso de falha de migration.
-
-> Secrets obrigatórios de produção estão consolidados nas seções **3** e **9**
-> (backend/Render) e **4** (frontend/Vercel). Não duplicar aqui.
+### Passo a passo de release
+1. Confirmar CI verde na branch `principal`
+2. Revisar migrations novas (idempotência obrigatória)
+3. Cumprir o Pré-deploy Checklist (seção 7)
+4. Abrir PR `principal → main` e aguardar aprovação
+5. Após merge, acompanhar workflow **Deploy** no GitHub Actions
+6. Executar Pós-deploy Verification (seção 8)
 
 ---
 
-## 1. GitHub Secrets (obrigatório para CI/CD automático)
+## 1. GitHub Secrets — CI/CD
 
-Acessar: **GitHub → Settings → Secrets and variables → Actions → New repository secret**
+**Onde configurar:**
+```
+GitHub → Settings → Secrets and variables → Actions → New repository secret
+```
 
-| Secret | Onde obter | Usado em |
-|--------|-----------|----------|
-| `RENDER_DEPLOY_HOOK_URL` | Render → Service → Settings → Deploy Hook | `deploy.yml` — deploy backend |
-| `VERCEL_TOKEN` | Vercel → Settings → Tokens → Create Token | `deploy.yml` — deploy frontend |
-| `VERCEL_ORG_ID` | Vercel → Settings → General → Team ID | `deploy.yml` — deploy frontend |
-| `VERCEL_PROJECT_ID` | Vercel → Project → Settings → General → Project ID | `deploy.yml` — deploy frontend |
+| Secret | Onde obter | Workflow |
+|---|---|---|
+| `DATABASE_URL` | Supabase → Settings → Database → Connection string (pooler) | `deploy.yml` → run-migrations |
+| `RENDER_DEPLOY_HOOK_URL` | Render → Service → Settings → **Deploy Hook** → copiar URL | `deploy.yml` → deploy-backend |
+| `VERCEL_TOKEN` | Vercel → Account Settings → **Tokens** → Create | `deploy.yml` → deploy-frontend |
+| `VERCEL_ORG_ID` | `npx vercel link` → `.vercel/project.json` → `orgId` | `deploy.yml` → deploy-frontend |
+| `VERCEL_PROJECT_ID` | `npx vercel link` → `.vercel/project.json` → `projectId` | `deploy.yml` → deploy-frontend |
 
-**Sem esses 4 segredos, o workflow `deploy.yml` falha silenciosamente no step de deploy.**
-Os jobs de CI (unit-tests, integration-tests, frontend) funcionam sem eles.
-
----
-
-## 2. Render — Evitar spin-down do OutboxWorker
-
-### Problema
-O Render **Free tier** faz spin-down após 15 minutos sem requests HTTP.
-Quando isso ocorre, o `OutboxWorker` para de processar a fila de mensagens.
-Ao voltar, pode haver delay de 30-60s e mensagens acumuladas.
-
-### Solução imediata (obrigatória)
-**Fazer upgrade para Render Starter ($7/mês):**
-1. Render Dashboard → Service → Settings → Plan
-2. Selecionar "Starter" ($7/mês)
-3. O serviço fica sempre ativo (no spin-down)
-
-### Alternativa de baixo custo (free tier)
-Configurar um serviço externo de health check para manter o processo vivo:
-
-**UptimeRobot (gratuito):**
-1. Criar conta em uptimerobot.com
-2. New Monitor → HTTP(s)
-3. URL: `https://SEU_BACKEND.onrender.com/api/health`
-4. Monitoring Interval: 5 minutes
-5. Alertas: email/Telegram quando status mudar
-
-**Importante:** health check a cada 5min previne spin-down.
-Porém, não garante que o OutboxWorker recomece imediatamente após crash.
-Para produção real, usar Render Starter é a solução correta.
+**Status:**
+- [ ] `DATABASE_URL`
+- [ ] `RENDER_DEPLOY_HOOK_URL`
+- [ ] `VERCEL_TOKEN`
+- [ ] `VERCEL_ORG_ID`
+- [ ] `VERCEL_PROJECT_ID`
 
 ---
 
-## 3. Variáveis de Ambiente — Backend (Render)
+## 2. Render — Backend produção
 
-Verificar que todas as variáveis estão configuradas no Render:
+**Onde configurar:**
+```
+Render Dashboard → seu serviço backend → Environment → Environment Variables
+```
 
-| Variável | Obrigatória | Observação |
-|----------|-------------|------------|
-| `DATABASE_URL` | ✅ | Connection string do Supabase (com SSL) |
-| `JWT_SECRET` | ✅ | Min 32 chars, nunca expor |
-| `NODE_ENV` | ✅ | `production` |
-| `PORT` | ✅ | Render usa automaticamente |
-| `APP_BASE_URL` | ✅ | URL do frontend (ex: `https://barbergestor.com.br`) |
-| `FRONTEND_URL` | ✅ | Igual ao APP_BASE_URL (links de email) |
-| `RESEND_API_KEY` | ✅ | Chave da API do Resend |
-| `RESEND_FROM_EMAIL` | ✅ | Ex: `noreply@barbergestor.com.br` |
-| `EMAIL_FROM` | ✅ | Igual ao RESEND_FROM_EMAIL |
-| `REDIS_URL` | Recomendado | Redis no Render (+$7/mês) ou Upstash (free 10K req/dia) |
-| `KIWIFY_WEBHOOK_SECRET` | ✅ | Secret para validar webhooks Kiwify |
-| `WHATSAPP_PROVIDER` | | `mock` por enquanto (WhatsApp real não implementado) |
-| `WHATSAPP_TOKEN_ENCRYPTION_KEY` | | 64 chars hex. Necessário se WhatsApp real |
+> ⚠️ Não cadastre `PORT` — o Render injeta automaticamente via `$PORT`.
 
-### Variáveis que NÃO devem estar em produção
-- `TEST_EMAIL_TO` — apenas para dev
-- `RESEND_TEST_EMAIL` — apenas para dev
+### Grupo 1 — Banco de dados ✅ pronto
+
+| Variável | Valor | Status |
+|---|---|---|
+| `DATABASE_URL` | Connection string Supabase (Transaction pooler) | - [ ] |
+| `SUPABASE_URL` | `https://mfayajizbkqkcbhqmean.supabase.co` | - [ ] |
+| `SUPABASE_SERVICE_ROLE_KEY` | `sb_secret_…` (copiar do `backend/.env`) | - [ ] |
+| `ICE_BUCKET` | `barber-collaborators` | - [ ] |
+
+### Grupo 2 — Autenticação ⚠️ gerar novos valores para prod
+
+| Variável | Como gerar | Status |
+|---|---|---|
+| `JWT_SECRET` | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` | - [ ] |
+| `JWT_REFRESH_SECRET` | mesmo comando acima | - [ ] |
+| `COOKIE_SECRET` | mesmo comando acima | - [ ] |
+
+> ⚠️ **Nunca reutilize os valores do `backend/.env` local em produção.**
+
+### Grupo 3 — WhatsApp / Meta ✅ pronto
+
+| Variável | Valor | Status |
+|---|---|---|
+| `WHATSAPP_PROVIDER` | `meta_cloud_api` ← **diferente do local (`mock`)** | - [ ] |
+| `WHATSAPP_API_VERSION` | `v20.0` | - [ ] |
+| `WHATSAPP_TOKEN_ENCRYPTION_KEY` | hex 64 chars (copiar do `backend/.env`) | - [ ] |
+| `WHATSAPP_VERIFY_TOKEN` | copiar do `backend/.env` | - [ ] |
+| `WHATSAPP_PHONE_NUMBER_ID` | `1145695401958993` | - [ ] |
+| `WHATSAPP_BUSINESS_ACCOUNT_ID` | `27299667263004028` | - [ ] |
+| `META_ACCESS_TOKEN` | `EAA2…` (copiar do `backend/.env`) | - [ ] |
+| `META_APP_SECRET` | hex 32 chars (copiar do `backend/.env`) | - [ ] |
+
+### Grupo 4 — Email ✅ pronto
+
+| Variável | Valor | Status |
+|---|---|---|
+| `EMAIL_PROVIDER` | `resend` ← **diferente do local (`mock`)** | - [ ] |
+| `EMAIL_FROM` | `no-reply@mail.multgestorapp.com.br` | - [ ] |
+| `EMAIL_NAME` | `MultGestor` | - [ ] |
+| `RESEND_API_KEY` | `re_…` (copiar do `backend/.env`) | - [ ] |
+| `RESEND_TEST_MODE` | `false` | - [ ] |
+
+### Grupo 5 — Billing / Webhooks ✅ pronto
+
+| Variável | Valor | Status |
+|---|---|---|
+| `KIWIFY_WEBHOOK_SECRET` | hex 64 chars (copiar do `backend/.env`) | - [ ] |
+| `ABACATEPAY_WEBHOOK_SECRET` | vazio por enquanto | - [ ] |
+
+### Grupo 6 — URLs ⚠️ preencher após ter a URL da Vercel
+
+| Variável | Valor | Status |
+|---|---|---|
+| `APP_BASE_URL` | `https://SEU-PROJETO.vercel.app` | - [ ] |
+| `FRONTEND_URL` | `https://SEU-PROJETO.vercel.app` | - [ ] |
+| `CORS_ORIGIN` | `https://SEU-PROJETO.vercel.app` | - [ ] |
+| `BACKEND_URL` | `https://SEU-SERVICO.onrender.com` | - [ ] |
+
+### Grupo 7 — Runtime ✅ pronto
+
+| Variável | Valor | Status |
+|---|---|---|
+| `NODE_ENV` | `production` | - [ ] |
+| `LOG_LEVEL` | `warn` | - [ ] |
+| `SENTRY_ENVIRONMENT` | `production` | - [ ] |
+| `TRIAL_EMAILS_ENABLED` | `true` | - [ ] |
+| `OUTBOX_POLL_INTERVAL_MS` | `5000` | - [ ] |
+| `OUTBOX_BATCH_SIZE` | `50` | - [ ] |
+| `SERVICE_NAME` | `multgestor-backend` | - [ ] |
+
+### Grupo 8 — Admin master ⚠️ obrigatório no primeiro deploy
+
+| Variável | Valor | Status |
+|---|---|---|
+| `MASTER_ADMIN_EMAIL` | email do administrador principal | - [ ] |
+| `MASTER_ADMIN_PASSWORD` | senha forte (mínimo 16 chars) | - [ ] |
+| `MASTER_ADMIN_NAME` | `Master Admin` | - [ ] |
+
+> ℹ️ Podem ser removidas do Render após o primeiro deploy + seed executado.
+
+### Grupo 9 — Opcionais / futuras
+
+| Variável | Quando adicionar |
+|---|---|
+| `REDIS_URL` | Ao contratar Redis (Upstash, Railway…) |
+| `SENTRY_DSN` | Ao configurar projeto no Sentry |
+| `SMTP_HOST/PORT/USER/PASS/FROM` | Se migrar para SMTP próprio |
 
 ---
 
-## 4. Variáveis de Ambiente — Frontend (Vercel)
+## 3. Vercel — Frontend produção
 
-| Variável | Valor |
-|----------|-------|
-| `VITE_API_URL` | URL do backend no Render (ex: `https://api.multgestor.com.br`) |
+**Onde configurar:**
+```
+Vercel Dashboard → seu projeto → Settings → Environment Variables
+→ Selecionar: Production + Preview + Development
+```
+
+### Grupo 1 — Obrigatórias agora
+
+| Variável | Valor | Status |
+|---|---|---|
+| `VITE_API_URL` | `https://SEU-SERVICO.onrender.com` | - [ ] |
+| `VITE_APP_NAME` | `MultGestor` | - [ ] |
+| `VITE_ENVIRONMENT` | `production` | - [ ] |
+| `VITE_SUPABASE_URL` | `https://mfayajizbkqkcbhqmean.supabase.co` | - [ ] |
+| `VITE_SUPABASE_ANON_KEY` | `sb_publishable_…` (copiar do `frontend/.env`) | - [ ] |
+
+### Grupo 2 — Quando os planos Kiwify estiverem ativos
+
+| Variável | Onde obter | Status |
+|---|---|---|
+| `VITE_KIWIFY_URL_STARTER` | Kiwify → produto Starter → link de checkout | - [ ] |
+| `VITE_KIWIFY_URL_PRO` | Kiwify → produto Pro → link de checkout | - [ ] |
+| `VITE_KIWIFY_URL_PREMIUM` | Kiwify → produto Premium → link de checkout | - [ ] |
+
+### Grupo 3 — Futuras / opcionais
+
+| Variável | Quando adicionar |
+|---|---|
+| `VITE_META_APP_ID` | Quando frontend precisar inicializar o Meta SDK |
+| `VITE_SENTRY_DSN` | Ao configurar Sentry para o frontend |
+
+### 🚫 NUNCA adicionar na Vercel
+
+```
+❌ JWT_SECRET                    ← backend only
+❌ DATABASE_URL                  ← backend only
+❌ SUPABASE_SERVICE_ROLE_KEY     ← backend only
+❌ META_APP_SECRET               ← backend only
+❌ META_ACCESS_TOKEN             ← backend only
+❌ WHATSAPP_TOKEN_ENCRYPTION_KEY ← backend only
+❌ RESEND_API_KEY                ← backend only
+❌ KIWIFY_WEBHOOK_SECRET         ← backend only
+❌ COOKIE_SECRET                 ← backend only
+```
 
 ---
 
-## 5. Supabase — Configurações de Produção
+## 4. Supabase — Configurações de produção
 
-- [ ] SSL obrigatório nas conexões (já configurado no `database.js`)
-- [ ] IP allowlist configurada (se aplicável)
-- [ ] Connection pooling ativado (Transaction mode para scalability)
+- [ ] Connection pooling ativado (Transaction mode — porta 6543)
+- [ ] SSL obrigatório nas conexões (já configurado em `database.js`)
 - [ ] Backups automáticos ativados
-- [ ] Row Level Security: **migration gerada** — ver instruções abaixo antes de aplicar
+- [ ] Row Level Security ativado (ver `rls_tenant_tables.sql`)
+- [ ] IP allowlist configurada (se necessário)
 
-### 5.1 Migrations pendentes (aplicar nesta ordem no SQL Editor do Supabase)
+### Migrations (aplicar nesta ordem)
 
-**Passo 1 — `trial_email_log.sql`** (seguro, só cria tabela):
+**1. `trial_email_log.sql`** — seguro, só cria tabela:
 ```
 backend/src/database/trial_email_log.sql
 ```
-Cole e execute no Supabase → SQL Editor. Idempotente (`CREATE TABLE IF NOT EXISTS`).
 
-**Passo 2 — `rls_tenant_tables.sql`** (⚠️ ler aviso antes):
+**2. `rls_tenant_tables.sql`** — ⚠️ aplicar primeiro em staging:
 ```
 backend/src/database/rls_tenant_tables.sql
 ```
-
-> ⚠️ **AVISO IMPORTANTE sobre RLS:**
-> A policy `tenant_isolation` bloqueia qualquer query que não tenha `SET LOCAL app.current_company_id` ativa na transação.
-> O helper `withTenantContext` (Sprint 17) cobre os services críticos, mas pode não cobrir todos os services.
-> **Aplique primeiro em staging, rode o frontend completo e verifique se há dados ausentes antes de aplicar em produção.**
-> Se algum dado sumir na UI após aplicar, o service correspondente precisa de `withTenantContext`.
+> A policy `tenant_isolation` exige `SET LOCAL app.current_company_id` em todas as queries.
+> Verificar cobertura de `withTenantContext` antes de aplicar em produção.
 
 ---
 
-## 6. Pré-deploy Checklist
+## 5. Render — Evitar spin-down do OutboxWorker
 
-Antes de cada push para `main`:
+| Plano | Comportamento | Recomendação |
+|---|---|---|
+| Free | Spin-down após 15 min sem request | ⚠️ usar UptimeRobot |
+| Starter ($7/mês) | Sempre ativo | ✅ recomendado para produção |
 
-- [ ] Todos os testes passando: `npm test` no backend
-- [ ] Build do frontend sem erros: `npm run build` no frontend
-- [ ] Nenhuma variável `localhost` hardcoded no código
-- [ ] `WHATSAPP_PROVIDER=mock` (WhatsApp real não implementado)
-- [ ] Logs de debug desativados em produção (pino level `info`)
-- [ ] Migrations novas testadas em banco de staging antes de produção
+**UptimeRobot (gratuito):**
+1. Criar conta em uptimerobot.com
+2. New Monitor → HTTP(s) → URL: `https://SEU_BACKEND.onrender.com/api/health`
+3. Interval: 5 minutes
+4. Alertas: email / Telegram
 
 ---
 
-## 7. Pós-deploy Verification
+## 6. Ordem de execução recomendada
 
-Após deploy bem-sucedido:
-
-```bash
-# Verificar health check
-curl https://SEU_BACKEND.onrender.com/api/health
-
-# Verificar health check detalhado
-curl https://SEU_BACKEND.onrender.com/api/health/deep
-
-# Checar se OutboxWorker está rodando (outbox.pending_messages deve ser 0 ou baixo)
+```
+1. Cadastrar os 5 GitHub Secrets
+2. Configurar Render (grupos 1–8) — sem FRONTEND_URL por enquanto
+3. Fazer primeiro deploy do backend (push em main ou manual)
+4. Anotar a URL gerada: https://SEU-SERVICO.onrender.com
+5. Configurar Vercel (grupos 1–2) com a URL do Render
+6. Fazer primeiro deploy do frontend
+7. Anotar a URL gerada: https://SEU-PROJETO.vercel.app
+8. Voltar ao Render → preencher APP_BASE_URL, FRONTEND_URL, CORS_ORIGIN
+9. Validar /api/health/deep no backend de produção
+10. Configurar UptimeRobot
 ```
 
-Resposta esperada de `/health/deep`:
+---
+
+## 7. Pré-deploy Checklist
+
+Antes de cada merge `principal → main`:
+
+- [ ] Todos os testes passando: `cd backend && npm test`
+- [ ] Build do frontend sem erros: `cd frontend && npm run build`
+- [ ] Nenhum `localhost` hardcoded no código
+- [ ] Migrations novas testadas em staging
+- [ ] Migrations são idempotentes (`IF NOT EXISTS`, `ON CONFLICT`)
+- [ ] `backend/.env` e `frontend/.env` não aparecem no `git status`
+- [ ] Nenhum segredo real em arquivos rastreados pelo git
+
+---
+
+## 8. Pós-deploy Verification
+
+```bash
+# Health check básico
+curl https://SEU_BACKEND.onrender.com/api/health
+
+# Health check detalhado
+curl https://SEU_BACKEND.onrender.com/api/health/deep | jq .
+```
+
+Resposta esperada:
 ```json
 {
   "status": "healthy",
   "checks": {
-    "database": { "status": "ok" },
-    "redis": { "status": "ok" },
-    "outbox": { "status": "ok", "pending_messages": 0 }
+    "database":          { "status": "ok" },
+    "redis":             { "status": "ok" },
+    "outbox":            { "status": "ok", "pending_messages": 0 },
+    "whatsapp_provider": {
+      "status": "ok",
+      "provider": "meta_cloud_api",
+      "is_mock": false,
+      "app_secret_configured": true,
+      "access_token_configured": true,
+      "verify_token_configured": true
+    }
   }
 }
 ```
 
-Se `redis.status = "degraded"`: Redis não configurado — cache in-memory ativo.
-Se `whatsapp_provider.is_mock = true`: normal (WhatsApp real não implementado ainda).
+> Se `redis.status = "degraded"`: Redis não configurado — cache in-memory ativo (aceitável).
+> Se `whatsapp_provider.is_mock = true`: `WHATSAPP_PROVIDER` ainda está como `mock` no Render.
 
 ---
 
-## 8. Monitoramento
+## 9. Monitoramento
 
-### 8.1 Sentry — Rastreamento de erros
+### Sentry (opcional)
+- Backend: `SENTRY_DSN` no Render
+- Frontend: `VITE_SENTRY_DSN` na Vercel
+- Sentry → Projects → Create → Node.js / React → copiar DSN
 
-Sentry é **100% opcional** — sem DSN configurado, o sistema funciona identicamente ao atual.
-
-**Backend:**
-1. Criar projeto em [sentry.io](https://sentry.io) → Projects → Create Project → Node.js
-2. Copiar o DSN (ex: `https://xxx@o123.ingest.sentry.io/456`)
-3. Adicionar ao Render: `SENTRY_DSN=<copiar DSN>`
-4. Opcional: `SENTRY_ENVIRONMENT=production`
-
-**Frontend:**
-1. No mesmo projeto do Sentry (ou um separado)
-2. Copiar o DSN do frontend
-3. Adicionar ao Vercel: `VITE_SENTRY_DSN=<copiar DSN>`
-
-**O que é capturado:**
-- Erros 5xx no backend (com correlationId como tag)
-- Erros não tratados no React (via ErrorBoundary)
-- **NÃO captura:** erros 4xx, dados PII, senhas, tokens
-
-### 8.2 UptimeRobot — Monitoramento de uptime + prevenção de spin-down
-
-O UptimeRobot a cada 5 minutos previne o spin-down do Render Free tier e alerta quando o serviço cai.
-
-**Passo a passo:**
-1. Criar conta gratuita em [uptimerobot.com](https://uptimerobot.com)
-2. Dashboard → "Add New Monitor"
-3. Tipo: **HTTP(s)**
-4. URL: `https://SEU_BACKEND.onrender.com/api/health`
-5. Monitoring Interval: **5 minutes**
-6. Alert Contacts: email e/ou Telegram
-7. Repetir os passos 2-6 para `/api/health/deep` (health check detalhado)
-
-**Importante:**
-- Monitorar `/api/health` (leve, responde rapidamente) + `/api/health/deep` (verifica DB, Redis, outbox)
-- O ping a cada 5 minutos mantém o Render Free tier ativo
-- Alertas por email/Telegram quando o status mudar para "down"
+### UptimeRobot (recomendado)
+- Monitor: `https://SEU_BACKEND.onrender.com/api/health`
+- Interval: 5 minutos
+- Previne spin-down no Render Free tier
 
 ---
 
-## 9. Variáveis de Ambiente — Resumo Completo
+## 10. Observability / Alertas (Prometheus)
 
-### Backend (Render)
+O backend expõe métricas Prometheus em `GET /metrics` (protegido por `METRICS_TOKEN` quando configurado).
 
-| Variável | Obrigatória | Observação |
-|----------|-------------|------------|
-| `DATABASE_URL` | ✅ | Connection string do Supabase (com SSL) |
-| `JWT_SECRET` | ✅ | Min 32 chars, nunca expor |
-| `NODE_ENV` | ✅ | `production` |
-| `APP_BASE_URL` | ✅ | URL do frontend |
-| `RESEND_API_KEY` | ✅ | Chave da API do Resend |
-| `REDIS_URL` | Recomendado | Redis no Render ou Upstash |
-| `TRIAL_EMAILS_ENABLED` | | `true` para ativar sequencia de emails de trial |
-| `SENTRY_DSN` | | Opcional — Sentry project DSN para backend |
-| `SENTRY_ENVIRONMENT` | | Opcional — default: `NODE_ENV` |
+### Configuração no Render
 
-### Frontend (Vercel)
+| Variável | Valor | Descrição |
+|---|---|---|
+| `METRICS_TOKEN` | token seguro (gerar com `openssl rand -hex 32`) | Bearer auth para `/metrics` |
+| `METRICS_REFRESH_MS` | `15000` | Intervalo de refresh das gauges (ms) |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0.1` (staging) / `0.01` (prod) | Taxa de amostragem de tracing |
 
-| Variável | Obrigatória | Observação |
-|----------|-------------|------------|
-| `VITE_API_URL` | ✅ | URL do backend |
-| `VITE_KIWIFY_URL_STARTER` | | Link checkout Kiwify plano Essencial |
-| `VITE_KIWIFY_URL_PRO` | | Link checkout Kiwify plano Profissional |
-| `VITE_KIWIFY_URL_PREMIUM` | | Link checkout Kiwify plano Premium |
-| `VITE_SENTRY_DSN` | | Opcional — Sentry project DSN para frontend |
+### Regras de alerta recomendadas
+
+Configurar no Prometheus/Grafana/Alertmanager:
+
+| Métrica | Condição | Severidade | Ação |
+|---|---|---|---|
+| `outbox_messages_count{status="failed"} > 0` | por 5 minutos | **Critical** | Investigar dead-letter queue imediatamente |
+| `outbox_messages_count{status="pending"} > 100` | por 10 minutos | **Warning** | OutboxWorker pode estar lento ou travado |
+| `rate(http_requests_total{status_class="5xx"}[5m]) > 0.1` | sustentado | **Critical** | Erros 5xx elevados — verificar logs |
+| `redis_up == 0` | por 2 minutos | **Warning** | Redis indisponível — fallback in-memory ativo |
+| `db_pool_waiting > 0` | por 5 minutos | **Warning** | Pool saturado — considerar aumentar conexões |
+
+### Exemplo de scrape config (Prometheus)
+
+```yaml
+scrape_configs:
+  - job_name: 'multgestor-backend'
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    bearer_token: 'SEU_METRICS_TOKEN'
+    static_configs:
+      - targets: ['SEU_BACKEND.onrender.com']
+```
