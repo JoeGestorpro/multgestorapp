@@ -33,6 +33,9 @@ const migrations = [
 
   // Fase 1 — B2: Idempotência por handler no OutboxWorker
   { version: '20260604_022', file: 'outbox_message_handlers.sql' },
+
+  // Fase 2 — Lembrete de agendamento via WhatsApp
+  { version: '20260604_023', file: 'barber_appointments_reminder.sql' },
 ];
 
 async function ensureMigrationsTable() {
