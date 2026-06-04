@@ -82,7 +82,17 @@ describe('requireCompany — binding real (unit)', () => {
 
       return Object.assign(poolMock, {
         tenantStore,
-        runWithTenantClient: (client, fn) => tenantStore.run({ client }, fn),
+        runWithTenantClient: (client, companyIdOrFn, maybeFn) => {
+          let companyId, fn;
+          if (typeof companyIdOrFn === 'function') {
+            fn = companyIdOrFn;
+            companyId = null;
+          } else {
+            companyId = companyIdOrFn;
+            fn = maybeFn;
+          }
+          return tenantStore.run({ client, companyId }, fn);
+        },
         _originalQuery: jest.fn(),
       });
     });
@@ -272,5 +282,46 @@ describeDb('RLS isolation — integration (requires TEST_DATABASE_URL)', () => {
     } finally {
       client.release();
     }
+  });
+
+  it('pool.connect() via wrap ALS + BEGIN → write isolado por tenant', async () => {
+    const pool = require('../../src/config/database');
+    const { runWithTenantClient } = pool;
+
+    await runWithTenantClient(null, companyAId, async () => {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          `INSERT INTO barber_services (id, company_id, name, price, duration_minutes)
+           VALUES (gen_random_uuid(), $1, 'Wrap Test Svc', 40, 25)`,
+          [companyAId]
+        );
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    });
+
+    const client = await testPool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SET LOCAL app.current_company_id = $1', [companyBId]);
+      const result = await client.query(
+        "SELECT * FROM barber_services WHERE name = 'Wrap Test Svc'"
+      );
+      expect(result.rows).toHaveLength(0);
+      await client.query('COMMIT');
+    } finally {
+      client.release();
+    }
+
+    await testPool.query(
+      "DELETE FROM barber_services WHERE name = 'Wrap Test Svc' AND company_id = $1",
+      [companyAId]
+    );
   });
 });

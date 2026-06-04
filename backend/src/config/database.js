@@ -76,11 +76,51 @@ async function withTenantContext(client, companyId, fn) {
 
 pool.withTenantContext = withTenantContext;
 
-function runWithTenantClient(client, fn) {
-  return tenantStore.run({ client }, fn);
+function runWithTenantClient(client, companyIdOrFn, maybeFn) {
+  let companyId, fn;
+  if (typeof companyIdOrFn === 'function') {
+    fn = companyIdOrFn;
+    companyId = null;
+  } else {
+    companyId = companyIdOrFn;
+    fn = maybeFn;
+  }
+  return tenantStore.run({ client, companyId }, fn);
 }
+
+const _originalConnect = pool.connect.bind(pool);
+const BEGIN_RE = /^\s*(BEGIN|START\s+TRANSACTION)\b/i;
+
+pool.connect = async function tenantAwareConnect() {
+  const store = tenantStore.getStore();
+  const companyId = store?.companyId;
+
+  const client = await _originalConnect();
+
+  if (!companyId) {
+    return client;
+  }
+
+  const originalQuery = client.query.bind(client);
+  let gucSet = false;
+
+  client.query = async function wrappedQuery(...args) {
+    const sql = typeof args[0] === 'string' ? args[0] : (args[0]?.text || '');
+    const result = await originalQuery(...args);
+
+    if (!gucSet && BEGIN_RE.test(sql)) {
+      gucSet = true;
+      await originalQuery('SET LOCAL app.current_company_id = $1', [companyId]);
+    }
+
+    return result;
+  };
+
+  return client;
+};
 
 module.exports = pool;
 module.exports.tenantStore = tenantStore;
 module.exports.runWithTenantClient = runWithTenantClient;
 module.exports._originalQuery = _originalQuery;
+module.exports._originalConnect = _originalConnect;

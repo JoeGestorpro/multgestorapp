@@ -72,6 +72,6 @@ module.exports = function requireCompany(req, res, next) {
       hasError = true;
     });
 
-    runWithTenantClient(client, () => next());
+    runWithTenantClient(client, tenant.companyId, () => next());
   })();
 };

@@ -1,7 +1,8 @@
 # Security: Tenant Isolation (RLS) — Plano de Go-Live Faseado
 
 > Última atualização: 2026-06-04
-> Missão: `fase1-b1-rls-foundation` (B1 da Fase 1)
+> Missão: `fase1-b1b-gate-poolconnect` (B1b-gate — cobertura pool.connect())
+> Missão anterior: `fase1-b1-rls-foundation` (B1 — ALS binding pool.query)
 > Próxima missão: `fase1-b1b-rls-prod-activation` (FORCE em produção)
 
 ---
@@ -14,16 +15,32 @@
 HTTP Request
   → requireCompany middleware
     → pool.connect() → BEGIN → SET LOCAL app.current_company_id = $1
-    → runWithTenantClient(client, next)  ← ALS context
-      → pool.query(...)  ← wrap transparente: usa client do ALS
+    → runWithTenantClient(client, companyId, next)  ← ALS context { client, companyId }
+      → pool.query(...)  ← wrap B1: usa client do ALS
+      → pool.connect()   ← wrap B1b: intercepta BEGIN → SET LOCAL automático
     → res.on('finish'/'close') → COMMIT/ROLLBACK + release
 ```
 
-- `config/database.js`: `AsyncLocalStorage` (`tenantStore`) + wrap de `pool.query`.
-  - Se `tenantStore.getStore()?.client` existe → usa o client do request.
-  - Senão → usa o pool original (OutboxWorker, jobs, auth flows, master admin).
-- `requireCompany.js`: abre conexão dedicada, `BEGIN` + `SET LOCAL`, release garantido.
+- `config/database.js`: `AsyncLocalStorage` (`tenantStore`) + wrap de `pool.query` (B1) + wrap de `pool.connect()` (B1b).
+  - **pool.query**: se `tenantStore.getStore()?.client` existe → usa o client do request. Senão → pool original.
+  - **pool.connect()**: se `tenantStore.getStore()?.companyId` existe → retorna client com wrap que intercepta `BEGIN`/`START TRANSACTION` e emite `SET LOCAL app.current_company_id` automaticamente. Senão → client cru.
+- `requireCompany.js`: abre conexão dedicada, `BEGIN` + `SET LOCAL`, release garantido. Armazena `{ client, companyId }` no ALS.
 - **Timeouts de proteção**: `statement_timeout` (30s) + `idle_in_transaction_session_timeout` (60s).
+
+### Cobertura pool.connect() (B1b-gate)
+
+O wrap de `pool.connect()` garante que **todas as transações abertas no caminho HTTP** — inclusive via `UnitOfWork.begin()` e services que abrem conexões próprias — carreguem o GUC `app.current_company_id`, de forma **transparente** (sem alterar os services nem o UoW).
+
+**Mecanismo:**
+1. `pool.connect()` verifica se há `companyId` no ALS.
+2. Se sim: retorna um client proxy cuja `query` intercepta `BEGIN`/`START TRANSACTION` (case-insensitive).
+3. Logo após o `BEGIN` ser executado, emite `SET LOCAL app.current_company_id = <companyId>`.
+4. Idempotente: não emite 2x na mesma transação.
+5. Fora de contexto ALS (workers/jobs/Outbox): retorna client cru, sem modificação.
+
+**Auditoria de conexões pool.connect():**
+- 20/21 conexões fazem `BEGIN` após `pool.connect()` → recebem GUC automaticamente.
+- 1 conexão sem `BEGIN`: `jobs/trial-email-job.js` → job background, fora do ALS (by-design, não deveria receber GUC).
 
 ### RLS Policies
 
@@ -57,11 +74,18 @@ Todos os `pool.query` no caminho HTTP que rodam **sem** contexto ALS foram audit
 
 ## 3. Plano de Go-Live Faseado
 
-### Fase 1: Fundação (esta missão — B1) ✅
+### Fase 1: Fundação (B1) ✅
 - [x] ALS no `config/database.js` (wrap transparente de `pool.query`)
 - [x] `requireCompany.js` com binding real (txn + SET LOCAL + release garantido)
 - [x] Teste de isolamento RLS (unit + integration quando há TEST_DATABASE_URL)
 - [x] Auditoria de bypass documentada
+
+### Fase 1b: Gate pool.connect() (B1b-gate — esta missão) ✅
+- [x] ALS estendido para `{ client, companyId }`
+- [x] Wrap transparente de `pool.connect()` com interceptação BEGIN→SET LOCAL
+- [x] UoW e services cobertos sem alterá-los (transparente)
+- [x] Auditoria de conexões sem BEGIN documentada (1/21: trial-email-job, by-design)
+- [x] Testes unitários (tenant-connect-wrap.test.js) + integração estendida
 - [ ] **Staging**: aplicar `rls_tenant_tables.sql` com ENABLE + FORCE; validar tráfego normal
 - [ ] **Staging**: load test básico (verificar que pool não esgota)
 
