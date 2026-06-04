@@ -10,7 +10,21 @@ class OutboxWorker {
   }
 
   register(eventType, handler) {
-    this.handlers.set(eventType, handler)
+    const name = handler.name
+    if (!name) {
+      throw new Error(`[OutboxWorker] Handler para "${eventType}" deve ser uma função nomeada (handler.name vazio)`)
+    }
+
+    if (!this.handlers.has(eventType)) {
+      this.handlers.set(eventType, new Map())
+    }
+
+    const handlersMap = this.handlers.get(eventType)
+    if (handlersMap.has(name)) {
+      throw new Error(`[OutboxWorker] Handler duplicado: "${name}" já registrado para "${eventType}"`)
+    }
+
+    handlersMap.set(name, handler)
   }
 
   start() {
@@ -67,9 +81,9 @@ class OutboxWorker {
   }
 
   async _process(event) {
-    const handler = this.handlers.get(event.type)
+    const handlersMap = this.handlers.get(event.type)
 
-    if (!handler) {
+    if (!handlersMap || handlersMap.size === 0) {
       await this.pool.query(
         `UPDATE outbox_messages
          SET status = 'failed', last_error = $2
@@ -79,20 +93,58 @@ class OutboxWorker {
       return
     }
 
-    try {
-      await handler(event.payload, {
-        traceId: event.trace_id,
-        companyId: event.company_id,
-        eventId: event.id
-      })
+    const context = {
+      traceId: event.trace_id,
+      companyId: event.company_id,
+      eventId: event.id
+    }
 
-      await this.pool.query(
-        `UPDATE outbox_messages
-         SET status = 'processed', processed_at = NOW()
-         WHERE id = $1`,
+    let processedHandlers = new Set()
+    try {
+      const result = await this.pool.query(
+        `SELECT handler_name FROM outbox_message_handlers
+         WHERE message_id = $1 AND status = 'processed'`,
         [event.id]
       )
-    } catch (err) {
+      for (const row of result.rows) {
+        processedHandlers.add(row.handler_name)
+      }
+    } catch (_) {}
+
+    let anyFailed = false
+    let lastError = null
+
+    for (const [name, handler] of handlersMap) {
+      if (processedHandlers.has(name)) {
+        continue
+      }
+
+      try {
+        await handler(event.payload, context)
+        await this.pool.query(
+          `INSERT INTO outbox_message_handlers (message_id, handler_name, status, processed_at)
+           VALUES ($1, $2, 'processed', NOW())
+           ON CONFLICT (message_id, handler_name) DO UPDATE
+             SET status = 'processed', processed_at = NOW(), last_error = NULL`,
+          [event.id, name]
+        )
+      } catch (err) {
+        lastError = err
+        anyFailed = true
+        try {
+          await this.pool.query(
+            `INSERT INTO outbox_message_handlers (message_id, handler_name, status, last_error)
+             VALUES ($1, $2, 'failed', $3)
+             ON CONFLICT (message_id, handler_name) DO UPDATE
+               SET status = 'failed', last_error = $3`,
+            [event.id, name, err.message]
+          )
+        } catch (_) {}
+        break
+      }
+    }
+
+    if (anyFailed) {
       const nextRetry = (event.retry_count || 0) + 1
 
       if (nextRetry >= event.max_retries) {
@@ -100,7 +152,7 @@ class OutboxWorker {
           `UPDATE outbox_messages
            SET status = 'failed', retry_count = $2, last_error = $3
            WHERE id = $1`,
-          [event.id, nextRetry, err.message]
+          [event.id, nextRetry, lastError.message]
         )
       } else {
         const delaySeconds = Math.pow(2, nextRetry)
@@ -109,10 +161,18 @@ class OutboxWorker {
            SET status = 'pending', retry_count = $2, last_error = $3,
                next_retry_at = NOW() + make_interval(secs => $4)
            WHERE id = $1`,
-          [event.id, nextRetry, err.message, delaySeconds]
+          [event.id, nextRetry, lastError.message, delaySeconds]
         )
       }
+      return
     }
+
+    await this.pool.query(
+      `UPDATE outbox_messages
+       SET status = 'processed', processed_at = NOW()
+       WHERE id = $1`,
+      [event.id]
+    )
   }
 }
 

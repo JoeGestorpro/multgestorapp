@@ -26,6 +26,8 @@ const {
   updateCollaboratorStatusSchema
 } = require('./barber-requests.schema')
 
+const { upsertIntegrationSchema, testIntegrationSchema } = require('./integration.schema')
+
 module.exports = {
   // base
   paginationSchema,
@@ -58,5 +60,8 @@ module.exports = {
   updateCustomerSchema,
   updateCustomerStatusSchema,
   updateCollaboratorSchema,
-  updateCollaboratorStatusSchema
+  updateCollaboratorStatusSchema,
+  // integration
+  upsertIntegrationSchema,
+  testIntegrationSchema
 }

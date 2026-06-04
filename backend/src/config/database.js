@@ -1,5 +1,10 @@
+'use strict';
+
+const { AsyncLocalStorage } = require('async_hooks');
 const { appLogger } = require('../shared/core/logger');
 const { Pool } = require('pg');
+
+const tenantStore = new AsyncLocalStorage();
 
 function getDatabaseTargetSummary() {
   const rawConnectionString = String(process.env.DATABASE_URL || '').trim();
@@ -37,7 +42,6 @@ const databaseTarget = getDatabaseTargetSummary();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // SSL apenas fora de testes locais: Postgres CI container não tem SSL habilitado
   ssl: process.env.NODE_ENV === 'test' ? false : { rejectUnauthorized: false },
 });
 
@@ -52,11 +56,16 @@ pool.on('connect', () => {
 
 pool.getDatabaseTargetSummary = getDatabaseTargetSummary;
 
-/**
- * Executa uma função dentro de um contexto de tenant (RLS).
- * Define app.current_company_id via SET LOCAL, que reseta automaticamente
- * ao fim da transação.
- */
+const _originalQuery = pool.query.bind(pool);
+
+pool.query = function tenantAwareQuery(...args) {
+  const store = tenantStore.getStore();
+  if (store?.client) {
+    return store.client.query(...args);
+  }
+  return _originalQuery(...args);
+};
+
 async function withTenantContext(client, companyId, fn) {
   if (!companyId) {
     throw new Error('companyId obrigatorio para withTenantContext');
@@ -67,4 +76,11 @@ async function withTenantContext(client, companyId, fn) {
 
 pool.withTenantContext = withTenantContext;
 
+function runWithTenantClient(client, fn) {
+  return tenantStore.run({ client }, fn);
+}
+
 module.exports = pool;
+module.exports.tenantStore = tenantStore;
+module.exports.runWithTenantClient = runWithTenantClient;
+module.exports._originalQuery = _originalQuery;

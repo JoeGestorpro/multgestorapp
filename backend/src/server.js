@@ -26,14 +26,19 @@ const { appLogger } = require('./shared/core/logger');
 const correlationId = require('./middlewares/correlation-id.middleware');
 const requestLogger = require('./middlewares/request-logger.middleware');
 const errorHandler = require('./middlewares/error-handler.middleware');
+const { httpMetricsMiddleware, metricsAuthMiddleware, metricsEndpointHandler } = require('./middlewares/metrics.middleware');
+const { startPeriodicRefresh, setRedisRef } = require('./shared/core/monitoring/metrics');
 const { tenantContext, registerDefaultConsumers } = require('./shared');
-const { IntegrationManager, resolveWhatsAppProvider, AppointmentIntegrationConsumer, WhatsAppWebhook } = require('./integrations');
+const { IntegrationManager, resolveWhatsAppProvider, AppointmentIntegrationConsumer, WhatsAppWebhook, WhatsAppResolver } = require('./integrations');
 const OutboxWorker = require('./shared/core/outbox/outbox-worker');
 const redisClient = require('./shared/core/cache/redis-client');
 const { runTrialEmailJob } = require('./jobs/trial-email-job');
+const { billingProviderRegistry, KiwifyProvider } = require('./shared/capabilities/billing');
 
 registerDefaultConsumers();
 appLogger.info('[EventBus] Default consumers registered');
+
+// KiwifyProvider is auto-registered in shared/capabilities/billing/index.js
 
 // Handlers globais de processo — devem ser registrados cedo, antes de qualquer I/O.
 process.on('unhandledRejection', (reason) => {
@@ -50,16 +55,33 @@ const whatsappProvider = resolveWhatsAppProvider({
   providerType: process.env.WHATSAPP_PROVIDER || 'mock',
   phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || '',
   businessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '',
+  accessToken: process.env.META_ACCESS_TOKEN || '',
   companyId: null
 });
 integrationManager.registerProvider('whatsapp', whatsappProvider);
 
-const appointmentIntegrationConsumer = new AppointmentIntegrationConsumer(integrationManager);
+const whatsappResolver = new WhatsAppResolver();
+const appointmentIntegrationConsumer = new AppointmentIntegrationConsumer(integrationManager, {
+  whatsappResolver
+});
 appointmentIntegrationConsumer.register();
 appLogger.info('[Integration] Integration layer initialized');
 
+if ((process.env.WHATSAPP_PROVIDER || 'mock') === 'meta_cloud_api') {
+  if (!process.env.META_APP_SECRET) {
+    appLogger.warn('[WhatsApp] WHATSAPP_PROVIDER=meta_cloud_api mas META_APP_SECRET nao configurada — webhook sem validacao de assinatura');
+  }
+  if (!process.env.META_ACCESS_TOKEN) {
+    appLogger.warn('[WhatsApp] WHATSAPP_PROVIDER=meta_cloud_api mas META_ACCESS_TOKEN nao configurado — envio de mensagens falhara');
+  }
+  if (!process.env.WHATSAPP_VERIFY_TOKEN) {
+    appLogger.warn('[WhatsApp] WHATSAPP_PROVIDER=meta_cloud_api mas WHATSAPP_VERIFY_TOKEN nao configurado — webhook nao sera verificado');
+  }
+}
+
 const whatsappWebhook = new WhatsAppWebhook({
-  verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || ''
+  verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || '',
+  metaAppSecret: process.env.META_APP_SECRET || ''
 });
 
 const app = express();
@@ -178,8 +200,15 @@ app.use(helmet({
   contentSecurityPolicy: false
 }));
 app.use(cookieParser());
-app.use(express.json({ limit: '3mb' }));
+app.use(express.json({
+  limit: '3mb',
+  verify(req, res, buf) {
+    req.rawBody = buf
+  }
+}));
 app.use(correlationId);
+app.use(httpMetricsMiddleware);
+app.get('/metrics', metricsAuthMiddleware, metricsEndpointHandler);
 app.use(requestLogger);
 app.use(tenantContext);
 app.use('/uploads', express.static(path.resolve(__dirname, '..', 'uploads')));
@@ -246,11 +275,18 @@ app.get('/api/health/deep', async (req, res) => {
   };
 
   // Check: whatsapp provider
+  const isMeta = (process.env.WHATSAPP_PROVIDER || 'mock') === 'meta_cloud_api'
   checks.whatsapp_provider = {
-    status: 'ok',
+    status: isMeta ? 'ok' : 'degraded',
     provider: process.env.WHATSAPP_PROVIDER || 'mock',
-    is_mock: (process.env.WHATSAPP_PROVIDER || 'mock') === 'mock'
+    is_mock: !isMeta,
+    app_secret_configured: !!process.env.META_APP_SECRET,
+    access_token_configured: !!process.env.META_ACCESS_TOKEN,
+    verify_token_configured: !!process.env.WHATSAPP_VERIFY_TOKEN
   };
+  if (isMeta && (!process.env.META_APP_SECRET || !process.env.META_ACCESS_TOKEN || !process.env.WHATSAPP_VERIFY_TOKEN)) {
+    checks.whatsapp_provider.status = 'degraded'
+  }
 
   // Check: integrações
   try {
@@ -352,8 +388,36 @@ const outboxWorker = new OutboxWorker(pool, {
   }
 });
 
+const { handleBillingProvisioning, handleWalletTopup, handleWalletTopupFailed, handleSaleLoyaltyAccrual, handleSalePackageRedemption } = require('./integrations/consumers');
+outboxWorker.register('payment.approved', handleBillingProvisioning);
+outboxWorker.register('subscription.renewed', handleBillingProvisioning);
+outboxWorker.register('subscription.past_due', handleBillingProvisioning);
+outboxWorker.register('subscription.canceled', handleBillingProvisioning);
+outboxWorker.register('subscription.refunded', handleBillingProvisioning);
+outboxWorker.register('subscription.chargeback', handleBillingProvisioning);
+outboxWorker.register('payment.failed', handleBillingProvisioning);
+appLogger.info('[OutboxWorker] Billing provisioning consumers registered');
+
+outboxWorker.register('wallet.topup.approved', handleWalletTopup);
+outboxWorker.register('wallet.topup.failed', handleWalletTopupFailed);
+appLogger.info('[OutboxWorker] Wallet provisioning consumers registered (approved + failed)');
+
+// ⚠️ QUARENTENA FASE C (governança Claude Code, 2026-06-03) ⚠️
+// O wiring abaixo foi implementado pelo executor FORA DE ORDEM (Fase C estava BLOCKED no backlog,
+// dependendo da aprovação da corretiva Fase A). Está DESATIVADO até a Fase C ser formalmente
+// promovida via .opencodex/queue/next-task.md e auditada. Os arquivos dos consumers permanecem
+// no repositório (quarentena lógica, não física). NÃO reativar sem promoção+auditoria.
+// outboxWorker.register('sale.created', handleSaleLoyaltyAccrual);
+// outboxWorker.register('sale.created', handleSalePackageRedemption);
+// appLogger.info('[OutboxWorker] Fase C consumers registered (loyalty + package)');
+appLogger.warn('[OutboxWorker] Fase C (sale.created → loyalty/package) em QUARENTENA — wiring desativado até promoção formal');
+
 outboxWorker.start();
 appLogger.info('[OutboxWorker] Iniciado');
+
+setRedisRef(redisClient);
+startPeriodicRefresh(pool);
+appLogger.info('[Metrics] Periodic refresh started');
 
 // Trial email job — rodar 1x por hora
 const TRIAL_EMAIL_INTERVAL_MS = 60 * 60 * 1000; // 1 hora

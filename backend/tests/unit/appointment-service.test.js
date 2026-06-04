@@ -269,7 +269,7 @@ describe('AppointmentService — Unit Tests', () => {
 
   describe('update', () => {
     it('updates status', async () => {
-      repo.findById.mockResolvedValue({ id: 'apt-1', collaborator_id: 'col-1', service_id: 'svc-1' })
+      repo.findById.mockResolvedValue({ id: 'apt-1', collaborator_id: 'col-1', service_id: 'svc-1', customer_name: 'Test Customer', customer_phone: '11999999999', starts_at: FUTURE_DATE, ends_at: new Date(new Date(FUTURE_DATE).getTime() + 30 * 60 * 1000).toISOString() })
       repo.update.mockResolvedValue({ id: 'apt-1', status: 'confirmed' })
 
       const result = await service.update(COMPANY_ID, ADMIN_USER, 'apt-1', { status: 'confirmed' })
@@ -312,7 +312,7 @@ describe('AppointmentService — Unit Tests', () => {
     })
 
     it('allows collaborator to update', async () => {
-      repo.findById.mockResolvedValue({ id: 'apt-1' })
+      repo.findById.mockResolvedValue({ id: 'apt-1', collaborator_id: 'col-1', service_id: 'svc-1', customer_name: 'Test Customer', customer_phone: '11999999999', starts_at: FUTURE_DATE, ends_at: new Date(new Date(FUTURE_DATE).getTime() + 30 * 60 * 1000).toISOString() })
       repo.update.mockResolvedValue({ id: 'apt-1' })
 
       const result = await service.update(COMPANY_ID, COLLABORATOR_USER, 'apt-1', { status: 'confirmed' })
@@ -323,7 +323,7 @@ describe('AppointmentService — Unit Tests', () => {
 
   describe('cancel', () => {
     it('cancels appointment with reason', async () => {
-      repo.findById.mockResolvedValue({ id: 'apt-1', collaborator_id: 'col-1', service_id: 'svc-1' })
+      repo.findById.mockResolvedValue({ id: 'apt-1', collaborator_id: 'col-1', service_id: 'svc-1', customer_name: 'Test Customer', customer_phone: '11999999999' })
       repo.update.mockResolvedValue({ id: 'apt-1', status: 'canceled' })
 
       const result = await service.cancel(COMPANY_ID, ADMIN_USER, 'apt-1', { reason: 'Customer requested' })
@@ -336,7 +336,7 @@ describe('AppointmentService — Unit Tests', () => {
     })
 
     it('cancels appointment without reason', async () => {
-      repo.findById.mockResolvedValue({ id: 'apt-1', collaborator_id: 'col-1', service_id: 'svc-1' })
+      repo.findById.mockResolvedValue({ id: 'apt-1', collaborator_id: 'col-1', service_id: 'svc-1', customer_name: 'Test Customer', customer_phone: '11999999999' })
       repo.update.mockResolvedValue({ id: 'apt-1', status: 'canceled' })
 
       await service.cancel(COMPANY_ID, ADMIN_USER, 'apt-1')

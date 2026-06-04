@@ -11,6 +11,7 @@ const {
   insertCollaborator,
   insertService,
   insertAppointment,
+  activatePlan,
   activateModule,
   cleanupTestData,
   shutdownTestPool,
@@ -59,6 +60,18 @@ function authedRequest(token) {
   return agent
 }
 
+// Helper: extract appointments array from varied API response shapes
+function extractAppointments(response) {
+  const data = response.body?.data
+
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.appointments)) return data.appointments
+  if (Array.isArray(data?.items)) return data.items
+  if (Array.isArray(data?.rows)) return data.rows
+
+  return []
+}
+
 // Skip all tests if no test database is configured
 const hasTestDb = !!(process.env.TEST_DATABASE_URL || process.env.DATABASE_URL)
 const describeDb = hasTestDb ? describe : describe.skip
@@ -87,6 +100,10 @@ describeDb('Tenant Isolation — Integration Tests', () => {
     // Activate barber module for both test companies
     await activateModule(companyA.id, 'barber')
     await activateModule(companyB.id, 'barber')
+
+    // Activate profissional plan — required for advanced_schedule feature (appointments)
+    await activatePlan(companyA.id, 'profissional')
+    await activatePlan(companyB.id, 'profissional')
 
     // Create users
     userA = createUserForCompany(companyA.id, 'admin')
@@ -128,6 +145,9 @@ describeDb('Tenant Isolation — Integration Tests', () => {
     if (typeof mainPool.end === 'function') {
       await mainPool.end().catch(() => {})
     }
+    // Close Redis client (created when REDIS_URL is set in CI) to avoid Jest open handles
+    const redisClient = require('../../src/shared/core/cache/redis-client')
+    await redisClient.quit().catch(() => {})
   })
 
   describe('1. Cross-tenant blocking', () => {
@@ -150,7 +170,7 @@ describeDb('Tenant Isolation — Integration Tests', () => {
         .query({ date: new Date().toISOString().split('T')[0] })
 
       expect(response.status).toBe(200)
-      const appointments = response.body.data || []
+      const appointments = extractAppointments(response)
       const hasCompanyB = appointments.some(a => a.company_id === companyB.id)
       expect(hasCompanyB).toBe(false)
     })
@@ -191,7 +211,7 @@ describeDb('Tenant Isolation — Integration Tests', () => {
         .query({ date: new Date().toISOString().split('T')[0] })
 
       expect(response.status).toBe(200)
-      const appointments = response.body.data || []
+      const appointments = extractAppointments(response)
       const hasCompanyA = appointments.some(a => a.company_id === companyA.id)
       expect(hasCompanyA).toBe(false)
     })

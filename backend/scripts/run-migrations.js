@@ -24,6 +24,15 @@ const migrations = [
   { version: '20260526_015', file: 'clima_appointments.sql' },
   { version: '20260526_016', file: 'trial_email_log.sql' },
   { version: '20260526_017', file: 'rls_tenant_tables.sql' },
+
+  // Fase 2 — PRD-008/009/010/011
+  { version: '20260603_018', file: 'mg_prepaid_v1.sql' },
+  { version: '20260603_019', file: 'mg_packages_v1.sql' },
+  { version: '20260603_020', file: 'mg_loyalty_v1.sql' },
+  { version: '20260603_021', file: 'mg_anamnese_v1.sql' },
+
+  // Fase 1 — B2: Idempotência por handler no OutboxWorker
+  { version: '20260604_022', file: 'outbox_message_handlers.sql' },
 ];
 
 async function ensureMigrationsTable() {

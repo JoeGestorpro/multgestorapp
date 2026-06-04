@@ -150,4 +150,10 @@ router.get('/crm/summary', barberController.getCrmSummary);
 router.get('/agenda/crm', barberController.getAgendaCrm);
 router.get('/services/analytics', barberController.getServicesAnalytics);
 
+// Anamnese — exclusão LGPD (M3)
+router.delete('/customers/:id/anamnesis', requirePlanFeature('advanced_reports'), barberController.requestDelete);
+
+const integrationRoutes = require('./integration.routes');
+router.use('/integrations', integrationRoutes);
+
 module.exports = router;

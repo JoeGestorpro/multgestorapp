@@ -160,6 +160,14 @@ async function insertAppointment(apptData) {
   return result.rows[0]
 }
 
+async function activatePlan(companyId, planType = 'profissional') {
+  const db = await getTestPool()
+  await db.query(
+    `UPDATE companies SET plan_type = $2, plan_status = 'active' WHERE id = $1`,
+    [companyId, planType]
+  )
+}
+
 async function activateModule(companyId, moduleSlug = 'barber') {
   const db = await getTestPool()
   await db.query(
@@ -206,6 +214,7 @@ module.exports = {
   insertCollaborator,
   insertService,
   insertAppointment,
+  activatePlan,
   activateModule,
   cleanupTestData,
   shutdownTestPool,

@@ -6,6 +6,29 @@ class IntegrationConfig {
     this.logger = appLogger.child({ module: 'IntegrationConfig' })
   }
 
+  async getRawConfig(companyId, channel) {
+    try {
+      const result = await pool.query(
+        `SELECT * FROM integration_configs
+         WHERE company_id = $1 AND channel = $2`,
+        [companyId, channel]
+      )
+
+      if (result.rows.length === 0) {
+        return null
+      }
+
+      return result.rows[0]
+    } catch (error) {
+      this.logger.error({
+        companyId,
+        channel,
+        error: error.message
+      }, 'Failed to get raw integration config')
+      return null
+    }
+  }
+
   async getConfig(companyId, channel) {
     try {
       const result = await pool.query(
