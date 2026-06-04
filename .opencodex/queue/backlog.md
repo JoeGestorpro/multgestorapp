@@ -28,9 +28,13 @@
 | B4 Redis Rate Limiting | `fase1-b4-redis-rate-limit` | ✅ APPROVE (`e532285`) | `fase1-b3-observability` ✅ |
 | B2 Outbox Idempotency/Handler | `fase1-b2-outbox-handler-idempotency` | ✅ APPROVE (`e137217`) | `fase1-b4-redis-rate-limit` ✅ |
 | B1 RLS (FUNDAÇÃO) | `fase1-b1-rls-transacao-request` | ✅ APPROVE (`0a85929`) | `fase1-b2-outbox-handler-idempotency` ✅ |
-| **Reconciliação funcional → main** | `gov-reconcile-functional-to-main` | ▶️ em `next-task.md` (pending) | — (SAFE_TO_RECONCILE; R1 resolvido) |
-| B1b-gate `pool.connect` tenant ctx | `fase1-b1b-gate-poolconnect-tenant-context` | ⛔ blocked | **`gov-reconcile-functional-to-main`** (precisa do código B1 em main/branch) |
-| B1b RLS FORCE em produção | `fase1-b1b-rls-prod-activation` | ⛔ blocked (gated) | `fase1-b1b-gate-poolconnect-tenant-context` |
+| B1b-gate `pool.connect` tenant ctx | `fase1-b1b-gate-poolconnect-tenant-context` | ✅ APPROVE (`c2f54ec` + fix B4 `3b923a8`) | `fase1-b1-rls...` ✅ |
+| **Reconciliação funcional → main** | `gov-reconcile-functional-to-main` | ▶️ em `next-task.md` (pending) — **destravada (619 testes verde)**; falta trazer lembrete `545282d` + FF `main` (confirmação humana) | — |
+| B1b RLS FORCE em produção | `fase1-b1b-rls-prod-activation` | ⛔ blocked (gated) | `fase1-b1b-gate-poolconnect-tenant-context` ✅ + staging |
+
+> 🔧 **Correção B4 (2026-06-04, `3b923a8`):** ao consolidar o funcional, a suíte expôs que o B4 estava
+> quebrado — `cache-manager.js` sem `incr`/`_fbClear`/`_fbIncr` (commitou consumidor, não produtor; métodos
+> no stash `fa6a57a`). Recuperado do stash → suíte **619/619 verde**. Gate auditado APPROVE em seguida.
 
 > 🔁 **Por que a reconciliação entrou na frente:** o trabalho funcional (B1/B2/B3/B4/lembrete) vive só em
 > feature branches; o tip `fase2/wa-reminder` o contém todo. O gate `pool.connect` depende do **código do B1**,

@@ -3,34 +3,37 @@
 ---
 status: audited
 result: success
-task_id: fase2-wa-reminder
-title: Fase 2 / Receita — Lembrete de agendamento via WhatsApp (scheduler + appointment.reminder)
+task_id: fase1-b1b-gate-poolconnect-tenant-context
+title: Fase 1 / B1b-gate — wrap transparente pool.connect() (+ correção B4 cache-manager)
 completed_at: 2026-06-04
-branch: fase2/wa-reminder
+branch: fase1/b1b-gate-poolconnect
 commits:
-  - 545282d feat(fase2): appointment reminder via WhatsApp (scheduler + appointment.reminder event)
-created_by: Claude Code
-executed_by: OpenCode Executor
+  - 36e1872 merge(b1): B1 ALS binding + B2/B3/B4/frontend/billing
+  - c2f54ec feat(tenant): gate — wrap transparente pool.connect()
+  - 3b923a8 fix(cache): recuperar incr/_fbClear/_fbIncr (corrige regressão do B4)
 mode: EXECUTE_WITH_REVIEW
 audit_verdict: APPROVE
 claude_decision: APPROVE
 claude_decided_at: 2026-06-04
-reconciled_by_claude: true
+reconciled_by_claude: true   # gate implementado fora do fluxo; B4 corrigido e auditado por Claude
 ---
 
 ## Resumo
-Lembrete de agendamento via WhatsApp implementado e commitado (`545282d`). O executor commitou mas
-estagnou antes de `/complete-task`/`/audit-task`; Claude Code verificou o commit diretamente e fechou
-a missão (APPROVE).
+Gate `pool.connect` implementado (wrap transparente que injeta `SET LOCAL app.current_company_id` após o
+`BEGIN`, usando o `companyId` do ALS; workers intocados; inerte sem FORCE). Ao consolidar o funcional na
+branch, a suíte expôs uma **regressão do B4** (`cache-manager` sem `incr`/`_fbClear`/`_fbIncr`), corrigida
+recuperando os métodos do stash `fa6a57a`.
 
-## Verificação independente do Claude Code
-- **Idempotência (crítico):** ✅ mark-before-emit — `UPDATE barber_appointments SET reminder_sent_at = NOW()
-  WHERE id=$1 AND reminder_sent_at IS NULL`; `rowCount===0` → pula. Sem double-send.
-- **Escopo:** ✅ 8/8 arquivos na allowlist; sem scope drift; `server.js` só o bloco do setInterval.
-- **Quarentena Fase C:** ✅ intacta.
-- **Testes (re-execução Claude):** ✅ 6/6 reminder; 676 unit (44 suites), 0 falhas.
+## Verificação (Claude Code)
+- Gate: design correto + `tenant-connect-wrap.test.js` **11/11**; `requireCompany.js:75` passa `companyId`.
+- B4: corrigido (`3b923a8`) → 13/13.
+- Suíte completa: **40 suites / 619 testes / 0 falhas**. `node --check` OK.
+- Quarentena Fase C intacta; RLS sem FORCE.
 
-## Pendências / follow-ups
-- Durabilidade: envios via `eventBus` in-process (sem retry) → `fase2-wa-outbox-durability`.
-- Multi-janela (24h+2h) + config por tenant → `fase2-wa-reminder-windows`.
-- Produção: depende de ops (tenant configurar token + template `appointment_reminder` aprovado na Meta).
+## Estado da branch
+`fase1/b1b-gate-poolconnect` contém: governança + B1+B2+B3+B4(corrigido)+billing+frontend + gate.
+**Falta apenas o lembrete** (`545282d`) para igualar `fase2/wa-reminder`. `main` ainda em `c66a2d7` (só governança).
+
+## Próximo (com confirmação humana)
+Reconciliação/FF para `main` liberada por testes (619 verde) — ver `next-task.md` (`gov-reconcile-functional-to-main`).
+Trazer o lembrete + FF de `main` exigem confirmação humana.

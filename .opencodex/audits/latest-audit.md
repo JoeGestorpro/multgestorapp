@@ -1,41 +1,49 @@
-# Audit Report — Fase 2 / Lembrete WhatsApp (reconciliado por Claude Code)
+# Audit Report — Gate pool.connect + B4 consolidado (reconciliado por Claude Code)
 
 ---
 status: decided
-task_id: fase2-wa-reminder
-title: Fase 2 / Receita — Lembrete de agendamento via WhatsApp (scheduler + appointment.reminder)
-audited_by: Claude Code (Opus 4.8) — verificação direta (executor estagnou antes de /audit-task)
+task_id: fase1-b1b-gate-poolconnect-tenant-context
+title: Fase 1 / B1b-gate — wrap transparente pool.connect() + correção B4 (cache-manager)
+audited_by: Claude Code (Opus 4.8) — verificação direta (gate implementado fora do fluxo formal)
 audited_at: 2026-06-04
 verdict: APPROVE
 claude_decision: APPROVE
-risk_level: Médio
-sensitive_area: false
-branch: fase2/wa-reminder
-commit: 545282d
+risk_level: Médio/Alto (camada de transação)
+branch: fase1/b1b-gate-poolconnect
+commits:
+  - 36e1872 merge(b1): traz B1 ALS binding (+B2/B3/B4/frontend/billing) para a branch
+  - c2f54ec feat(tenant): gate — wrap transparente de pool.connect()
+  - 3b923a8 fix(cache): recuperar incr/_fbClear/_fbIncr (corrige regressão do B4)
 ---
 
-## Critérios de aceite (verificados por Claude)
-| # | Critério | Atendido? | Evidência |
-|---|---|---|---|
-| 1 | Seleção: só `confirmed` + telefone + janela `LEAD_HOURS` + `reminder_sent_at IS NULL` | ✅ | `appointment-reminder-job.js:15-23` |
-| 2 | Idempotência: 2ª execução não reenvia | ✅ | `:29-36` UPDATE guard `WHERE reminder_sent_at IS NULL` |
-| 3 | `appointment.reminder` em contracts + consumer `handleReminder` | ✅ | contracts.js + consumer |
-| 4 | Tenant sem WhatsApp → mock (sem erro) | ✅ | resolver existente |
-| 5 | Migration aditiva; `barber_appointments` intacta | ✅ | `ADD COLUMN IF NOT EXISTS` |
-| 6 | `server.js`: só o setInterval do job | ✅ | diff mínimo |
-| 7 | Nenhum arquivo fora da allowlist | ✅ | 8/8 allowlist |
-| 8 | `npm test` verde | ✅ | 6/6 reminder; 676 unit |
+## 1. Contexto
+O gate `pool.connect` foi implementado **fora do fluxo formal** (current-task idle, completed/audit
+desatualizados). Ao consolidar o funcional na branch, a suíte expôs uma **regressão do B4**. Claude Code
+auditou diretamente, corrigiu o B4 e fechou.
 
-## Veredito
-**APPROVE** — implementação correta, idempotente, sem scope drift, testes verdes. Reconciliada por Claude
-Code por estagnação do executor no fluxo.
+## 2. Gate pool.connect (`c2f54ec`) — APPROVE
+- `config/database.js`: wrap de `pool.connect()`; quando há `companyId` no ALS, intercepta o `BEGIN`
+  (`BEGIN_RE`) e emite `SET LOCAL app.current_company_id` **uma vez** (`gucSet`). Sem ALS → client cru
+  (workers/jobs intocados). Inerte enquanto RLS não estiver em FORCE.
+- `requireCompany.js:75`: passa `tenant.companyId` ao `runWithTenantClient` (store `{ client, companyId }`).
+- Testes próprios: `tenant-connect-wrap.test.js` **11/11**.
+- Notas (baixo risco): wrap torna `client.query` sempre promise (callback-style quebraria, mas o código usa
+  async/await — consistente com o wrap de `pool.query` do B1); SET LOCAL só na 1ª transação do client.
 
----
+## 3. Regressão do B4 — encontrada e CORRIGIDA (`3b923a8`)
+- **Defeito:** `cache-manager.js` não tinha `incr`/`_fbClear`/`_fbIncr`. O commit do B4 (`e532285`) versionou
+  o **consumidor** (`rate-limit.middleware.js:28` usa `cacheManager.incr`) mas **não o produtor** — os métodos
+  viviam no blob não-commitado (stash `fa6a57a`). Efeito: rate-limit **fail-open silencioso** em runtime + 13 testes falhando.
+- **Correção:** recuperados do stash **apenas** os métodos faltantes (+ `MAX_FALLBACK_ENTRIES`/`_ensureFallbackSpace`).
+- **Resultado:** B4 13/13; suíte completa **619/619, 0 falhas**.
 
-> ## ⚠️ NOTA DE GOVERNANÇA (incidente 2026-06-04)
-> Em 2026-06-04 (~17:50) um `git clean` (working tree limpo durante checkout main→pull→branch novo)
-> **apagou todo o `.opencodex/` untracked** (queue, backlog, audits, rules) e `.opencode/command/`.
-> Causa-raiz da divergência "OpenCode não vê a missão". **Correção aplicada:** `.opencodex/` passou a ser
-> **rastreada no git** (commit de governança) para sobreviver a `git clean`/branch switch.
-> **Perdidos sem recuperação** (nunca commitados, nunca lidos por Claude nesta sessão):
-> `.opencodex/rules/auditor-flow.md`, `.opencodex/agents/opencode-auditor.md`, `.opencodex/audits/audit-template.md`.
+## 4. Veredito
+**APPROVE** — gate correto + B4 restaurado. Suíte verde (619/619), quarentena Fase C intacta, RLS sem FORCE.
+
+## 5. Lição (para lessons-learned)
+Commit deve versionar **produtor + consumidor juntos**. O B4 "passou" antes sobre dependência não-commitada
+(working-tree). Mesma família do incidente do blob/git clean. Reforça a disciplina de **staging seletivo COMPLETO**.
+
+## 6. Próximo passo
+Reconciliação para `main` **liberada do ponto de vista de testes** (619 verde). Falta apenas o **lembrete**
+(`545282d`) na branch + o **FF de `main`** — ambos com confirmação humana (ver `next-task.md`).
