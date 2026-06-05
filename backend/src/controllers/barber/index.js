@@ -15,5 +15,6 @@ module.exports = {
   ...require('./schedule'),
   ...require('./sales'),
   ...require('./customers'),
-  ...require('./crm')
+  ...require('./crm'),
+  ...require('./anamnesis')
 };

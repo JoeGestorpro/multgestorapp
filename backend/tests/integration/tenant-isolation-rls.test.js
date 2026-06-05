@@ -207,7 +207,7 @@ describeDb('RLS isolation — integration (requires TEST_DATABASE_URL)', () => {
     companyBId = crypto.randomUUID();
 
     await testPool.query(
-      `INSERT INTO companies (id, name, slug) VALUES ($1, 'RLS Test A', 'rls-a'), ($2, 'RLS Test B', 'rls-b')
+      `INSERT INTO companies (id, name, public_booking_slug) VALUES ($1, 'RLS Test A', 'rls-a'), ($2, 'RLS Test B', 'rls-b')
        ON CONFLICT (id) DO NOTHING`,
       [companyAId, companyBId]
     );
