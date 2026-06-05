@@ -213,7 +213,7 @@ describeDb('RLS isolation — integration (requires TEST_DATABASE_URL)', () => {
     );
 
     await testPool.query(
-      `INSERT INTO barber_services (id, company_id, name, price, duration_minutes)
+      `INSERT INTO barber_services (id, company_id, name, price, estimated_time_minutes)
        VALUES (gen_random_uuid(), $1, 'Svc A', 50, 30),
               (gen_random_uuid(), $2, 'Svc B', 60, 45)
        ON CONFLICT DO NOTHING`,
@@ -293,7 +293,7 @@ describeDb('RLS isolation — integration (requires TEST_DATABASE_URL)', () => {
       try {
         await client.query('BEGIN');
         await client.query(
-          `INSERT INTO barber_services (id, company_id, name, price, duration_minutes)
+          `INSERT INTO barber_services (id, company_id, name, price, estimated_time_minutes)
            VALUES (gen_random_uuid(), $1, 'Wrap Test Svc', 40, 25)`,
           [companyAId]
         );
