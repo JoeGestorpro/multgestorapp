@@ -44,6 +44,19 @@ auditou diretamente, corrigiu o B4 e fechou.
 Commit deve versionar **produtor + consumidor juntos**. O B4 "passou" antes sobre dependência não-commitada
 (working-tree). Mesma família do incidente do blob/git clean. Reforça a disciplina de **staging seletivo COMPLETO**.
 
-## 6. Próximo passo
-Reconciliação para `main` **liberada do ponto de vista de testes** (619 verde). Falta apenas o **lembrete**
+## 6. Pós-auditoria — `9aaf3e8` fix(tenant): remove invalid tenantContext reassignment
+- **Auditado por:** Claude Code (Big Pickle) — 2026-06-05
+- **Veredito:** ✅ APPROVE
+- **Risco:** Muito Baixo (1 linha removida, 635 testes verdes, 0 falhas, sem alteração fora do escopo)
+- **Causa:** `requireCompany.js` tentava `req.tenantContext = tenant`; `req.tenantContext` era getter
+  read-only sem setter (definido por `tenantContext` middleware via `Object.defineProperty`). TypeError
+  resultava em 500 em todas as rotas barber. A linha era redundante — o getter de `tenantContext` já
+  extrai o mesmo valor de `req.user` dinamicamente.
+- **Impacto arquitetural:** Reforça que `req.tenantContext` é **somente leitura** no Shared Kernel.
+  Consumidores devem apenas ler o valor; a origem deve ser `req.user`.
+- **Proteção futura sugerida:** Teste unitário `tenant-context-readonly.test.js` validando que
+  `req.tenantContext = {}` lança TypeError.
+
+## 7. Próximo passo
+Reconciliação para `main` **liberada do ponto de vista de testes** (635 verde). Falta apenas o **lembrete**
 (`545282d`) na branch + o **FF de `main`** — ambos com confirmação humana (ver `next-task.md`).

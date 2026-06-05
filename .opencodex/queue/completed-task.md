@@ -11,11 +11,19 @@ commits:
   - 36e1872 merge(b1): B1 ALS binding + B2/B3/B4/frontend/billing
   - c2f54ec feat(tenant): gate — wrap transparente pool.connect()
   - 3b923a8 fix(cache): recuperar incr/_fbClear/_fbIncr (corrige regressão do B4)
+  - 9aaf3e8 fix(tenant): remove invalid tenantContext reassignment
 mode: EXECUTE_WITH_REVIEW
 audit_verdict: APPROVE
 claude_decision: APPROVE
 claude_decided_at: 2026-06-04
 reconciled_by_claude: true   # gate implementado fora do fluxo; B4 corrigido e auditado por Claude
+post_audit_fix_9aaf3e8: >-
+  Descoberto durante bateria de testes de integração (tenant-isolation).
+  Causa: requireCompany.js tentava req.tenantContext = tenant, mas tenantContext
+  já era um getter read-only (Object.defineProperty sem setter). TypeError era
+  engolido → 500 em todas as rotas barber. Correção: remoção da linha redundante
+  (getter já extrai o mesmo valor de req.user). Auditado e aprovado 2026-06-05.
+  635 testes verdes, 0 falhas.
 ---
 
 ## Resumo
