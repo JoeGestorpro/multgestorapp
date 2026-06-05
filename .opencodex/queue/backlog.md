@@ -57,7 +57,7 @@
 | B2 Outbox Idempotency/Handler | `fase1-b2-outbox-handler-idempotency` | ✅ APPROVE (`e137217`) | `fase1-b4-redis-rate-limit` ✅ |
 | B1 RLS (FUNDAÇÃO) | `fase1-b1-rls-transacao-request` | ✅ APPROVE (`0a85929`) | `fase1-b2-outbox-handler-idempotency` ✅ |
 | B1b-gate `pool.connect` tenant ctx | `fase1-b1b-gate-poolconnect-tenant-context` | ✅ APPROVE (`c2f54ec` + fix B4 `3b923a8`) | `fase1-b1-rls...` ✅ |
-| **Reconciliação funcional → main** | `gov-reconcile-functional-to-main` | ▶️ em `next-task.md` (pending) — **destravada (619 testes verde)**; falta trazer lembrete `545282d` + FF `main` (confirmação humana) | — |
+| **Reconciliação funcional → main** | `gov-reconcile-functional-to-main` | ✅ **CONCLUÍDA** (merge `5b20d19` + FF `main`, 2026-06-05; já em `origin/main`; 635 testes verde) | — |
 | ~~B1b RLS FORCE em produção~~ ❌ **SUPERSEDED** (premissa inválida — FORCE não afeta role BYPASSRLS) | ~~`fase1-b1b-rls-prod-activation`~~ | ❌ cancelada | — |
 | **Runtime role least-privilege (RLS enforcement real)** | `runtime-role-least-privilege-rls-enforcement` | ⛔ blocked/gated — **aprovação humana + revisão de segurança** | `fase1-b1b-gate-poolconnect-tenant-context` ✅ + staging |
 

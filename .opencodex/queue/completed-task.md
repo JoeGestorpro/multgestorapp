@@ -16,6 +16,8 @@ mode: EXECUTE_WITH_REVIEW
 audit_verdict: APPROVE
 claude_decision: APPROVE
 claude_decided_at: 2026-06-04
+main_ff_at: 2026-06-05
+main_ff_commit: 5b20d19
 reconciled_by_claude: true   # gate implementado fora do fluxo; B4 corrigido e auditado por Claude
 post_audit_fix_9aaf3e8: >-
   Descoberto durante bateria de testes de integração (tenant-isolation).
@@ -38,10 +40,10 @@ recuperando os métodos do stash `fa6a57a`.
 - Suíte completa: **40 suites / 619 testes / 0 falhas**. `node --check` OK.
 - Quarentena Fase C intacta; RLS sem FORCE.
 
-## Estado da branch
-`fase1/b1b-gate-poolconnect` contém: governança + B1+B2+B3+B4(corrigido)+billing+frontend + gate.
-**Falta apenas o lembrete** (`545282d`) para igualar `fase2/wa-reminder`. `main` ainda em `c66a2d7` (só governança).
+## Estado final
+Merge `fase2/wa-reminder` → `fase1/b1b-gate-poolconnect` realizado em `5b20d19` (sem conflitos).
+`main` avançado por FF para `5b20d19` (2026-06-05).
+Branch atual contém: governança + B1+B2+B3+B4(corrigido)+billing+frontend + gate + lembrete.
 
-## Próximo (com confirmação humana)
-Reconciliação/FF para `main` liberada por testes (619 verde) — ver `next-task.md` (`gov-reconcile-functional-to-main`).
-Trazer o lembrete + FF de `main` exigem confirmação humana.
+## Suíte final
+635 testes verdes, 0 falhas, frontend build OK. Quarentenas Fase C intactas.
