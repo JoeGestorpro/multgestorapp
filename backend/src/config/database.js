@@ -70,7 +70,7 @@ async function withTenantContext(client, companyId, fn) {
   if (!companyId) {
     throw new Error('companyId obrigatorio para withTenantContext');
   }
-  await client.query('SET LOCAL app.current_company_id = $1', [companyId]);
+  await client.query('SELECT set_config($1, $2, true)', ['app.current_company_id', String(companyId)]);
   return fn(client);
 }
 
@@ -117,7 +117,7 @@ pool.connect = function tenantAwareConnect(cb) {
 
       if (!gucSet && BEGIN_RE.test(sql)) {
         gucSet = true;
-        await originalQuery('SET LOCAL app.current_company_id = $1', [companyId]);
+        await originalQuery('SELECT set_config($1, $2, true)', ['app.current_company_id', String(companyId)]);
       }
 
       return result;

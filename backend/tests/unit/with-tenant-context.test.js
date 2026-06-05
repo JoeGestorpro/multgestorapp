@@ -6,7 +6,7 @@ const mockFn = jest.fn().mockResolvedValue('resultado');
 jest.mock('../../src/config/database', () => ({
   withTenantContext: async (client, companyId, fn) => {
     if (!companyId) throw new Error('companyId obrigatorio para withTenantContext');
-    await client.query('SET LOCAL app.current_company_id = $1', [companyId]);
+    await client.query('SELECT set_config($1, $2, true)', ['app.current_company_id', String(companyId)]);
     return fn(client);
   },
   query: jest.fn()
@@ -24,8 +24,8 @@ describe('withTenantContext', () => {
     const result = await withTenantContext(client, 'comp-123', mockFn);
 
     expect(mockQuery).toHaveBeenCalledWith(
-      'SET LOCAL app.current_company_id = $1',
-      ['comp-123']
+      'SELECT set_config($1, $2, true)',
+      ['app.current_company_id', 'comp-123']
     );
     expect(mockFn).toHaveBeenCalledWith(client);
     expect(result).toBe('resultado');

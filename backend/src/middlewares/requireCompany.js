@@ -46,7 +46,7 @@ module.exports = function requireCompany(req, res, next) {
       await client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`);
       await client.query(`SET idle_in_transaction_session_timeout = ${IDLE_TXN_TIMEOUT_MS}`);
       await client.query('BEGIN');
-      await client.query('SET LOCAL app.current_company_id = $1', [tenant.companyId]);
+      await client.query('SELECT set_config($1, $2, true)', ['app.current_company_id', String(tenant.companyId)]);
     } catch (err) {
       appLogger.error({ err: err.message }, '[requireCompany] falha ao abrir contexto tenant');
       if (client) {

@@ -99,12 +99,12 @@ describe('pool.connect() tenant-aware wrap (unit)', () => {
 
     const calls = mockClientQuery.mock.calls.map(c => c[0]);
     expect(calls).toContain('BEGIN');
-    expect(calls.some(q => typeof q === 'string' && q.includes('SET LOCAL app.current_company_id'))).toBe(true);
+    expect(calls.some(q => typeof q === 'string' && q.includes('set_config'))).toBe(true);
 
     const setLocalCall = mockClientQuery.mock.calls.find(
-      c => typeof c[0] === 'string' && c[0].includes('SET LOCAL')
+      c => typeof c[0] === 'string' && c[0].includes('set_config')
     );
-    expect(setLocalCall[1]).toEqual(['comp-xyz']);
+    expect(setLocalCall[1]).toEqual(['app.current_company_id', 'comp-xyz']);
   });
 
   it('SET LOCAL é idempotente: não emite 2x na mesma transação', async () => {
@@ -118,7 +118,7 @@ describe('pool.connect() tenant-aware wrap (unit)', () => {
     await wrappedClient.query('BEGIN');
 
     const setLocalCalls = mockClientQuery.mock.calls.filter(
-      c => typeof c[0] === 'string' && c[0].includes('SET LOCAL')
+      c => typeof c[0] === 'string' && c[0].includes('set_config')
     );
     expect(setLocalCalls).toHaveLength(1);
   });
@@ -132,10 +132,10 @@ describe('pool.connect() tenant-aware wrap (unit)', () => {
     await wrappedClient.query('START TRANSACTION');
 
     const setLocalCalls = mockClientQuery.mock.calls.filter(
-      c => typeof c[0] === 'string' && c[0].includes('SET LOCAL')
+      c => typeof c[0] === 'string' && c[0].includes('set_config')
     );
     expect(setLocalCalls).toHaveLength(1);
-    expect(setLocalCalls[0][1]).toEqual(['comp-start']);
+    expect(setLocalCalls[0][1]).toEqual(['app.current_company_id', 'comp-start']);
   });
 
   it('wrap é case-insensitive: begin, Begin, BEGIN', async () => {
@@ -147,7 +147,7 @@ describe('pool.connect() tenant-aware wrap (unit)', () => {
     await wrappedClient.query('begin');
 
     const setLocalCalls = mockClientQuery.mock.calls.filter(
-      c => typeof c[0] === 'string' && c[0].includes('SET LOCAL')
+      c => typeof c[0] === 'string' && c[0].includes('set_config')
     );
     expect(setLocalCalls).toHaveLength(1);
   });
@@ -162,7 +162,7 @@ describe('pool.connect() tenant-aware wrap (unit)', () => {
     await wrappedClient.query('SELECT 2');
 
     const setLocalCalls = mockClientQuery.mock.calls.filter(
-      c => typeof c[0] === 'string' && c[0].includes('SET LOCAL')
+      c => typeof c[0] === 'string' && c[0].includes('set_config')
     );
     expect(setLocalCalls).toHaveLength(0);
   });
@@ -176,7 +176,7 @@ describe('pool.connect() tenant-aware wrap (unit)', () => {
     await client.query('BEGIN');
 
     const setLocalCalls = mockClientQuery.mock.calls.filter(
-      c => typeof c[0] === 'string' && c[0].includes('SET LOCAL')
+      c => typeof c[0] === 'string' && c[0].includes('set_config')
     );
     expect(setLocalCalls).toHaveLength(0);
   });
@@ -191,12 +191,12 @@ describe('pool.connect() tenant-aware wrap (unit)', () => {
 
     const calls = mockClientQuery.mock.calls.map(c => c[0]);
     expect(calls).toContain('BEGIN');
-    expect(calls.some(q => typeof q === 'string' && q.includes('SET LOCAL app.current_company_id'))).toBe(true);
+    expect(calls.some(q => typeof q === 'string' && q.includes('set_config'))).toBe(true);
 
     const setLocalCall = mockClientQuery.mock.calls.find(
-      c => typeof c[0] === 'string' && c[0].includes('SET LOCAL')
+      c => typeof c[0] === 'string' && c[0].includes('set_config')
     );
-    expect(setLocalCall[1]).toEqual(['comp-uow']);
+    expect(setLocalCall[1]).toEqual(['app.current_company_id', 'comp-uow']);
 
     await uow.rollback();
   });

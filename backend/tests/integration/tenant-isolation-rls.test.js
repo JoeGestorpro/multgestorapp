@@ -134,7 +134,7 @@ describe('requireCompany — binding real (unit)', () => {
     expect(pool.connect).toHaveBeenCalled();
     const queries = mockClient.query.mock.calls.map(c => c[0]);
     expect(queries).toContain('BEGIN');
-    expect(queries.some(q => q.includes('SET LOCAL app.current_company_id'))).toBe(true);
+    expect(queries.some(q => q.includes('set_config'))).toBe(true);
 
     res._emit('finish');
   });
@@ -240,7 +240,7 @@ describeDb('RLS isolation — integration (requires TEST_DATABASE_URL)', () => {
     const client = await testPool.connect();
     try {
       await client.query('BEGIN');
-      await client.query('SET LOCAL app.current_company_id = $1', [companyAId]);
+      await client.query('SELECT set_config($1, $2, true)', ['app.current_company_id', String(companyAId)]);
 
       const result = await client.query('SELECT * FROM barber_services');
       const companyIds = result.rows.map(r => r.company_id);
@@ -258,7 +258,7 @@ describeDb('RLS isolation — integration (requires TEST_DATABASE_URL)', () => {
     const client = await testPool.connect();
     try {
       await client.query('BEGIN');
-      await client.query('SET LOCAL app.current_company_id = $1', [companyBId]);
+      await client.query('SELECT set_config($1, $2, true)', ['app.current_company_id', String(companyBId)]);
 
       const result = await client.query('SELECT * FROM barber_services');
       const companyIds = result.rows.map(r => r.company_id);
@@ -309,7 +309,7 @@ describeDb('RLS isolation — integration (requires TEST_DATABASE_URL)', () => {
     const client = await testPool.connect();
     try {
       await client.query('BEGIN');
-      await client.query('SET LOCAL app.current_company_id = $1', [companyBId]);
+      await client.query('SELECT set_config($1, $2, true)', ['app.current_company_id', String(companyBId)]);
       const result = await client.query(
         "SELECT * FROM barber_services WHERE name = 'Wrap Test Svc'"
       );
