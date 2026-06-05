@@ -207,6 +207,15 @@ MultGestor Core
 | **Impacto** | Repository adiciona `company_id` automaticamente. Futuramente, RLS no PostgreSQL |
 | **Risco evitado** | Query sem filtro de tenant = data leak |
 
+### 3.13 Role de Runtime Sem BYPASSRLS (RLS efetivamente aplicada)
+
+| Campo | Valor |
+|-------|-------|
+| **Decisão** | O isolamento multi-tenant deve ser garantido por RLS **efetivamente aplicada** no banco, como defesa-em-profundidade sobre o filtro `company_id`. O role usado pela aplicação em runtime **NÃO pode possuir `BYPASSRLS`** (nem ser owner das tabelas tenant com FORCE ausente). Roles privilegiados (`postgres`, `service_role`, qualquer um com `BYPASSRLS`) só podem ser usados em runtime mediante **aprovação humana explícita + revisão de segurança** registradas na governança; o uso por design (ex.: migrations, master-admin, jobs cross-tenant) deve ser documentado e auditado |
+| **Motivo** | `BYPASSRLS` ignora **todas** as policies incondicionalmente — inclusive `FORCE ROW LEVEL SECURITY`. Um runtime com `BYPASSRLS` torna o RLS inerte: as policies existem mas nunca aplicam, e o isolamento passa a depender 100% do filtro aplicacional. RLS só agrega defesa real quando o role runtime é não-bypass (e não-owner; aí `ENABLE` basta) |
+| **Impacto** | Runtime conecta com role least-privilege não-bypass (`authenticated` ou `app_runtime` dedicado) com GRANTs adequados; `postgres` fica restrito a migrations/admin. Jobs cross-tenant precisam setar o GUC por empresa ou usar role privilegiado controlado e auditado. Troca de role em prod/CI é mudança de alto blast radius → gated |
+| **Risco evitado** | Falsa sensação de isolamento por RLS "ativo" que na prática é bypassado; data leak caso o filtro aplicacional falhe em alguma query |
+
 ---
 
 ## 4. Regras Proibidas
@@ -248,6 +257,10 @@ Toda automação deve ser gatilhada por um evento do Event Bus. Automações bas
 ### 🔴 Regra P9
 **Nunca expor tokens, secrets ou chaves de API no frontend.**  
 Frontend não é confiável. Toda chave de integração (WhatsApp, pagamento, etc.) vive criptografada no banco e é acessada exclusivamente pelo backend.
+
+### 🔴 Regra P10
+**Nunca usar um role com `BYPASSRLS` como role de runtime do app sem aprovação humana + revisão de segurança.**  
+O role que a aplicação usa em produção deve ser least-privilege e **não** possuir `BYPASSRLS`, para que a RLS seja efetivamente aplicada (defesa-em-profundidade sobre o filtro `company_id`). Roles privilegiados (`postgres`, `service_role`) ficam restritos a migrations/admin e a usos cross-tenant explicitamente documentados e auditados. Ver decisão §3.13.
 
 ---
 
@@ -522,6 +535,7 @@ A cada iteração, o sistema de proteção fica mais inteligente:
 | 2026-06-04 | **Notificações WhatsApp permanecem in-process (Event Bus) até a capability de durabilidade (Outbox).** Idempotência garantida na origem (mark-before-emit), não por retry durável. | Lembrete de agendamento (`appointment.reminder`, commit `545282d`). Durabilidade via Outbox é follow-up (`fase2-wa-outbox-durability`), aproveitando a idempotência por handler já entregue no B2. |
 | 2026-06-05 | **Release Safety Gate v1: Podman desacoplado do fluxo padrão, não removido.** O script `pre-release.js` (v1) não chama mais containers descartáveis no fluxo rápido do dia-a-dia. A capacidade de `banco descartável + migrations + integração` foi movida para o backlog como **v2** (`npm run pre-release:full`), para uso em mudanças de banco, migrations, RLS, ou integrações críticas. | Podman não está disponível no ambiente Windows local. Em vez de remover a ideia, desacoplamos: v1 = rápido (uso diário), v2 = completo (sob demanda). A v2 não é prioridade agora, mas está registrada no backlog e neste decision log para não ser perdida. |
 | 2026-06-05 | **Release Safety Gate v2 (adiado, não cancelado).** Banco descartável + migrations + testes de integração ficam para uma segunda versão, ativada por `npm run pre-release:full`. Só usada em mudanças de banco, RLS, Event Bus persistente, ou integrações críticas. | Decisão arquitetural: não remover a capacidade, apenas desacoplar do fluxo padrão. Foi o banco descartável que revelou a divergência entre local e CI; perder essa capacidade seria repetir o mesmo problema. Registrado no backlog como `#0c-v2`. |
+| 2026-06-05 | **Role de runtime sem `BYPASSRLS` (§3.13 + Regra P10).** O isolamento multi-tenant deve ser garantido por RLS efetivamente aplicada; o role runtime do app não pode ter `BYPASSRLS`. Roles privilegiados em runtime exigem aprovação humana + revisão de segurança. | Auditoria via Supabase MCP (read-only) provou que o runtime conecta como `postgres` (`BYPASSRLS`), tornando a RLS **inerte** (FORCE não resolve — BYPASSRLS está acima de FORCE). Registra-se a **regra arquitetural duradoura**, não o estado de infra atual (temporário). Diagnóstico: `docs/SECURITY-TENANT-ISOLATION.md`. Correção: missão `runtime-role-least-privilege-rls-enforcement` (backlog, `blocked/gated`); plano: `docs/runbooks/runtime-role-least-privilege-plan.md`. |
 
 ---
 

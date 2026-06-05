@@ -1,20 +1,67 @@
-# Security: Tenant Isolation (RLS) — Plano de Go-Live Faseado
+# Security: Tenant Isolation (RLS) — Diagnóstico Corrigido
 
-> Última atualização: 2026-06-04
-> Missão: `fase1-b1b-gate-poolconnect` (B1b-gate — cobertura pool.connect())
-> Missão anterior: `fase1-b1-rls-foundation` (B1 — ALS binding pool.query)
-> Próxima missão: `fase1-b1b-rls-prod-activation` (FORCE em produção)
+> Última atualização: 2026-06-05
+> Status: **DIAGNÓSTICO CORRIGIDO** — substitui o plano de go-live baseado em `FORCE ROW LEVEL SECURITY` (inválido).
+> Fonte da correção: auditoria via Supabase MCP (projeto `mfayajizbkqkcbhqmean`, somente leitura), 2026-06-05.
+> Decisão arquitetural pendente: **requer aprovação humana + revisão de segurança antes de qualquer implementação.**
 
 ---
 
-## 1. Arquitetura
+## 0. TL;DR — O que mudou e por quê
 
-### Binding tenant→conexão via AsyncLocalStorage (ALS)
+O diagnóstico anterior recomendava ativar `FORCE ROW LEVEL SECURITY` por tabela como caminho de go-live do isolamento RLS. **Isso está incorreto e não resolveria nada em produção.**
+
+A auditoria provou que o app de produção conecta no Postgres como o role **`postgres`, que tem `rolbypassrls = true` (BYPASSRLS)**. BYPASSRLS ignora **todas** as policies de forma incondicional — inclusive `FORCE ROW LEVEL SECURITY`. FORCE só altera o comportamento do *owner* de uma tabela; **não tem efeito algum sobre um role com BYPASSRLS**.
+
+Consequências:
+
+1. As policies em [`rls_tenant_tables.sql`](../backend/src/database/rls_tenant_tables.sql) estão **sintaticamente corretas, mas INERTES em produção**. O isolamento real hoje vem **exclusivamente** dos filtros `WHERE company_id` na camada de aplicação (repositories). RLS é defesa-em-profundidade que **não está ativa**.
+2. Adicionar `FORCE` **não** resolve — BYPASSRLS está hierarquicamente acima de FORCE.
+3. Os testes de isolamento em [`tenant-isolation-rls.test.js`](../backend/tests/integration/tenant-isolation-rls.test.js) falham no CI porque a conexão de teste também é superuser/bypass — o que reflete **fielmente** o comportamento de produção, não um bug do teste.
+
+**A correção real exige trocar o role de runtime** por um sem BYPASSRLS. É uma mudança de alto blast radius (seção 4) e está **bloqueada até aprovação**.
+
+---
+
+## 1. Evidências da auditoria (Supabase MCP, read-only)
+
+### Roles (`pg_roles`)
+
+| Role | superuser | bypassrls | Uso |
+|---|---|---|---|
+| `postgres` | false | **true** | **Role de runtime do app em produção** (e do CI) |
+| `service_role` | — | **true** | Supabase service role |
+| `authenticated` | — | false | Role JWT autenticado (não-bypass) |
+| `anon` | — | false | Role anônimo (não-bypass) |
+
+### Tabelas tenant (amostra: `barber_services`, `barber_appointments`, `booking_customers`, `clima_appointments`, …)
+
+| Atributo | Valor | Significado |
+|---|---|---|
+| `owner` | `postgres` | Owner é o mesmo role bypass usado em runtime |
+| `relrowsecurity` | true | RLS está **ENABLE** |
+| `relforcerowsecurity` | false | FORCE não está ativo |
+
+### Por que ENABLE + FORCE não bastaria aqui
+
+- `ENABLE ROW LEVEL SECURITY`: aplica policies a roles **não-owner e não-bypass**.
+- `FORCE ROW LEVEL SECURITY`: estende a aplicação de policies também ao **owner** da tabela.
+- **BYPASSRLS** (atributo do role): ignora policies **sempre**, independente de ENABLE/FORCE e independente de ser owner.
+
+Como o runtime é `postgres` (owner **e** bypass), nenhuma combinação de ENABLE/FORCE produz isolamento. O único caminho é o runtime deixar de ter BYPASSRLS.
+
+---
+
+## 2. Arquitetura atual (correta e mantida)
+
+A infra de binding tenant→conexão via AsyncLocalStorage (ALS) está bem construída e **continua válida** — ela é pré-requisito para o RLS funcionar assim que o role runtime for corrigido. O que estava errado era apenas a conclusão de que FORCE ativaria o isolamento.
+
+### Binding tenant→conexão via ALS
 
 ```
 HTTP Request
   → requireCompany middleware
-    → pool.connect() → BEGIN → SET LOCAL app.current_company_id = $1
+    → pool.connect() → BEGIN → SET LOCAL app.current_company_id = $1 (via set_config)
     → runWithTenantClient(client, companyId, next)  ← ALS context { client, companyId }
       → pool.query(...)  ← wrap B1: usa client do ALS
       → pool.connect()   ← wrap B1b: intercepta BEGIN → SET LOCAL automático
@@ -22,118 +69,108 @@ HTTP Request
 ```
 
 - `config/database.js`: `AsyncLocalStorage` (`tenantStore`) + wrap de `pool.query` (B1) + wrap de `pool.connect()` (B1b).
-  - **pool.query**: se `tenantStore.getStore()?.client` existe → usa o client do request. Senão → pool original.
-  - **pool.connect()**: se `tenantStore.getStore()?.companyId` existe → retorna client com wrap que intercepta `BEGIN`/`START TRANSACTION` e emite `SET LOCAL app.current_company_id` automaticamente. Senão → client cru.
-- `requireCompany.js`: abre conexão dedicada, `BEGIN` + `SET LOCAL`, release garantido. Armazena `{ client, companyId }` no ALS.
+- `requireCompany.js`: abre conexão dedicada, `BEGIN` + `set_config('app.current_company_id', …, true)`, release garantido. Armazena `{ client, companyId }` no ALS.
 - **Timeouts de proteção**: `statement_timeout` (30s) + `idle_in_transaction_session_timeout` (60s).
 
-### Cobertura pool.connect() (B1b-gate)
+> Quando o runtime role for não-bypass, esse GUC passa a ser **efetivo** — as policies `company_id = current_setting('app.current_company_id', true)::uuid` começam a filtrar de verdade.
 
-O wrap de `pool.connect()` garante que **todas as transações abertas no caminho HTTP** — inclusive via `UnitOfWork.begin()` e services que abrem conexões próprias — carreguem o GUC `app.current_company_id`, de forma **transparente** (sem alterar os services nem o UoW).
+### RLS Policies (inertes hoje, prontas para amanhã)
 
-**Mecanismo:**
-1. `pool.connect()` verifica se há `companyId` no ALS.
-2. Se sim: retorna um client proxy cuja `query` intercepta `BEGIN`/`START TRANSACTION` (case-insensitive).
-3. Logo após o `BEGIN` ser executado, emite `SET LOCAL app.current_company_id = <companyId>`.
-4. Idempotente: não emite 2x na mesma transação.
-5. Fora de contexto ALS (workers/jobs/Outbox): retorna client cru, sem modificação.
-
-**Auditoria de conexões pool.connect():**
-- 20/21 conexões fazem `BEGIN` após `pool.connect()` → recebem GUC automaticamente.
-- 1 conexão sem `BEGIN`: `jobs/trial-email-job.js` → job background, fora do ALS (by-design, não deveria receber GUC).
-
-### RLS Policies
-
-Definidas em `backend/src/database/rls_tenant_tables.sql`:
+Definidas em [`rls_tenant_tables.sql`](../backend/src/database/rls_tenant_tables.sql):
 ```sql
 CREATE POLICY tenant_isolation ON <table>
   USING (company_id = current_setting('app.current_company_id', true)::uuid);
 ```
 
-- `ENABLE ROW LEVEL SECURITY` — policies aplicam apenas quando `FORCE ROW LEVEL SECURITY` também está ativo (para o owner da conexão).
-- Em staging: ENABLE + FORCE (shadow testing).
-- Em produção (atual): ENABLE sem FORCE — isolamento aplicacional (`company_id` nos repositórios) continua sendo a camada primária.
+Estado atual em produção: `ENABLE` sem FORCE, mas **bypassadas** pelo role `postgres`. Isolamento primário = filtros `company_id` na aplicação.
 
 ---
 
-## 2. Auditoria de Bypass (pool.query fora do contexto ALS)
+## 3. Auditoria de Bypass aplicacional (camada que REALMENTE isola hoje)
 
-Todos os `pool.query` no caminho HTTP que rodam **sem** contexto ALS foram auditados.
-**Nenhum bypass de alto risco encontrado.**
+Como o RLS está inerte, **o isolamento de produção depende 100% dos filtros `company_id`**. Esta auditoria (queries fora do contexto ALS no caminho HTTP) permanece válida e crítica.
 
 | Categoria | Rotas | Risco | Justificativa |
 |---|---|---|---|
-| Auth flows (login, register, password reset, refresh) | `/api/auth/*`, `/api/booking-auth/*` | LOW | Pre-tenant por design; queries por identidade (email, user ID, token) |
-| Public booking | `/api/public/booking/*`, `/api/public/scheduling/*` | LOW | Público por design; queries por slug da empresa |
-| Webhook receivers | `/api/webhooks/*` | LOW | Externo por design; queries por gateway + event_id |
-| Master admin | `/api/master/*` | LOW | Cross-tenant por design; guardado por `requireMasterAdminAuth` |
+| Auth flows (login, register, password reset, refresh) | `/api/auth/*`, `/api/booking-auth/*` | LOW | Pre-tenant por design; queries por identidade |
+| Public booking | `/api/public/booking/*`, `/api/public/scheduling/*` | LOW | Público por design; queries por slug |
+| Webhook receivers | `/api/webhooks/*` | LOW | Externo; queries por gateway + event_id |
+| Master admin | `/api/master/*` | LOW | Cross-tenant por design; `requireMasterAdminAuth` |
 | Health endpoints | `/api/health`, `/api/health/deep` | NONE | Sem dados tenant |
-| OutboxWorker / Jobs | Background | NONE | Esperados fora do ALS (queries de sistema) |
+| OutboxWorker / Jobs | Background | **REVISAR** | Ver seção 4.1 — jobs cross-tenant quebram sob role não-bypass |
 
 ---
 
-## 3. Plano de Go-Live Faseado
+## 4. Correção real (PROPOSTA — bloqueada até aprovação)
 
-### Fase 1: Fundação (B1) ✅
-- [x] ALS no `config/database.js` (wrap transparente de `pool.query`)
-- [x] `requireCompany.js` com binding real (txn + SET LOCAL + release garantido)
-- [x] Teste de isolamento RLS (unit + integration quando há TEST_DATABASE_URL)
-- [x] Auditoria de bypass documentada
+> ⚠️ Alto blast radius. **Não implementar sem aprovação humana e revisão de segurança.** Não fazer deploy.
 
-### Fase 1b: Gate pool.connect() (B1b-gate — esta missão) ✅
-- [x] ALS estendido para `{ client, companyId }`
-- [x] Wrap transparente de `pool.connect()` com interceptação BEGIN→SET LOCAL
-- [x] UoW e services cobertos sem alterá-los (transparente)
-- [x] Auditoria de conexões sem BEGIN documentada (1/21: trial-email-job, by-design)
-- [x] Testes unitários (tenant-connect-wrap.test.js) + integração estendida
-- [ ] **Staging**: aplicar `rls_tenant_tables.sql` com ENABLE + FORCE; validar tráfego normal
-- [ ] **Staging**: load test básico (verificar que pool não esgota)
+**Introduzir um role de runtime least-privilege SEM BYPASSRLS** e fazer o backend conectar com ele.
 
-### Fase 2: Produção — ENABLE (missão `fase1-b1b-rls-prod-activation`)
-- [ ] Aplicar `rls_tenant_tables.sql` em produção com **ENABLE** (sem FORCE)
-- [ ] Monitorar logs por 48h (nenhum impacto esperado — ENABLE sem FORCE não afeta owner)
-- [ ] Validar que métricas (`redis_up`, `db_pool_waiting`) permanecem estáveis
+Opções:
+- Usar um role existente não-bypass (`authenticated`), ou
+- Criar um role dedicado `app_runtime` (não-bypass), com `GRANT`s explícitos (SELECT/INSERT/UPDATE/DELETE) nas tabelas tenant.
 
-### Fase 3: Produção — FORCE por tabela (missões futuras)
-- [ ] Ativar `FORCE ROW LEVEL SECURITY` **uma tabela por vez**, começando pelas menos críticas
-- [ ] Ordem sugerida: `barber_client_notes` → `barber_client_tags` → `barber_client_events` → ... → `barber_appointments` → `barber_services`
-- [ ] Cada tabela: FORCE → monitorar 24h → validar → próxima
-- [ ] Rollback imediato: `ALTER TABLE <tabela> NO FORCE ROW LEVEL SECURITY`
+Mudanças necessárias:
+- Trocar o usuário no `DATABASE_URL`/secret em **produção** e no **CI** para o role não-bypass.
+- Manter `postgres` **apenas** para migrations/admin (DDL não sofre RLS).
 
-### Fase 4: Full FORCE
-- [ ] Todas as tabelas com FORCE ativo
-- [ ] Remover `company_id` redundante dos WHERE clauses nos repositórios (opcional — defesa em profundidade)
-- [ ] Monitoramento contínuo
+### 4.1 Impactos a avaliar antes de implementar
 
----
+| Área | Impacto | Mitigação a definir |
+|---|---|---|
+| **Migrations** | Rodam como `postgres` — DDL não sofre RLS. OK. | Nenhuma; manter `postgres` só para migrations. |
+| **Job cross-tenant** [`appointment-reminder-job.js`](../backend/src/jobs/appointment-reminder-job.js) | `pool.connect()` **fora** do ALS, sem GUC, varre `barber_appointments` sem `WHERE company_id`. Sob role não-bypass + RLS → **0 linhas, quebra silenciosa**. | Setar GUC por empresa (loop por company) **ou** rodar sob role privilegiado controlado e auditado. |
+| **OutboxWorker / demais jobs** | Mesmo padrão (background, fora do ALS). | Auditar cada job; decidir GUC-por-tenant vs. role admin. |
+| **`service_role`** | bypassrls=true. | Usar **somente** onde o bypass é intencional e documentado. |
+| **Master admin (`/api/master/*`)** | Cruza tenants por design. | Definir se usa role admin separado ou GUC especial. |
+| **Pool de conexões** | Troca de role pode interagir com pgBouncer/Supabase pooler. | Validar modo de pool (session vs. transaction) com o novo role. |
 
-## 4. Riscos e Mitigações
+### 4.2 Ordem segura de execução (somente após aprovação)
 
-| Risco | Mitigação |
-|---|---|
-| Esgotamento de pool sob carga | `statement_timeout` (30s) + `idle_in_transaction_session_timeout` (60s) + release garantido em `finish`/`close`/erro |
-| Vazamento de contexto entre requests | Encerramento idempotente e único (flag `released`); teste de release coberto |
-| Queries fora do contexto ALS | Auditoria documentada (seção 2); todas as ocorrências são by-design |
-| FORCE em produção antes da hora | **Nunca** ativar FORCE nesta missão; `fase1-b1b` é gated |
+1. Criar role não-bypass + `GRANT`s (em staging primeiro).
+2. Ajustar jobs cross-tenant (GUC por empresa ou role admin explícito).
+3. Apontar `DATABASE_URL` do **CI** para o role não-bypass.
+4. Atualizar [`tenant-isolation-rls.test.js`](../backend/tests/integration/tenant-isolation-rls.test.js) para conectar com esse role. Com runtime **não-bypass e não-owner**, `ENABLE` já basta (FORCE só seria necessário se o runtime fosse o owner). Validar suíte completa (32/32) no Postgres do CI.
+5. Staging: trocar o role, smoke + load test.
+6. Produção: trocar o secret, monitorar.
 
 ---
 
-## 5. Rollback
+## 5. Hardening de RLS abrangente (backlog — advisors Supabase)
 
-- Rollback = `git revert` do commit B1.
-- Se ENABLE em staging causar problema: `ALTER TABLE <tabela> DISABLE ROW LEVEL SECURITY` (reversível em segundos).
-- Feature flag: reverter `requireCompany.js` para o comportamento anterior (SET LOCAL fire-and-forget) mantém o app funcional sem ALS.
+Fora do escopo imediato, mas registrado. O security advisor do Supabase reporta:
+
+- **`rls_disabled_in_public` (ERROR)**: `subscriptions`, `invoices`, `password_reset_tokens`, `first_access_tokens`, `settings`, `audit_logs`, entre outras — tabelas sem RLS habilitado.
+- **`security_definer_view`**: `public.appointments`.
+- **`sensitive_columns_exposed`**: coluna `token` em `*_tokens`.
+
+Avaliar num esforço dedicado de hardening, junto com a correção do role runtime.
 
 ---
 
-## 6. Decisões de Design
+## 6. Itens a corrigir no backlog/governança
 
-### Transação por request vs client por request com SET de sessão
+- [`.opencodex/queue/backlog.md`](../.opencodex/queue/backlog.md) — a missão `fase1-b1b-rls-prod-activation` ("Ativação de FORCE em produção, rollout por tabela") parte da premissa **inválida**. Deve ser substituída pela missão de **role runtime least-privilege** (seção 4), marcada como bloqueada até aprovação.
 
-**Escolha: transação por request (BEGIN + SET LOCAL + COMMIT/ROLLBACK).**
+---
 
-Trade-offs:
-- **Vantagem**: `SET LOCAL` reseta automaticamente no fim da transação — sem risco de vazamento de GUC para conexões reutilizadas.
-- **Vantagem**: COMMIT atômico — todas as queries do request são parte da mesma transação.
-- **Desvantagem**: cada request consome uma conexão do pool por toda a duração (mitigado por timeouts).
-- **Desvantagem**: queries que fazem COMMIT interno (ex.: UnitOfWork) podem conflitar — o UnitOfWork já usa `pool.connect()` separado, então não conflita.
+## 7. Restrições operacionais (invioláveis)
+
+- **NÃO** apontar testes para o Supabase de produção. `DATABASE_URL` no `.env` é produção; há `guardAgainstProduction`.
+- **NÃO** fazer deploy nem trocar role/secret sem aprovação humana.
+- A troca de role runtime é decisão arquitetural com revisão de segurança obrigatória.
+
+---
+
+## 8. Rollback / segurança da própria correção
+
+- A infra ALS já existente permanece funcional independentemente do role.
+- Se a troca de role em staging causar problema: reverter o `DATABASE_URL` para `postgres` restaura o comportamento atual em segundos (RLS volta a ficar inerte, isolamento aplicacional intacto).
+- Nenhuma alteração de schema/DDL é exigida pela correção do role — apenas `GRANT`s e troca de credencial.
+
+---
+
+## Apêndice — Diagnóstico anterior (SUPERSEDED)
+
+A versão anterior deste documento descrevia um "Plano de Go-Live Faseado" (Fases 2–4) ativando `ENABLE` e depois `FORCE ROW LEVEL SECURITY` tabela a tabela em produção. **Esse plano é inválido** pelos motivos da seção 0/1 (runtime com BYPASSRLS). Mantido aqui apenas como registro histórico da decisão corrigida. Não executar.

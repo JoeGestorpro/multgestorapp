@@ -58,7 +58,8 @@
 | B1 RLS (FUNDAÇÃO) | `fase1-b1-rls-transacao-request` | ✅ APPROVE (`0a85929`) | `fase1-b2-outbox-handler-idempotency` ✅ |
 | B1b-gate `pool.connect` tenant ctx | `fase1-b1b-gate-poolconnect-tenant-context` | ✅ APPROVE (`c2f54ec` + fix B4 `3b923a8`) | `fase1-b1-rls...` ✅ |
 | **Reconciliação funcional → main** | `gov-reconcile-functional-to-main` | ▶️ em `next-task.md` (pending) — **destravada (619 testes verde)**; falta trazer lembrete `545282d` + FF `main` (confirmação humana) | — |
-| B1b RLS FORCE em produção | `fase1-b1b-rls-prod-activation` | ⛔ blocked (gated) | `fase1-b1b-gate-poolconnect-tenant-context` ✅ + staging |
+| ~~B1b RLS FORCE em produção~~ ❌ **SUPERSEDED** (premissa inválida — FORCE não afeta role BYPASSRLS) | ~~`fase1-b1b-rls-prod-activation`~~ | ❌ cancelada | — |
+| **Runtime role least-privilege (RLS enforcement real)** | `runtime-role-least-privilege-rls-enforcement` | ⛔ blocked/gated — **aprovação humana + revisão de segurança** | `fase1-b1b-gate-poolconnect-tenant-context` ✅ + staging |
 
 > 🔧 **Correção B4 (2026-06-04, `3b923a8`):** ao consolidar o funcional, a suíte expôs que o B4 estava
 > quebrado — `cache-manager.js` sem `incr`/`_fbClear`/`_fbIncr` (commitou consumidor, não produtor; métodos
@@ -80,25 +81,58 @@
 
 ---
 
-## [BLOCKED] B1b — RLS FORCE em Produção (go-live gated)
+## [CANCELLED / SUPERSEDED] B1b — RLS FORCE em Produção
+
+---
+status: superseded
+task_id: fase1-b1b-rls-prod-activation
+superseded_by: runtime-role-least-privilege-rls-enforcement
+cancelled_at: 2026-06-05
+---
+
+> ❌ **CANCELADA.** Premissa inválida. A auditoria via Supabase MCP (2026-06-05) provou que o runtime de
+> produção conecta como role `postgres` (`rolbypassrls=true`). **BYPASSRLS ignora todas as policies
+> incondicionalmente — inclusive `FORCE ROW LEVEL SECURITY`.** Ativar FORCE não produziria isolamento
+> algum. Substituída pela missão `runtime-role-least-privilege-rls-enforcement`.
+> Diagnóstico completo: `docs/SECURITY-TENANT-ISOLATION.md`.
+
+---
+
+## [BLOCKED] Runtime role least-privilege — RLS enforcement real (gated)
 
 ---
 status: blocked
-task_id: fase1-b1b-rls-prod-activation
-title: Fase 1 / B1b — Ativação de FORCE ROW LEVEL SECURITY em produção (rollout por tabela)
+task_id: runtime-role-least-privilege-rls-enforcement
+title: RLS enforcement real via role de runtime least-privilege (sem BYPASSRLS)
 created_by: Claude Code
-created_at: 2026-06-04
+created_at: 2026-06-05
+supersedes: fase1-b1b-rls-prod-activation
 depends_on: fase1-b1b-gate-poolconnect-tenant-context
+requires_human_approval: true
+requires_security_review: true
 unblock_condition: >-
-  Missão `fase1-b1b-gate-poolconnect-tenant-context` auditada APPROVE (cobertura transparente do GUC nas
-  conexões `pool.connect()` — UoW + ~11 services) + binding validado em STAGING sob carga (sem esgotamento
-  de pool) + teste de isolamento verde no CI + decisão consciente de go-live do Claude Code.
+  APROVAÇÃO HUMANA EXPLÍCITA + REVISÃO DE SEGURANÇA. Alto blast radius (troca do role de runtime do app em
+  produção e no CI). Antes de promover: (1) decisão arquitetural humana sobre usar `authenticated` vs. criar
+  `app_runtime`; (2) plano de GRANTs revisado; (3) tratamento definido para jobs cross-tenant
+  (appointment-reminder-job + OutboxWorker) e master-admin sob role não-bypass; (4) validação do pooler
+  (session vs. transaction) com o novo role em STAGING.
+mission_source: docs/runbooks/runtime-role-least-privilege-plan.md
+diagnosis_source: docs/SECURITY-TENANT-ISOLATION.md
 ---
 
 ### Resumo
-- Rollout faseado de `activate_rls.sql` (FORCE) **por tabela**, com canário e rollback (`ALTER TABLE ... NO FORCE`).
-- Pré-requisito absoluto: gate `pool.connect` + binding ALS provados em staging. **Alto risco**.
-- Modo: **EXECUTE_WITH_REVIEW** + janela de manutenção / monitoramento ativo (métricas do B3).
+- **Problema:** RLS está ENABLE porém **inerte** em produção — o runtime (`postgres`) tem BYPASSRLS, então as
+  policies nunca aplicam. O isolamento real hoje vem 100% dos filtros `company_id` na aplicação.
+- **Correção:** introduzir role de runtime **sem BYPASSRLS** (usar `authenticated` ou criar `app_runtime`) com
+  GRANTs adequados; backend passa a conectar com ele (trocar user no `DATABASE_URL`/secret em prod e CI);
+  manter `postgres` só para migrations/admin. Com runtime não-bypass e não-owner, **ENABLE já basta** (FORCE
+  só seria necessário se o runtime fosse o owner).
+- **Impactos a tratar (ver `docs/SECURITY-TENANT-ISOLATION.md` §4.1):** job cross-tenant
+  `appointment-reminder-job.js` (quebra silenciosa sob não-bypass → setar GUC por empresa ou role admin
+  controlado); OutboxWorker/demais jobs; `service_role` (bypass — usar só onde intencional); master-admin
+  (`/api/master/*`); pooler.
+- **Restrições invioláveis:** sem deploy, sem troca de role/secret e sem testes contra produção até aprovação.
+- **Modo:** **PLAN_ONLY / ESCALATE** nesta fase (planejar, não executar).
 
 ---
 
