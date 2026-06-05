@@ -91,32 +91,40 @@ function runWithTenantClient(client, companyIdOrFn, maybeFn) {
 const _originalConnect = pool.connect.bind(pool);
 const BEGIN_RE = /^\s*(BEGIN|START\s+TRANSACTION)\b/i;
 
-pool.connect = async function tenantAwareConnect() {
+pool.connect = function tenantAwareConnect(cb) {
+  // Forma callback — usada INTERNAMENTE pelo pg em Pool.query (this.connect((err, client) => ...)).
+  // Delega ao connect original; queries avulsas do pool não abrem transação tenant, então não há wrap.
+  // (Sem isto, o callback nunca é chamado e TODO pool.query trava — bug do override anterior.)
+  if (typeof cb === 'function') {
+    return _originalConnect(cb);
+  }
+
+  // Forma promise — await pool.connect() (services/UoW): aplica o wrap tenant/RLS.
   const store = tenantStore.getStore();
   const companyId = store?.companyId;
 
-  const client = await _originalConnect();
-
-  if (!companyId) {
-    return client;
-  }
-
-  const originalQuery = client.query.bind(client);
-  let gucSet = false;
-
-  client.query = async function wrappedQuery(...args) {
-    const sql = typeof args[0] === 'string' ? args[0] : (args[0]?.text || '');
-    const result = await originalQuery(...args);
-
-    if (!gucSet && BEGIN_RE.test(sql)) {
-      gucSet = true;
-      await originalQuery('SET LOCAL app.current_company_id = $1', [companyId]);
+  return _originalConnect().then((client) => {
+    if (!companyId) {
+      return client;
     }
 
-    return result;
-  };
+    const originalQuery = client.query.bind(client);
+    let gucSet = false;
 
-  return client;
+    client.query = async function wrappedQuery(...args) {
+      const sql = typeof args[0] === 'string' ? args[0] : (args[0]?.text || '');
+      const result = await originalQuery(...args);
+
+      if (!gucSet && BEGIN_RE.test(sql)) {
+        gucSet = true;
+        await originalQuery('SET LOCAL app.current_company_id = $1', [companyId]);
+      }
+
+      return result;
+    };
+
+    return client;
+  });
 };
 
 module.exports = pool;

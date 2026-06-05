@@ -5,9 +5,15 @@ let mockPoolConnect;
 
 beforeEach(() => {
   mockClientQuery = jest.fn().mockResolvedValue({ rows: [], rowCount: 0 });
-  mockPoolConnect = jest.fn().mockResolvedValue({
-    query: mockClientQuery,
-    release: jest.fn(),
+  // Suporta as DUAS formas do pg: callback (cb) — usada internamente por Pool.query —
+  // e promise (sem cb) — usada por services/UoW via await pool.connect().
+  mockPoolConnect = jest.fn().mockImplementation((cb) => {
+    const client = { query: mockClientQuery, release: jest.fn() };
+    if (typeof cb === 'function') {
+      cb(null, client, jest.fn());
+      return undefined;
+    }
+    return Promise.resolve(client);
   });
 });
 
@@ -59,6 +65,18 @@ describe('pool.connect() tenant-aware wrap (unit)', () => {
 
     expect(mockPoolConnect).toHaveBeenCalled();
     expect(client).toBeDefined();
+  });
+
+  it('REGRESSÃO: pool.connect(cb) honra a forma callback (senão pool.query trava)', async () => {
+    // pg chama internamente this.connect((err, client) => ...) dentro de Pool.query.
+    // Se o override ignorar o callback, ele nunca é invocado e pool.query trava para sempre.
+    const cb = jest.fn();
+    const ret = pool.connect(cb);
+
+    expect(cb).toHaveBeenCalledTimes(1);          // callback foi invocado (não trava)
+    expect(cb.mock.calls[0][0]).toBeNull();        // err = null
+    expect(cb.mock.calls[0][1]).toBeDefined();     // client entregue ao callback
+    expect(ret).toBeUndefined();                   // forma callback não retorna promise
   });
 
   it('pool.connect() em contexto ALS com companyId retorna client com wrap', async () => {
