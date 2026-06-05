@@ -132,7 +132,24 @@ diagnosis_source: docs/SECURITY-TENANT-ISOLATION.md
   controlado); OutboxWorker/demais jobs; `service_role` (bypass — usar só onde intencional); master-admin
   (`/api/master/*`); pooler.
 - **Restrições invioláveis:** sem deploy, sem troca de role/secret e sem testes contra produção até aprovação.
-- **Modo:** **PLAN_ONLY / ESCALATE** nesta fase (planejar, não executar).
+- **Faseamento:** Fase 1 (CI-only, risco de produção nulo) → Fase 2 (staging) → Fase 3 (produção).
+
+### Fase 1 (CI-only) — MISSÃO EXECUTÁVEL pronta (gated)
+- **task_id/phase:** `runtime-role-least-privilege-rls-enforcement` / `1-ci-only`
+- **Modo:** **EXECUTE_WITH_REVIEW** · **Status:** ⛔ blocked/gated (aprovação humana antes de promover)
+- **Objetivo:** eliminar BYPASSRLS dos testes usando `app_runtime`; `tenant-isolation-rls.test.js` verde.
+- **Escopo autorizado (3 arquivos):** `.github/workflows/ci.yml`,
+  `backend/tests/integration/tenant-isolation-rls.test.js`, `backend/src/database/runtime_role_grants.sql`.
+- **Critério de sucesso:** 32/32 integração · sem skip · sem xfail · sem produção · sem secrets.
+- **Card executável:** `docs/runbooks/runtime-role-fase1-ci-mission.md` (diffs exatos no plano §1-§3).
+
+#### Como promover a Fase 1 (somente Claude Code, após aprovação humana)
+1. Revisão final do plano + aprovação humana registrada.
+2. Copiar `docs/runbooks/runtime-role-fase1-ci-mission.md` para `.opencodex/queue/next-task.md` (`status: pending`).
+3. Marcar esta entrada como `promoted`.
+4. Pós-execução: `/audit-task` → Claude Code; push só com confirmação humana.
+
+> Fases 2 e 3 (staging/produção) permanecem **PLAN_ONLY/ESCALATE** — só discutir após a Fase 1 validar 32/32.
 
 ---
 
