@@ -19,8 +19,6 @@ module.exports = function requireCompany(req, res, next) {
     return res.status(403).json({ success: false, error: 'Empresa não identificada' });
   }
 
-  req.tenantContext = tenant;
-
   (async () => {
     let client = null;
     let released = false;
