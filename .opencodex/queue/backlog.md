@@ -9,6 +9,34 @@
 
 > ✅ **Fase 1 — Blindagem de Produção: COMPLETA** (B3 `1348df3` · B4 `e532285` · B2 `e137217` · B1 `0a85929`).
 
+> 🚀 **#0c RELEASE SAFETY GATE v1** — `task_id: release-safety-gate-v1`
+> **Status:** 📋 PENDING (depois da reconciliação)
+> **Criado:** 2026-06-05
+> **Modo:** EXECUTE_WITH_REVIEW
+> **Comando:** `npm run pre-release`
+> **Descrição:** Validação local pré-push rápida para uso diário. Inclui:
+>   - Verificação de git status/branch
+>   - Validação de YAML workflows
+>   - Escaneamento de segredos
+>   - Backend unit tests (--runInBand para evitar OOM)
+>   - Frontend lint + build
+>   - Bloqueio se DATABASE_URL apontar para Supabase/produção
+>   - Relatório final APROVADO/BLOQUEADO
+> **Arquivo:** `backend/scripts/pre-release.js`
+> **Depende de:** `gov-reconcile-functional-to-main` (main em dia)
+>
+> > 🚀 **#0c-v2 RELEASE SAFETY GATE v2 (banco descartável)** — `task_id: release-safety-gate-v2`
+> > **Status:** 📋 IDÉIA REGISTRADA (não implementar agora)
+> > **Criado:** 2026-06-05
+> > **Modo:** EXECUTE_WITH_REVIEW
+> > **Comando:** `npm run pre-release:full`
+> > **Descrição:** Validação completa com banco descartável + migrations + testes de integração.
+> >   Usar em mudanças de banco, migrations, RLS, Event Bus persistente, ou integrações críticas.
+> >   Sobe Postgres temporário → roda migrations → roda testes de integração → destrói.
+> > **Motivo do adiamento:** Podman indisponível no Windows local. A v1 cobre o uso diário.
+> >   A v2 fica registrada aqui para não perder a capacidade que revelou a divergência local vs CI.
+> > **Ativar quando:** Podman/Docker estiver disponível OU houver alternativa cross-platform (testcontainers, pg-temp).
+
 > ⚠️ **#0 OPS (NÃO é missão de código) — VERIFICAR/TESTAR RESTORE DE BACKUP.**
 > Auditoria 2026-06-04: nenhum script/workflow de backup/restore no repo; presume-se Supabase gerenciado,
 > **não testado**. Prioridade acima de qualquer missão de código: confirmar backup automático E executar um

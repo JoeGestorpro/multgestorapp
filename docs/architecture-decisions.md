@@ -520,6 +520,8 @@ A cada iteração, o sistema de proteção fica mais inteligente:
 | Data | Decisão | Contexto |
 |------|---------|----------|
 | 2026-06-04 | **Notificações WhatsApp permanecem in-process (Event Bus) até a capability de durabilidade (Outbox).** Idempotência garantida na origem (mark-before-emit), não por retry durável. | Lembrete de agendamento (`appointment.reminder`, commit `545282d`). Durabilidade via Outbox é follow-up (`fase2-wa-outbox-durability`), aproveitando a idempotência por handler já entregue no B2. |
+| 2026-06-05 | **Release Safety Gate v1: Podman desacoplado do fluxo padrão, não removido.** O script `pre-release.js` (v1) não chama mais containers descartáveis no fluxo rápido do dia-a-dia. A capacidade de `banco descartável + migrations + integração` foi movida para o backlog como **v2** (`npm run pre-release:full`), para uso em mudanças de banco, migrations, RLS, ou integrações críticas. | Podman não está disponível no ambiente Windows local. Em vez de remover a ideia, desacoplamos: v1 = rápido (uso diário), v2 = completo (sob demanda). A v2 não é prioridade agora, mas está registrada no backlog e neste decision log para não ser perdida. |
+| 2026-06-05 | **Release Safety Gate v2 (adiado, não cancelado).** Banco descartável + migrations + testes de integração ficam para uma segunda versão, ativada por `npm run pre-release:full`. Só usada em mudanças de banco, RLS, Event Bus persistente, ou integrações críticas. | Decisão arquitetural: não remover a capacidade, apenas desacoplar do fluxo padrão. Foi o banco descartável que revelou a divergência entre local e CI; perder essa capacidade seria repetir o mesmo problema. Registrado no backlog como `#0c-v2`. |
 
 ---
 
