@@ -1,3 +1,5 @@
+const { appLogger } = require('../logger')
+
 class OutboxWorker {
   constructor(pool, options = {}) {
     this.pool = pool
@@ -84,11 +86,12 @@ class OutboxWorker {
     const handlersMap = this.handlers.get(event.type)
 
     if (!handlersMap || handlersMap.size === 0) {
+      appLogger.warn({ event_id: event.id, type: event.type }, 'no handler registered — marked processed (no-op)')
       await this.pool.query(
         `UPDATE outbox_messages
-         SET status = 'failed', last_error = $2
+         SET status = 'processed', processed_at = NOW()
          WHERE id = $1`,
-        [event.id, 'No handler registered for type: ' + event.type]
+        [event.id]
       )
       return
     }

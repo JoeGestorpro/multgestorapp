@@ -174,7 +174,7 @@ describe('OutboxWorker — _process() single-handler (retrocompat)', () => {
     expect(failedUpdate.params[1]).toBe(3);
   });
 
-  it('sem handler registrado → mensagem failed', async () => {
+  it('sem handler registrado → mensagem processed (no-op)', async () => {
     const pool = createMockPool();
     const worker = new OutboxWorker(pool);
 
@@ -183,10 +183,15 @@ describe('OutboxWorker — _process() single-handler (retrocompat)', () => {
     
     await worker._process(event);
 
-    const failedUpdate = pool.queries.find(q =>
-      q.sql.includes("status = 'failed'") && q.params && q.params[1] && q.params[1].includes('No handler registered')
+    const processedUpdate = pool.queries.find(q =>
+      q.sql.includes("status = 'processed'") && q.sql.includes('processed_at')
     );
-    expect(failedUpdate).toBeDefined();
+    expect(processedUpdate).toBeDefined();
+
+    const failedUpdate = pool.queries.find(q =>
+      q.sql.includes("status = 'failed'")
+    );
+    expect(failedUpdate).toBeUndefined();
   });
 });
 
