@@ -196,48 +196,49 @@ const describeDb = hasTestDb ? describe : describe.skip;
 describeDb('RLS isolation — integration (requires TEST_DATABASE_URL)', () => {
   const { Pool } = require('pg');
   const crypto = require('crypto');
-  let testPool;
+  let adminPool;
+  let runtimePool;
   let companyAId, companyBId;
 
   beforeAll(async () => {
-    const connStr = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
-    testPool = new Pool({ connectionString: connStr, max: 3 });
+    const adminConnStr = process.env.ADMIN_DATABASE_URL || process.env.DATABASE_URL;
+    const runtimeConnStr = process.env.APP_RUNTIME_URL || process.env.TEST_DATABASE_URL;
+    adminPool = new Pool({ connectionString: adminConnStr, max: 3 });
+    runtimePool = new Pool({ connectionString: runtimeConnStr, max: 3 });
 
     companyAId = crypto.randomUUID();
     companyBId = crypto.randomUUID();
 
-    await testPool.query(
+    await adminPool.query(
       `INSERT INTO companies (id, name, public_booking_slug) VALUES ($1, 'RLS Test A', 'rls-a'), ($2, 'RLS Test B', 'rls-b')
        ON CONFLICT (id) DO NOTHING`,
       [companyAId, companyBId]
     );
 
-    await testPool.query(
+    await adminPool.query(
       `INSERT INTO barber_services (id, company_id, name, price, estimated_time_minutes)
        VALUES (gen_random_uuid(), $1, 'Svc A', 50, 30),
               (gen_random_uuid(), $2, 'Svc B', 60, 45)
        ON CONFLICT DO NOTHING`,
       [companyAId, companyBId]
     );
-
-    const rlsSql = require('fs').readFileSync(
-      require('path').resolve(__dirname, '../../src/database/rls_tenant_tables.sql'), 'utf8'
-    );
-    await testPool.query(rlsSql);
   });
 
   afterAll(async () => {
-    if (testPool) {
+    if (adminPool) {
       try {
-        await testPool.query('DELETE FROM barber_services WHERE company_id IN ($1, $2)', [companyAId, companyBId]);
-        await testPool.query('DELETE FROM companies WHERE id IN ($1, $2)', [companyAId, companyBId]);
+        await adminPool.query('DELETE FROM barber_services WHERE company_id IN ($1, $2)', [companyAId, companyBId]);
+        await adminPool.query('DELETE FROM companies WHERE id IN ($1, $2)', [companyAId, companyBId]);
       } catch (_) {}
-      await testPool.end();
+      await adminPool.end();
+    }
+    if (runtimePool) {
+      await runtimePool.end();
     }
   });
 
   it('tenant A não lê dados de tenant B com RLS ENABLEd', async () => {
-    const client = await testPool.connect();
+    const client = await runtimePool.connect();
     try {
       await client.query('BEGIN');
       await client.query('SELECT set_config($1, $2, true)', ['app.current_company_id', String(companyAId)]);
@@ -255,7 +256,7 @@ describeDb('RLS isolation — integration (requires TEST_DATABASE_URL)', () => {
   });
 
   it('tenant B não lê dados de tenant A com RLS ENABLEd', async () => {
-    const client = await testPool.connect();
+    const client = await runtimePool.connect();
     try {
       await client.query('BEGIN');
       await client.query('SELECT set_config($1, $2, true)', ['app.current_company_id', String(companyBId)]);
@@ -273,7 +274,10 @@ describeDb('RLS isolation — integration (requires TEST_DATABASE_URL)', () => {
   });
 
   it('sem GUC setado → query retorna 0 linhas (RLS bloqueia)', async () => {
-    const client = await testPool.connect();
+    const { Pool } = require('pg');
+    const runtimeConnStr = process.env.APP_RUNTIME_URL || process.env.TEST_DATABASE_URL;
+    const freshPool = new Pool({ connectionString: runtimeConnStr, max: 1 });
+    const client = await freshPool.connect();
     try {
       await client.query('BEGIN');
       const result = await client.query('SELECT * FROM barber_services');
@@ -281,6 +285,7 @@ describeDb('RLS isolation — integration (requires TEST_DATABASE_URL)', () => {
       await client.query('COMMIT');
     } finally {
       client.release();
+      await freshPool.end();
     }
   });
 
@@ -306,7 +311,7 @@ describeDb('RLS isolation — integration (requires TEST_DATABASE_URL)', () => {
       }
     });
 
-    const client = await testPool.connect();
+    const client = await runtimePool.connect();
     try {
       await client.query('BEGIN');
       await client.query('SELECT set_config($1, $2, true)', ['app.current_company_id', String(companyBId)]);
@@ -319,7 +324,7 @@ describeDb('RLS isolation — integration (requires TEST_DATABASE_URL)', () => {
       client.release();
     }
 
-    await testPool.query(
+    await adminPool.query(
       "DELETE FROM barber_services WHERE name = 'Wrap Test Svc' AND company_id = $1",
       [companyAId]
     );

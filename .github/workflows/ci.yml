@@ -84,13 +84,23 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/multgestor_test
           NODE_ENV: test
 
+      - name: Create least-privilege runtime role (app_runtime)
+        run: |
+          psql "$DATABASE_URL" -c "CREATE ROLE app_runtime LOGIN PASSWORD 'app_runtime' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS INHERIT;" || true
+          psql "$DATABASE_URL" -f src/database/runtime_role_grants.sql
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/multgestor_test
+          NODE_ENV: test
+
       - name: Run integration tests
         run: npm run test:integration
         env:
           NODE_ENV: test
           JWT_SECRET: ci-test-secret-not-for-production
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/multgestor_test
+          ADMIN_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/multgestor_test
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/multgestor_test
+          APP_RUNTIME_URL: postgresql://app_runtime:app_runtime@localhost:5432/multgestor_test
           REDIS_URL: redis://localhost:6379
 
   # ─── JOB 3: Frontend lint + build ────────────────────────────────────────
