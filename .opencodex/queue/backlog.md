@@ -268,3 +268,53 @@ trocar branch.
 2. Copiar este card para `.opencodex/queue/next-task.md` (`status: pending`) com o `MODEL CAPABILITY ASSESSMENT` no topo.
 3. Definir `required_branch` da própria missão (sugestão: `chore/queue-auto-branch-helper`) e marcar esta entrada como `promoted`.
 4. Pós-execução: `/complete-task` → `/audit-task` → decisão final do Claude. Push só com confirmação humana.
+
+---
+
+## [BLOCKED] OPS (NÃO é missão de código) — Reconciliar linhas `sale.created` já `failed` na outbox
+
+---
+status: blocked
+task_id: ops/reconcile-failed-sale-created-outbox
+title: Data-fix — reconciliar histórico de outbox_messages sale.created marcadas failed (efeito colateral do F6)
+type: ops-data-fix
+created_by: Claude Code
+created_at: 2026-06-06
+depends_on: eventbus-unhandled-handler-noop
+unblock_condition: >-
+  `eventbus-unhandled-handler-noop` **APPROVE** (auditoria OpenCode + decisão final Claude Code).
+  NÃO executar antes — a missão F6 corrige o COMPORTAMENTO FUTURO (sem handler → processed/no-op);
+  este item corrige apenas o HISTÓRICO já marcado `failed` por "No handler". Itens separados de propósito.
+human_decision: APROVADO registrar como ops separado (2026-06-06). NÃO executar agora. NÃO misturar com F6.
+---
+
+### Por que é ops, não missão de código
+Não há mudança de código aqui — é um **data-fix pontual** num banco real (efêmero no CI não tem histórico;
+o alvo é produção/staging). Por isso entra como **ops** e exige a mesma disciplina de mudança de dados
+(janela, backup verificado, dry-run com `SELECT` antes do `UPDATE`).
+
+### Escopo
+- Reconciliar mensagens que foram marcadas `failed` **apenas** por falta de handler (não falhas reais):
+  ```sql
+  -- DRY-RUN primeiro (conferir contagem e amostra):
+  SELECT count(*) FROM outbox_messages
+   WHERE type = 'sale.created' AND status = 'failed' AND last_error LIKE 'No handler%';
+
+  -- Aplicação (após F6 APPROVE + janela + backup):
+  UPDATE outbox_messages
+     SET status = 'processed', processed_at = NOW()
+   WHERE type = 'sale.created' AND status = 'failed' AND last_error LIKE 'No handler%';
+  ```
+- **Filtro estrito por `last_error LIKE 'No handler%'`** para NÃO tocar falhas legítimas de outros motivos.
+
+### Restrições
+- ❌ NÃO executar antes do `eventbus-unhandled-handler-noop` estar APPROVE.
+- ❌ NÃO misturar com a missão F6 (código) — propósitos distintos (futuro vs histórico).
+- ❌ NÃO `UPDATE` sem o `SELECT` de dry-run e sem backup verificado.
+- ❌ Sem deploy, sem push, sem merge — é operação de dados, executada por humano/ops.
+
+### Critérios de aceite (quando executar)
+- [ ] Dry-run mostra apenas linhas `sale.created` + `failed` + `No handler%`.
+- [ ] Backup verificado antes do `UPDATE`.
+- [ ] Pós-fix: `0` linhas `sale.created`/`failed`/`No handler%` remanescentes.
+- [ ] Nenhuma falha legítima de outro `type`/motivo foi alterada.
