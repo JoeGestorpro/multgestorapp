@@ -3,42 +3,32 @@
 ---
 status: audited
 result: success
-task_id: runtime-role-least-privilege-rls-enforcement
-phase: 1-ci-only
-title: Fase 1 (CI-only) — usar role app_runtime sem BYPASSRLS nos testes RLS
+task_id: eventbus-unhandled-handler-noop
+title: OutboxWorker — evento sem handler vira no-op (processed) em vez de failed permanente (cura F6/F5)
 completed_at: 2026-06-06
-branch: fase1/runtime-role-ci-only
+branch: fix/eventbus-unhandled-outbox
 commits:
-  - a179085 feat(ci): RLS Fase 1 CI-only — app_runtime sem BYPASSRLS nos testes de isolamento
+  - 6c3c81a fix(outbox): evento sem handler vira no-op (processed) em vez de failed permanente
 mode: EXECUTE_WITH_REVIEW
-audit_verdict: APPROVE          # OpenCode Auditor (Big Pickle), 2026-06-05
-claude_decision: APPROVE        # auditoria independente do diff por Claude Code
+audit_verdict: APPROVE          # OpenCode Auditor (Big Pickle), 2026-06-06
+claude_decision: APPROVE        # auditoria independente do diff + npm test (outbox-worker 15/15)
 claude_decided_at: 2026-06-06
 pushed: false                   # commit LOCAL apenas — push só com confirmação humana
 ---
 
 ## Resumo
-Criada a role `app_runtime` (NOBYPASSRLS) no Postgres efêmero do CI; os testes de isolamento RLS passam a
-asseverar com ela, eliminando o falso positivo do pool superuser (BYPASSRLS ignorava as policies).
-Isolamento RLS **real** validado: **32/32** integração, sem skip/xfail. Produção/secrets/deploy intactos.
+`OutboxWorker._process`: evento de tipo **sem handler registrado** passa a ser tratado como **no-op**
+(`status='processed'` + `appLogger.warn`), em vez de `failed` permanente. Respeita o princípio do Event Bus
+*"produtores não conhecem consumidores"*. Cura **F6** (toda venda acumulava `sale.created` failed) e **F5**
+(perda em deploy producer-antes-consumer).
 
 ## Verificação independente (Claude Code)
-- **ALLOWLIST 3/3**, sem scope drift: `ci.yml`, `tenant-isolation-rls.test.js`, `runtime_role_grants.sql` (novo).
-- `runtime_role_grants.sql`: só GRANTs + ALTER DEFAULT PRIVILEGES, idempotente, **sem** CREATE ROLE/senha.
-- `ci.yml`: step `CREATE ROLE ... NOBYPASSRLS` idempotente + `psql -f grants`; integração com `ADMIN_DATABASE_URL`
-  (postgres) e `APP_RUNTIME_URL` (app_runtime); `DATABASE_URL`/`TEST_DATABASE_URL` mantidos admin.
-- teste: `adminPool` (seed/cleanup) + `runtimePool` (asserções); RLS inline removido (já vem das migrations).
+- **ALLOWLIST 2/2**, sem scope drift: `outbox-worker.js`, `outbox-worker.test.js`.
+- Diff confere com o spec: import `appLogger`; warn com `event_id`+`type`; `UPDATE ... status='processed', processed_at=NOW()`; `return` precoce; **laço de handlers e retry inalterados**.
+- Teste renomeado afirma `processed` definido + `failed` ausente.
+- **`npx jest tests/unit/outbox-worker` → 15/15 verde** (auditor reportou suíte completa 626/626).
 
-## Desvio de plano — aprovado
-Plano dizia `TEST_DATABASE_URL → app_runtime`. Executor manteve `TEST_DATABASE_URL=postgres` e introduziu
-**`APP_RUNTIME_URL`** para o pool de runtime, porque `test-database.js` e o gate `hasTestDb` usam
-`TEST_DATABASE_URL`. Adaptação mais segura, dentro dos 3 arquivos. **APPROVE.**
-
-## Nota de acompanhamento (Fase 2/3 — não-bloqueante)
-`current_setting('app.current_company_id', true)::uuid` retorna `''` (não `NULL`) em conexão reutilizada
-pós-`SET LOCAL`+`COMMIT` → `''::uuid` crasha. Mitigado no teste com pool fresh; baixo risco em runtime
-(`set_config(...,true)` é transaction-local e auto-reseta). Reavaliar quando o RLS for enforced em runtime.
-
-## Pendências
+## Pendências / follow-ups
 - **Push:** não realizado (aguarda confirmação humana).
-- Próxima missão promovida pelo Claude Code: `eventbus-cure-unhandled-outbox` (curar F6 — ver `next-task.md`).
+- **Ops desbloqueado:** `ops/reconcile-failed-sale-created-outbox` (data-fix do histórico já `failed`) — agora liberado por este APPROVE; execução por humano/ops, fora do executor.
+- **Próxima missão promovida:** `eventbus-appointment-outbox-durability` (F2 — ver `next-task.md`).

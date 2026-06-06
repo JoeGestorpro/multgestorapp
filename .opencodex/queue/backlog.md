@@ -286,6 +286,9 @@ unblock_condition: >-
   NÃO executar antes — a missão F6 corrige o COMPORTAMENTO FUTURO (sem handler → processed/no-op);
   este item corrige apenas o HISTÓRICO já marcado `failed` por "No handler". Itens separados de propósito.
 human_decision: APROVADO registrar como ops separado (2026-06-06). NÃO executar agora. NÃO misturar com F6.
+status_note: >-
+  ✅ DEPENDÊNCIA SATISFEITA em 2026-06-06 — F6 (`eventbus-unhandled-handler-noop`) APPROVE (commit 6c3c81a).
+  Item agora LIBERADO para execução por humano/ops (data-fix), respeitando dry-run + backup. Não é missão do executor.
 ---
 
 ### Por que é ops, não missão de código

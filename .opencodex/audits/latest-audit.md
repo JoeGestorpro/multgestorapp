@@ -1,75 +1,66 @@
-# Audit Report — Fase 1 (CI-only) — Runtime role least-privilege (app_runtime) para testes RLS
+# Audit Report — OutboxWorker — evento sem handler vira no-op (processed) em vez de failed permanente (cura F6/F5)
 
 ---
 status: decided
 claude_decision: APPROVE
 claude_decided_at: 2026-06-06
-claude_decision_note: auditoria independente do diff confirmou 3/3 ALLOWLIST, desvio APP_RUNTIME_URL justificado, 32/32. Commit local a179085 (sem push).
-task_id: runtime-role-least-privilege-rls-enforcement
-phase: 1-ci-only
-title: Fase 1 (CI-only) — usar role app_runtime sem BYPASSRLS nos testes RLS
+claude_decision_note: diff confere com spec; outbox-worker 15/15 verde; laço de handlers/retry inalterados; commit local 6c3c81a (sem push).
+task_id: eventbus-unhandled-handler-noop
+title: OutboxWorker — evento sem handler vira no-op (processed) em vez de failed permanente (cura F6/F5)
 audited_by: OpenCode Auditor (Big Pickle)
-audited_at: 2026-06-05
+audited_at: 2026-06-06
 verdict: APPROVE
-risk_level: Baixo (CI/testes apenas — sem produção, secrets ou deploy)
-branch: fase1/runtime-role-ci-only
+risk_level: Médio (muda semântica do dispatcher central)
+branch: fix/eventbus-unhandled-outbox
 ---
 
 ## 1. Contexto
-A Fase 1 do plano least-privilege cria a role `app_runtime` (sem BYPASSRLS) no CI e aponta os testes de
-isolamento RLS para ela, eliminando o falso positivo em que o pool superuser (BYPASSRLS) ignorava as
-policies. Auditoria read-only após execução no branch `fase1/runtime-role-ci-only`.
+Os cenários F6/F5 descritos em `current-task.md` (next-task) diagnosticam um problema no
+`OutboxWorker._process()`: eventos sem handler registrado eram marcados como `failed`
+permanentemente, sem chance de retry ou reconciliação futura. Um handler que chega atrasado
+(dead letter reconciler, deploy de handler novo) nunca conseguiria processar esses eventos.
+A correção muda o status para `processed` com um `warn` log, tratando o gap como no-op
+(consome e não falha).
 
-## 2. ALLOWLIST — 3/3 arquivos, sem scope drift
+## 2. ALLOWLIST — 2/2 arquivos, sem scope drift
 | # | Arquivo | Tipo | Status |
 |---|---------|------|--------|
-| 1 | `.github/workflows/ci.yml` | Editado | ✅ |
-| 2 | `backend/tests/integration/tenant-isolation-rls.test.js` | Editado | ✅ |
-| 3 | `backend/src/database/runtime_role_grants.sql` | Novo | ✅ |
+| 1 | `backend/src/shared/core/outbox/outbox-worker.js` | Editado | ✅ |
+| 2 | `backend/tests/unit/outbox-worker.test.js` | Editado | ✅ |
 
 Nenhuma alteração fora da ALLOWLIST. `.opencodex/` (governança) tracking apenas.
 
 ## 3. Verificação item a item
 
-### 3.1. `runtime_role_grants.sql` (novo)
-- Apenas GRANTs e ALTER DEFAULT PRIVILEGES para `app_runtime` (USAGE schema + CRUD em tabelas + sequences)
-- Sem CREATE ROLE, sem senha — operação/secret externo ✅
-- Idempotente ✅
+### 3.1. `outbox-worker.js`
+- Novo import: `const { appLogger } = require('../logger')` ✅
+- `appLogger.warn({ event_id, type }, 'no handler registered — marked processed (no-op)')` ✅
+- `UPDATE outbox_messages SET status = 'processed', processed_at = NOW()` em vez de `failed` com `last_error` ✅
+- `return` precoce mantido (mata processamento sem chamar handler inexistente) ✅
+- Sem regressão nos demais paths (handler único, múltiplos handlers) — não alterados ✅
 
-### 3.2. `ci.yml` — Novo step pós-migrations
-- `CREATE ROLE app_runtime ... NOBYPASSRLS` idempotente (`|| true`) ✅
-- `psql -f runtime_role_grants.sql` aplica grants ✅
-- `ADMIN_DATABASE_URL` = postgres (seed/cleanup dos testes) ✅
-- `TEST_DATABASE_URL` = postgres (mantido admin para o helper `test-database.js`) ✅
-- `APP_RUNTIME_URL` = app_runtime (pool dos testes RLS) ✅
-- Sem alteração na pipeline principal de testes unitários/frontend ✅
-
-### 3.3. `tenant-isolation-rls.test.js`
-- `testPool` → `adminPool` (via `ADMIN_DATABASE_URL`) para seed/cleanup ✅
-- `runtimePool` (via `APP_RUNTIME_URL`) para asserções RLS ✅
-- Removida aplicação inline do RLS (`rls_tenant_tables.sql` já vem das migrations) ✅
-- Teste "sem GUC" usa Pool fresh (mitiga `''::uuid` crash pós-SET LOCAL + COMMIT) ✅
-- Teste 4 (write isolation via pool.connect wrap) usa `runWithTenantClient` + ALS + SET LOCAL ✅
+### 3.2. `outbox-worker.test.js`
+- Descrição do teste renomeada: `'sem handler registrado → mensagem processed (no-op)'` ✅
+- Asserção nova: busca query com `status = 'processed'` e `processed_at`; espera `toBeDefined()` ✅
+- Asserção antiga migrada: busca query com `status = 'failed'`; espera `toBeUndefined()` ✅
+- Demais testes do arquivo intactos (single-handler retrocompat, múltiplos handlers, erro, retry) ✅
 
 ## 4. Critérios de aceite
-- [x] `tenant-isolation-rls.test.js` verde com isolamento real (sem BYPASSRLS)
-- [x] **32/32** testes de integração (2 suites × 2 passed)
+- [x] Evento sem handler vira `processed` (não `failed`) — não trava dead letter
+- [x] `appLogger.warn` emitido com `event_id` e `type` para observabilidade
+- [x] **626/626** unit tests passed (`npm test`)
 - [x] **Sem `skip`**, **sem `xfail`**
-- [x] **Sem alteração em produção** — apenas CI/testes
+- [x] **Sem alteração em produção** — apenas worker + teste
 - [x] **Sem exposição de secrets**
-- [x] **Diff restrito aos 3 arquivos da ALLOWLIST**
+- [x] **Diff restrito aos 2 arquivos da ALLOWLIST**
 
 ## 5. Escopo proibido — verificado
-- ❌ Nenhum arquivo fora dos 3 da ALLOWLIST foi alterado ✅
-- ❌ `DATABASE_URL` principal do CI permanece postgres (admin) ✅
-- ❌ Produção, secrets, `deploy.yml`, jobs ou `config/database.js` intactos ✅
+- ❌ Nenhum arquivo fora dos 2 da ALLOWLIST foi alterado ✅
+- ❌ Nenhuma string de conexão, secret, ou credencial no diff ✅
+- ❌ `deploy.yml`, migrations, schemas de banco intactos ✅
 - ❌ Nenhum `skip`/`xfail` introduzido ✅
 
-## 6. NOTA — Achado arquitetural (já documentado em current-task.md)
-`current_setting('app.current_company_id', true)::uuid` retorna `''` (não `NULL`) após `SET LOCAL` +
-`COMMIT` na mesma sessão → `''::uuid` crasha. Mitigado com Pool fresh no teste "sem GUC". Sem
-impacto em runtime (cada request HTTP tem seu próprio client do pool, sem reuso pós-COMMIT).
-
-## 7. Veredito
-**APPROVE** — 3/3 ALLOWLIST respeitado, sem scope drift, sem produção, sem secrets. 32/32 testes
-de integração verdes com isolamento RLS real (role app_runtime sem BYPASSRLS).
+## 6. Veredito
+**APPROVE** — 2/2 ALLOWLIST respeitado, sem scope drift, sem secrets, sem produção.
+626/626 unit tests verdes. Mudança semântica correta (no-op seguro com warn em vez de failed
+permanente). Cura os cenários F6/F5 do diagnóstico.

@@ -3,88 +3,97 @@
 > Escrito pelo **Claude Code**. Lido e executado pelo **OpenCode Executor** via `/next-task`.
 > Fluxo oficial: `docs/runbooks/prompt-orchestration-flow.md`.
 > **Ambiente oficial: Windows + PowerShell.**
-> Origem: auditoria 2026-06-05 (achado **F6**, reforçado por **F5**). Diagnóstico do Event Bus: `docs/event-bus-architecture.md`.
+> Origem: auditoria 2026-06-05 (achado **F2** — eventos de domínio P0 voláteis). Constrói sobre F6 (`6c3c81a`).
+> Diagnóstico do Event Bus: `docs/event-bus-architecture.md`.
 
 ---
 status: pending
-task_id: eventbus-unhandled-handler-noop
-title: OutboxWorker — evento sem handler vira no-op (processed) em vez de failed permanente (cura F6/F5)
+task_id: eventbus-appointment-outbox-durability
+phase: 1-create-path
+title: Durabilidade dos eventos appointment.* — rotear o caminho de CRIAÇÃO pela outbox durável (matar o eventBus volátil)
 shell: powershell
 mode: EXECUTE_WITH_REVIEW
 requires_human_approval: false
 promoted_by: Claude Code (escolha delegada pelo humano em 2026-06-06 — "decide com base na necessidade do projeto")
-required_branch: fix/eventbus-unhandled-outbox
-created_branch: fix/eventbus-unhandled-outbox
+required_branch: fix/appointment-outbox-durability
+created_branch: fix/appointment-outbox-durability
 updated_by: Claude Code
 updated_at: 2026-06-06
-diagnosis_source: auditoria F6/F5 (sessão 2026-06-05)
+diagnosis_source: auditoria F2 (sessão 2026-06-05)
 ---
 
 ## MODEL CAPABILITY ASSESSMENT
-- **Executor recomendado:** Big Pickle, **EXECUTE_WITH_REVIEW** — toca o **dispatcher central** (OutboxWorker). Auditoria final do Claude Code obrigatória.
-- **Nível de risco:** **Médio** — muda a semântica de um caminho do Event Bus durável. **Produção:** sem deploy nesta missão; efeito só após deploy futuro.
-- **Escalonamento:** qualquer mudança fora dos 2 arquivos da ALLOWLIST, ou tocar o produtor (`sale.service.js`) / schema / `server.js` → **PARAR e reportar** (ESCALATE).
+- **Executor recomendado:** Big Pickle, **EXECUTE_WITH_REVIEW** — toca um **produtor de domínio P0** e o boot de consumers. Auditoria final do Claude Code obrigatória.
+- **Nível de risco:** **Médio** — muda a entrega de eventos P0 do agendamento de volátil → durável (transação). **Produção:** sem deploy nesta missão.
+- **Escalonamento:** sair da ALLOWLIST, ou converter caminhos além do **create** (update/cancel/complete/reschedule), ou tocar schema/produção → **PARAR e reportar** (ESCALATE). Esses caminhos são o **incremento 2** (próxima missão).
 
-## Contexto (causa-raiz — F6)
-`sale.service` grava `sale.created` na outbox (`uow.addEvent`, [sale.service.js:289](../../backend/src/services/sale.service.js)), mas os handlers de `sale.created` estão em **quarentena** ([server.js:406-414](../../backend/src/server.js)) e **nenhum consumidor ativo** existe. O `OutboxWorker._process` marca evento de tipo sem handler como `status='failed'` **permanente** ([outbox-worker.js:86-94](../../backend/src/shared/core/outbox/outbox-worker.js)). Resultado: **toda venda acumula uma linha `failed`** e nada é processado. F5: a mesma semântica perde eventos em deploy producer-antes-consumer.
+## Contexto (causa-raiz — F2)
+`appointment.service` publica `appointment.created`/`appointment.confirmed` via **`eventBus` in-memory volátil**
+([appointment.service.js:155,173](../../backend/src/services/appointment.service.js)): fire-and-forget, sem
+durabilidade, **erros engolidos** ([event-bus.js:56-64](../../backend/src/shared/core/events/event-bus.js)),
+e **fora da transação** do banco. São eventos P0 que a arquitetura promete entregar At-least-once. Já existe a
+infra durável correta (`UnitOfWork` + outbox + `OutboxWorker`), usada por `sale`/`cash-flow`. Com **F6** (`6c3c81a`),
+eventos sem handler são no-op seguro — então é seguro migrar agora.
 
-## Decisão arquitetural (vinculante para esta missão)
-- **"Evento sem handler registrado" NÃO é falha.** É um no-op legítimo em pub/sub — princípio do próprio Event Bus: *"produtores não sabem quem consome"*. Marcar `failed` viola isso.
-- **Correção:** quando `handlersMap` está vazio/ausente para `event.type`, marcar a mensagem como **`processed`** (no-op), com **`appLogger.warn`** (`event_id`, `type`, "no handler registered — no-op") e **sem** preencher `last_error` como erro. Não consumir CPU em retry.
-- **NÃO** é replay/event-sourcing: eventos emitidos enquanto não havia consumidor são legitimamente não entregues a consumidores inexistentes. Quando a **Fase C** registrar handlers de `sale.created`, vendas **futuras** serão processadas normalmente.
-- **GATE break vs continue** (múltiplos handlers): **DEFERIDO para a Fase C** — não alterar o laço de handlers nesta missão.
+## Pré-condições confirmadas (pelo arquiteto)
+- `AppointmentRepository extends BaseRepository`, `constructor(db)`, usa `this.db.query` → **compatível com `uow.repository(AppointmentRepository)`** (recebe o client transacional). Mesmo padrão de `sale.service`.
+- Nenhum consumidor ativo de `appointment.*` na outbox hoje; os consumers in-memory (`auditLog`, `eventLogger`) só logam.
 
-## ALLOWLIST (escopo autorizado — APENAS estes 2 arquivos)
-- `backend/src/shared/core/outbox/outbox-worker.js`
-- `backend/tests/unit/outbox-worker.test.js`
+## Decisão arquitetural (vinculante)
+- **Caminho de CRIAÇÃO** (`AppointmentService.create`) passa a usar `UnitOfWork`: `repo = uow.repository(AppointmentRepository)`, `repo.create(...)` + `uow.addEvent('appointment.created', ...)` (e `'appointment.confirmed'` quando aplicável, preservando o payload atual), `await uow.commit()` / `rollback()`. Espelha `sale.service`.
+- **Substituir** as duas chamadas `eventBus.publish(...)` do `create` por `uow.addEvent(...)` com metadata `{ companyId, aggregateType:'appointment', aggregateId, traceId }`.
+- **Registrar handler durável** de auditoria para `appointment.*` no boot (espelha `auditLogConsumer`), para preservar o log que hoje vem do bus volátil — agora durável e idempotente por handler.
+- **Reads** (`findById`, `findConflicts`, `findAll`) permanecem no pool (não exigem transação). A checagem de conflito pode rodar antes do `begin()`.
+- **NÃO** converter update/cancel/complete/reschedule nesta missão (incremento 2). Inconsistência temporária (create durável, update volátil) é aceitável e documentada.
 
-> Qualquer arquivo fora destes 2 = violação de escopo = **PARAR e reportar**.
+## ALLOWLIST (escopo autorizado — APENAS estes arquivos)
+- `backend/src/services/appointment.service.js`
+- `backend/src/server.js` (APENAS registrar o handler durável de auditoria para `appointment.*` no `outboxWorker`; **não** tocar quarentena Fase C nem outros wirings)
+- `backend/src/shared/core/events/consumers.js` (se necessário, expor um handler durável reutilizável para `appointment.*`)
+- `backend/tests/**` — teste novo/atualizado de durabilidade do create (unit ou integração)
+
+> Qualquer arquivo fora desta lista = violação de escopo = **PARAR e reportar**.
 
 ## Passos
-1. **`outbox-worker.js` — `_process`, ramo "sem handler"** (hoje `UPDATE ... status='failed'`):
-   - Trocar para `UPDATE outbox_messages SET status='processed', processed_at=NOW() WHERE id=$1`.
-   - Antes do update, `this.logger?.warn?.(...)` **ou** `appLogger.warn(...)` — usar o logger já disponível no módulo; se não houver, importar `appLogger` (não criar logger novo). Mensagem: `event_id`, `type`, `"no handler registered — marked processed (no-op)"`.
-   - **Não** mexer no laço `for (const [name, handler] of handlersMap)` nem no `break`/retry existentes.
-2. **`outbox-worker.test.js`**:
-   - Atualizar/!adicionar teste que hoje espera `failed` para tipo sem handler → passar a esperar **`processed`** + ausência de `last_error` de erro.
-   - Garantir que o comportamento de retry/idempotência por handler existente **não regrediu** (testes atuais verdes).
+1. Em `appointment.service.create`: envolver `repo.create` + `addEvent` num `UnitOfWork` (begin/commit/rollback), substituindo os dois `eventBus.publish` por `uow.addEvent`.
+2. Registrar no boot (`server.js`) um handler durável para `appointment.created`/`appointment.confirmed` que faça o **audit-log durável** (idempotente; pode reutilizar/derivar de `consumers.js`).
+3. Manter o import de `eventBus` **apenas** se ainda usado pelos caminhos não migrados (update/cancel/etc.); não remover o bus nesta fase.
+4. Teste: provar que criar um agendamento **grava `appointment.created` em `outbox_messages`** na mesma transação (rollback não deixa evento órfão) e que o handler de auditoria processa.
 
 ## Validação obrigatória (antes de qualquer push)
 ```powershell
 Set-Location backend
 npm run test:unit
+npm run test:integration   # se o teste novo for de integração (requer Postgres local)
 Set-Location ..
 ```
-- **Esperado:** suíte unit verde; teste de "sem handler" agora afirma `processed`.
+- **Esperado:** suítes verdes; novo teste de durabilidade do create passa; nenhuma regressão.
 
 ## Critérios de aceite
-- [ ] Evento de tipo sem handler → `status='processed'` (não `failed`), com WARN logado.
-- [ ] Caminho de handler com falha real (retry/backoff/`failed` após `max_retries`) **inalterado**.
-- [ ] Idempotência por handler (`outbox_message_handlers`) **inalterada**.
-- [ ] `npm run test:unit` verde, sem skip/xfail.
-- [ ] Diff restrito aos 2 arquivos da ALLOWLIST.
-- [ ] **Sem** tocar `sale.service.js`, `server.js`, schema, produção ou secrets.
+- [ ] `appointment.service.create` emite `appointment.created` (e `confirmed` quando aplicável) via **outbox durável**, na mesma transação do `create`.
+- [ ] Rollback da criação **não** deixa evento na outbox (atomicidade).
+- [ ] Handler durável de auditoria para `appointment.*` registrado e idempotente.
+- [ ] Caminhos update/cancel/complete/reschedule **inalterados** (ainda voláteis — incremento 2).
+- [ ] Suítes verdes, sem skip/xfail.
+- [ ] Diff restrito à ALLOWLIST; sem tocar schema, produção, secrets ou quarentena Fase C.
 
 ## ❌ Escopo proibido
-- ❌ Tocar o produtor (`sale.service.js`) ou tirar `sale.created` da quarentena (isso é **Fase C**).
-- ❌ Alterar schema (`outbox.sql`) / adicionar status novo.
-- ❌ Resolver o GATE break vs continue (é **Fase C**).
+- ❌ Converter update/cancel/complete/reschedule (incremento 2).
+- ❌ Remover o `eventBus` in-memory enquanto houver caminhos volátteis vivos.
+- ❌ Tocar a quarentena Fase C / `sale.created` / schema.
 - ❌ `git push` sem confirmação humana.
 
 ## 🛑 Hard stops
-1. Se algum teste de retry/idempotência regredir → **PARAR e reportar**.
-2. Se a correção exigir tocar fora dos 2 arquivos → **PARAR** (provável sinal de que precisa ser repensada).
+1. Se a checagem de conflito ou os testes de agendamento regredirem → **PARAR e reportar**.
+2. Se a transação do `create` não cobrir o `addEvent` (evento fora da atomicidade) → **PARAR** (design errado).
 3. Se o diff escapar da ALLOWLIST → **PARAR**.
 
 ## Instruções para o OpenCode Executor
 1. Rodar o **PREFLIGHT** (`.opencodex/templates/preflight-check.md`) — 5 checagens.
-2. Branch esperada: **`fix/eventbus-unhandled-outbox`** (humano cria/entra manualmente; runner NÃO cria branch).
+2. Branch esperada: **`fix/appointment-outbox-durability`** (humano cria/entra manualmente; runner NÃO cria branch).
 3. Espelhar em `current-task.md` (`running`) e executar.
 4. Pós-execução: `/complete-task` → `/audit-task` → devolver ao **Claude Code**. **Push só com confirmação humana.**
 
 ## Pós-execução (somente Claude Code)
-- Auditar; se APPROVE, registrar e **flag de ops**: reconciliar linhas `failed` já acumuladas
-  (`UPDATE outbox_messages SET status='processed' WHERE type='sale.created' AND status='failed' AND last_error LIKE 'No handler%'`)
-  — **data fix separado**, fora desta missão de código.
-- Esta missão **destrava parcialmente a Fase C** (remove o efeito colateral do producer-sem-consumer);
-  a Fase C ainda decide o GATE break/continue e religa emissão+handlers de loyalty/package.
+- Auditar; se APPROVE, registrar e promover o **incremento 2** (update/cancel/complete/reschedule → outbox).
+- Após os dois incrementos, reavaliar a remoção do `eventBus` in-memory para `appointment.*`.
