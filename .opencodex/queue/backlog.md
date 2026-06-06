@@ -59,7 +59,8 @@
 | B1b-gate `pool.connect` tenant ctx | `fase1-b1b-gate-poolconnect-tenant-context` | ✅ APPROVE (`c2f54ec` + fix B4 `3b923a8`) | `fase1-b1-rls...` ✅ |
 | **Reconciliação funcional → main** | `gov-reconcile-functional-to-main` | ✅ **CONCLUÍDA** (merge `5b20d19` + FF `main`, 2026-06-05; já em `origin/main`; 635 testes verde) | — |
 | ~~B1b RLS FORCE em produção~~ ❌ **SUPERSEDED** (premissa inválida — FORCE não afeta role BYPASSRLS) | ~~`fase1-b1b-rls-prod-activation`~~ | ❌ cancelada | — |
-| **Runtime role least-privilege (RLS enforcement real)** | `runtime-role-least-privilege-rls-enforcement` | ⛔ blocked/gated — **aprovação humana + revisão de segurança** | `fase1-b1b-gate-poolconnect-tenant-context` ✅ + staging |
+| **Runtime role least-privilege — Fase 1 (CI-only)** | `runtime-role-least-privilege-rls-enforcement` / `1-ci-only` | ✅ APPROVE (`a179085`, 2026-06-06; push pendente) | `fase1-b1b-gate-poolconnect-tenant-context` ✅ |
+| Runtime role least-privilege — Fase 2 (staging) / Fase 3 (prod) | mesmo `task_id` | ⛔ PLAN_ONLY/ESCALATE — aprovação humana + revisão de segurança + staging | Fase 1 ✅ |
 
 > 🔧 **Correção B4 (2026-06-04, `3b923a8`):** ao consolidar o funcional, a suíte expôs que o B4 estava
 > quebrado — `cache-manager.js` sem `incr`/`_fbClear`/`_fbIncr` (commitou consumidor, não produtor; métodos
@@ -136,7 +137,7 @@ diagnosis_source: docs/SECURITY-TENANT-ISOLATION.md
 
 ### Fase 1 (CI-only) — MISSÃO EXECUTÁVEL pronta (gated)
 - **task_id/phase:** `runtime-role-least-privilege-rls-enforcement` / `1-ci-only`
-- **Modo:** **EXECUTE_WITH_REVIEW** · **Status:** ⛔ blocked/gated (aprovação humana antes de promover)
+- **Modo:** **EXECUTE_WITH_REVIEW** · **Status:** ✅ **CONCLUÍDA** (`commit a179085`, branch `fase1/runtime-role-ci-only`, 2026-06-06). 32/32 integração; auditoria OpenCode + Claude Code **APPROVE**. **Push pendente** (confirmação humana). Fases 2 (staging) e 3 (produção) seguem **PLAN_ONLY/ESCALATE**.
 - **Objetivo:** eliminar BYPASSRLS dos testes usando `app_runtime`; `tenant-isolation-rls.test.js` verde.
 - **Escopo autorizado (3 arquivos):** `.github/workflows/ci.yml`,
   `backend/tests/integration/tenant-isolation-rls.test.js`, `backend/src/database/runtime_role_grants.sql`.
@@ -178,3 +179,92 @@ status_note: B2 já satisfez a dependência — Fase C está desbloqueada porém
 2. Copiar o conteúdo de `docs/runbooks/fase-c-integracao-e-testes.md` para `next-task.md` com o
    `MODEL CAPABILITY ASSESSMENT` no topo; tirar o wiring `sale.created` da quarentena como parte da missão.
 3. Marcar esta entrada como `promoted`.
+
+---
+
+## [BLOCKED] Queue Auto-Branch — Helper humano determinístico (ergonomia do preflight)
+
+---
+status: blocked
+task_id: queue-auto-branch-human-helper
+title: Helper humano (npm run task:branch) que prepara a branch exigida antes do /next-task — runner agente segue proibido de trocar branch
+created_by: Claude Code
+created_at: 2026-06-05
+shell: powershell
+mode: EXECUTE_WITH_REVIEW
+requires_human_approval: true
+requires_security_review: false
+depends_on: null
+unblock_condition: >-
+  APROVAÇÃO FINAL DO CLAUDE CODE + fila livre (one-mission-per-time). Hoje `next-task.md` tem a missão
+  `runtime-role-least-privilege-rls-enforcement` Fase 1 (CI-only) `pending`; esta missão só pode ir para
+  `next-task.md` quando a fila estiver idle (RLS Fase 1 auditada/decidida OU explicitamente despriorizada
+  pelo humano). Sem dependência técnica de código com a RLS — a serialização é apenas de fila.
+mission_source: (este card é a fonte; plano detalhado nesta entrada)
+human_decision: APROVADO registrar como missão formal (decisão humana 2026-06-05). NÃO implementar agora.
+---
+
+### Contexto (causa-raiz da melhoria)
+O preflight (CHECK 2) bloqueia corretamente quando a branch atual ≠ branch exigida, mas a correção é manual
+(`git checkout -b <branch>`). A regra **inviolável** "o runner agente NUNCA cria/troca branch" (repetida em
+`preflight-check.md`, `auto-queue-runner.md` Regra #2, `auditor-flow.md`; origem: incidente `git clean`
+2026-06-04) **não pode** ser enfraquecida. Reconciliação aprovada: a automação vive num **helper
+determinístico invocado pelo HUMANO** — a invocação humana É a autorização. O runner agente permanece proibido.
+
+### MODEL CAPABILITY ASSESSMENT
+- **Executor recomendado:** Big Pickle, **EXECUTE_WITH_REVIEW** (toca governança/fluxo de fila → auditoria final do Claude obrigatória).
+- **Nível de risco:** **Baixo** (tooling local + docs). **Produção: nulo.** Sem runtime, sem secrets, sem deploy.
+- **Escalonamento:** qualquer tentativa de colocar auto-branch no preflight do AGENTE, ou de adicionar
+  push/merge/commit/clean/stash ao helper → **PARAR e reportar** (ESCALATE). Isso reverteria a decisão arquitetural.
+
+### Objetivo
+Criar `npm run task:branch` — helper Node determinístico, invocado pelo humano, que prepara a branch exigida
+pela missão **antes** do `/next-task`, com gates de segurança, **sem** dar ao runner/agente permissão para
+trocar branch.
+
+### ALLOWLIST (escopo autorizado)
+- `backend/scripts/queue-branch.js` (novo)
+- `backend/package.json` (adicionar script `task:branch` — 1 linha)
+- `backend/tests/unit/queue-branch.test.js` (novo — recomendado)
+- `.opencodex/templates/preflight-check.md` (nota do pré-passo human-invoked + canonizar `required_branch:` no CHECK 2)
+- `.opencode/rules/auto-queue-runner.md` (carve-out: helper humano ≠ runner; runner segue proibido)
+- `.opencodex/queue/next-task.md` (padronizar campo `required_branch:`; manter `created_branch` como alias)
+
+> Qualquer arquivo fora desta lista = violação de escopo = PARAR e reportar.
+
+### Comportamento do helper (determinístico)
+1. Ler `.opencodex/queue/next-task.md` → extrair `required_branch` (**fail-closed** se ausente/ambíguo; nunca adivinhar do task_id).
+2. Comparar com a branch atual (`git branch --show-current`). Se iguais → "nada a fazer", sai 0.
+3. Se diferentes, rodar os GATES antes de qualquer mutação:
+   - **G1** working tree com mudança de CÓDIGO (excluindo `.opencodex/` e `docs/private/`, igual CHECK 1/5) → **BLOQUEIA**.
+   - **G2** `current-task.md` `running`/`claimed` → **BLOQUEIA**.
+   - **G3** detached HEAD / sem branch → **BLOQUEIA**.
+   - **G4** branch exigida **existe e diverge** (suja ou não descende da base esperada `main`) → **BLOQUEIA** (não sobrescreve).
+   - **G5** HEAD atual ≠ base esperada para ramificar → avisar/bloquear.
+4. Só após todos os gates: `git checkout -b <required>` (nova) ou `git checkout <required>` (existente-limpa-convergente).
+5. **Nunca** `push`/`merge`/`commit`/`deploy`/`clean`/`stash`. Helper termina deixando o ambiente pronto e
+   instruindo rodar `/next-task` (o preflight do agente roda por cima = defesa em profundidade).
+
+### Restrições invioláveis
+- ❌ NÃO colocar auto-branch no preflight do AGENTE (runner segue proibido — regra literal preservada nas 3 fontes).
+- ❌ NÃO criar comando `/…` (isso re-introduziria o agente trocando branch). É npm script humano.
+- ❌ NÃO push, merge, deploy, commit, `git clean`, `git stash`.
+- ❌ NÃO tocar produção, secrets, `deploy.yml`, `config/database.js`, runtime.
+
+### Critérios de aceite
+- [ ] `npm run task:branch` lê `required_branch`; fail-closed se ausente.
+- [ ] Branch atual == exigida → sai 0 sem alterar nada.
+- [ ] Mudança de código no tree (fora de `.opencodex/`/`docs/private/`) → BLOQUEIA com `problema · risco · ação segura`.
+- [ ] `current-task.md` `running`/`claimed` → BLOQUEIA.
+- [ ] Exigida inexistente + tree limpo → cria a partir de `main` e troca.
+- [ ] Exigida existente e convergente → troca; divergente → BLOQUEIA (não sobrescreve).
+- [ ] Helper nunca executa push/merge/commit/deploy/clean/stash (coberto por teste).
+- [ ] Regra "runner agente nunca cria branch" permanece literal em `preflight-check.md`, `auto-queue-runner.md`, `auditor-flow.md`.
+- [ ] Compatível com Windows + PowerShell (Node `execSync`, cross-platform).
+- [ ] Suíte de testes verde após a mudança.
+
+### Como promover (somente Claude Code, após decisão humana + fila livre)
+1. Confirmar fila idle (RLS Fase 1 fechada ou despriorizada).
+2. Copiar este card para `.opencodex/queue/next-task.md` (`status: pending`) com o `MODEL CAPABILITY ASSESSMENT` no topo.
+3. Definir `required_branch` da própria missão (sugestão: `chore/queue-auto-branch-helper`) e marcar esta entrada como `promoted`.
+4. Pós-execução: `/complete-task` → `/audit-task` → decisão final do Claude. Push só com confirmação humana.

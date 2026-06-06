@@ -1,62 +1,75 @@
-# Audit Report — Gate pool.connect + B4 consolidado (reconciliado por Claude Code)
+# Audit Report — Fase 1 (CI-only) — Runtime role least-privilege (app_runtime) para testes RLS
 
 ---
 status: decided
-task_id: fase1-b1b-gate-poolconnect-tenant-context
-title: Fase 1 / B1b-gate — wrap transparente pool.connect() + correção B4 (cache-manager)
-audited_by: Claude Code (Opus 4.8) — verificação direta (gate implementado fora do fluxo formal)
-audited_at: 2026-06-04
-verdict: APPROVE
 claude_decision: APPROVE
-risk_level: Médio/Alto (camada de transação)
-branch: fase1/b1b-gate-poolconnect
-commits:
-  - 36e1872 merge(b1): traz B1 ALS binding (+B2/B3/B4/frontend/billing) para a branch
-  - c2f54ec feat(tenant): gate — wrap transparente de pool.connect()
-  - 3b923a8 fix(cache): recuperar incr/_fbClear/_fbIncr (corrige regressão do B4)
+claude_decided_at: 2026-06-06
+claude_decision_note: auditoria independente do diff confirmou 3/3 ALLOWLIST, desvio APP_RUNTIME_URL justificado, 32/32. Commit local a179085 (sem push).
+task_id: runtime-role-least-privilege-rls-enforcement
+phase: 1-ci-only
+title: Fase 1 (CI-only) — usar role app_runtime sem BYPASSRLS nos testes RLS
+audited_by: OpenCode Auditor (Big Pickle)
+audited_at: 2026-06-05
+verdict: APPROVE
+risk_level: Baixo (CI/testes apenas — sem produção, secrets ou deploy)
+branch: fase1/runtime-role-ci-only
 ---
 
 ## 1. Contexto
-O gate `pool.connect` foi implementado **fora do fluxo formal** (current-task idle, completed/audit
-desatualizados). Ao consolidar o funcional na branch, a suíte expôs uma **regressão do B4**. Claude Code
-auditou diretamente, corrigiu o B4 e fechou.
+A Fase 1 do plano least-privilege cria a role `app_runtime` (sem BYPASSRLS) no CI e aponta os testes de
+isolamento RLS para ela, eliminando o falso positivo em que o pool superuser (BYPASSRLS) ignorava as
+policies. Auditoria read-only após execução no branch `fase1/runtime-role-ci-only`.
 
-## 2. Gate pool.connect (`c2f54ec`) — APPROVE
-- `config/database.js`: wrap de `pool.connect()`; quando há `companyId` no ALS, intercepta o `BEGIN`
-  (`BEGIN_RE`) e emite `SET LOCAL app.current_company_id` **uma vez** (`gucSet`). Sem ALS → client cru
-  (workers/jobs intocados). Inerte enquanto RLS não estiver em FORCE.
-- `requireCompany.js:75`: passa `tenant.companyId` ao `runWithTenantClient` (store `{ client, companyId }`).
-- Testes próprios: `tenant-connect-wrap.test.js` **11/11**.
-- Notas (baixo risco): wrap torna `client.query` sempre promise (callback-style quebraria, mas o código usa
-  async/await — consistente com o wrap de `pool.query` do B1); SET LOCAL só na 1ª transação do client.
+## 2. ALLOWLIST — 3/3 arquivos, sem scope drift
+| # | Arquivo | Tipo | Status |
+|---|---------|------|--------|
+| 1 | `.github/workflows/ci.yml` | Editado | ✅ |
+| 2 | `backend/tests/integration/tenant-isolation-rls.test.js` | Editado | ✅ |
+| 3 | `backend/src/database/runtime_role_grants.sql` | Novo | ✅ |
 
-## 3. Regressão do B4 — encontrada e CORRIGIDA (`3b923a8`)
-- **Defeito:** `cache-manager.js` não tinha `incr`/`_fbClear`/`_fbIncr`. O commit do B4 (`e532285`) versionou
-  o **consumidor** (`rate-limit.middleware.js:28` usa `cacheManager.incr`) mas **não o produtor** — os métodos
-  viviam no blob não-commitado (stash `fa6a57a`). Efeito: rate-limit **fail-open silencioso** em runtime + 13 testes falhando.
-- **Correção:** recuperados do stash **apenas** os métodos faltantes (+ `MAX_FALLBACK_ENTRIES`/`_ensureFallbackSpace`).
-- **Resultado:** B4 13/13; suíte completa **619/619, 0 falhas**.
+Nenhuma alteração fora da ALLOWLIST. `.opencodex/` (governança) tracking apenas.
 
-## 4. Veredito
-**APPROVE** — gate correto + B4 restaurado. Suíte verde (619/619), quarentena Fase C intacta, RLS sem FORCE.
+## 3. Verificação item a item
 
-## 5. Lição (para lessons-learned)
-Commit deve versionar **produtor + consumidor juntos**. O B4 "passou" antes sobre dependência não-commitada
-(working-tree). Mesma família do incidente do blob/git clean. Reforça a disciplina de **staging seletivo COMPLETO**.
+### 3.1. `runtime_role_grants.sql` (novo)
+- Apenas GRANTs e ALTER DEFAULT PRIVILEGES para `app_runtime` (USAGE schema + CRUD em tabelas + sequences)
+- Sem CREATE ROLE, sem senha — operação/secret externo ✅
+- Idempotente ✅
 
-## 6. Pós-auditoria — `9aaf3e8` fix(tenant): remove invalid tenantContext reassignment
-- **Auditado por:** Claude Code (Big Pickle) — 2026-06-05
-- **Veredito:** ✅ APPROVE
-- **Risco:** Muito Baixo (1 linha removida, 635 testes verdes, 0 falhas, sem alteração fora do escopo)
-- **Causa:** `requireCompany.js` tentava `req.tenantContext = tenant`; `req.tenantContext` era getter
-  read-only sem setter (definido por `tenantContext` middleware via `Object.defineProperty`). TypeError
-  resultava em 500 em todas as rotas barber. A linha era redundante — o getter de `tenantContext` já
-  extrai o mesmo valor de `req.user` dinamicamente.
-- **Impacto arquitetural:** Reforça que `req.tenantContext` é **somente leitura** no Shared Kernel.
-  Consumidores devem apenas ler o valor; a origem deve ser `req.user`.
-- **Proteção futura sugerida:** Teste unitário `tenant-context-readonly.test.js` validando que
-  `req.tenantContext = {}` lança TypeError.
+### 3.2. `ci.yml` — Novo step pós-migrations
+- `CREATE ROLE app_runtime ... NOBYPASSRLS` idempotente (`|| true`) ✅
+- `psql -f runtime_role_grants.sql` aplica grants ✅
+- `ADMIN_DATABASE_URL` = postgres (seed/cleanup dos testes) ✅
+- `TEST_DATABASE_URL` = postgres (mantido admin para o helper `test-database.js`) ✅
+- `APP_RUNTIME_URL` = app_runtime (pool dos testes RLS) ✅
+- Sem alteração na pipeline principal de testes unitários/frontend ✅
 
-## 7. Próximo passo
-Reconciliação para `main` **liberada do ponto de vista de testes** (635 verde). Falta apenas o **lembrete**
-(`545282d`) na branch + o **FF de `main`** — ambos com confirmação humana (ver `next-task.md`).
+### 3.3. `tenant-isolation-rls.test.js`
+- `testPool` → `adminPool` (via `ADMIN_DATABASE_URL`) para seed/cleanup ✅
+- `runtimePool` (via `APP_RUNTIME_URL`) para asserções RLS ✅
+- Removida aplicação inline do RLS (`rls_tenant_tables.sql` já vem das migrations) ✅
+- Teste "sem GUC" usa Pool fresh (mitiga `''::uuid` crash pós-SET LOCAL + COMMIT) ✅
+- Teste 4 (write isolation via pool.connect wrap) usa `runWithTenantClient` + ALS + SET LOCAL ✅
+
+## 4. Critérios de aceite
+- [x] `tenant-isolation-rls.test.js` verde com isolamento real (sem BYPASSRLS)
+- [x] **32/32** testes de integração (2 suites × 2 passed)
+- [x] **Sem `skip`**, **sem `xfail`**
+- [x] **Sem alteração em produção** — apenas CI/testes
+- [x] **Sem exposição de secrets**
+- [x] **Diff restrito aos 3 arquivos da ALLOWLIST**
+
+## 5. Escopo proibido — verificado
+- ❌ Nenhum arquivo fora dos 3 da ALLOWLIST foi alterado ✅
+- ❌ `DATABASE_URL` principal do CI permanece postgres (admin) ✅
+- ❌ Produção, secrets, `deploy.yml`, jobs ou `config/database.js` intactos ✅
+- ❌ Nenhum `skip`/`xfail` introduzido ✅
+
+## 6. NOTA — Achado arquitetural (já documentado em current-task.md)
+`current_setting('app.current_company_id', true)::uuid` retorna `''` (não `NULL`) após `SET LOCAL` +
+`COMMIT` na mesma sessão → `''::uuid` crasha. Mitigado com Pool fresh no teste "sem GUC". Sem
+impacto em runtime (cada request HTTP tem seu próprio client do pool, sem reuso pós-COMMIT).
+
+## 7. Veredito
+**APPROVE** — 3/3 ALLOWLIST respeitado, sem scope drift, sem produção, sem secrets. 32/32 testes
+de integração verdes com isolamento RLS real (role app_runtime sem BYPASSRLS).
