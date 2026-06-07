@@ -39,6 +39,27 @@
   para garantir os `required_fields`. Hoje `sale.service`/`appointment.service` **não** validam — ao tocá-los,
   adicionar a validação é a aplicação direta desta regra.
 
+## 🚦 EVENT CONTRACTS GATE (reprovação automática do Auditor)
+**Se o diff tocar QUALQUER um destes** → o Auditor **DEVE reprovar com REQUEST_CHANGES** se faltar qualquer item da checklist abaixo:
+
+Gatilhos:
+- `EventBus` (`event-bus.js`) · `Outbox` (`outbox-worker.js`, `unit-of-work.js`) · Consumers
+- Services que **publicam eventos** · `contracts.js` · `factories/*-events.js`
+- `AppointmentService` · `BillingService` · WhatsApp consumers/producers (integração)
+
+Checklist (TODOS obrigatórios):
+1. contrato real localizado em `contracts.js`;
+2. `validateEventPayload(contract, payload)` aplicado antes da emissão/gravação;
+3. `event_name` vindo do contrato (ou da factory) — **nunca** hardcoded;
+4. `aggregate_type` vindo do contrato (ou da factory) — **nunca** hardcoded;
+5. teste unitário cobrindo o producer (factory) **ou** o consumer;
+6. se for fluxo crítico (customer-facing / pagamento): teste de integração **ou** follow-up formal obrigatório no backlog.
+
+## 🏭 Factory obrigatória para producers de domínio
+- Eventos de domínio **não** devem ser montados à mão no service. Usar a **factory central** correspondente:
+  - Appointment → `backend/src/shared/core/events/factories/appointment-events.js` (`AppointmentEvents.created/confirmed/canceled/completed/rescheduled`).
+- A factory é a aplicação prática dos itens 1–4: monta o payload, busca `event_name`/`aggregate_type` do contrato e chama `validateEventPayload`. Novos domínios (billing, etc.) que repetirem o incidente devem ganhar sua própria factory (começar pequeno, sem registry).
+
 ## Aplicação no fluxo de missões
 - Toda missão que toque eventos deve referenciar esta regra no card (`next-task.md`) e incluir os passos 5 e 6 nos **Critérios de aceite**.
-- O **Auditor** (OpenCode + Claude Code) deve **reprovar** (REQUEST_CHANGES) diffs de evento que violem os itens 2–4 ou não tragam o teste do item 5.
+- O **Auditor** (OpenCode + Claude Code) deve **reprovar** (REQUEST_CHANGES) diffs de evento que violem o GATE acima.
