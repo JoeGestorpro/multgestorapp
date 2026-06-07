@@ -390,7 +390,7 @@ const outboxWorker = new OutboxWorker(pool, {
 });
 
 const { handleBillingProvisioning, handleWalletTopup, handleWalletTopupFailed, handleSaleLoyaltyAccrual, handleSalePackageRedemption } = require('./integrations/consumers');
-const { handleAppointmentCreated, handleAppointmentCreatedEventLog } = require('./shared/core/events/consumers');
+const { handleAppointmentCreated, handleAppointmentCreatedEventLog, handleAppointmentConfirmed, handleAppointmentCanceled, handleAppointmentCompleted, handleAppointmentRescheduled } = require('./shared/core/events/consumers');
 outboxWorker.register('payment.approved', handleBillingProvisioning);
 outboxWorker.register('subscription.renewed', handleBillingProvisioning);
 outboxWorker.register('subscription.past_due', handleBillingProvisioning);
@@ -416,6 +416,10 @@ appLogger.warn('[OutboxWorker] Fase C (sale.created → loyalty/package) em QUAR
 
 outboxWorker.register('appointment.created', handleAppointmentCreated);
 outboxWorker.register('appointment.created', handleAppointmentCreatedEventLog);
+outboxWorker.register('appointment.confirmed', handleAppointmentConfirmed);
+outboxWorker.register('appointment.canceled', handleAppointmentCanceled);
+outboxWorker.register('appointment.completed', handleAppointmentCompleted);
+outboxWorker.register('appointment.rescheduled', handleAppointmentRescheduled);
 appLogger.info('[OutboxWorker] Appointment audit consumers registered');
 
 outboxWorker.start();

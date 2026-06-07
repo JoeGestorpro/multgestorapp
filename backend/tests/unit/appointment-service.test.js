@@ -1,6 +1,14 @@
 const AppointmentRepository = require('../../src/repositories/appointment.repository')
 const AppointmentService = require('../../src/services/appointment.service')
 const { ValidationError, NotFoundError, ForbiddenError, eventBus } = require('../../src/shared')
+const {
+  AppointmentCreated,
+  AppointmentConfirmed,
+  AppointmentCanceled,
+  AppointmentCompleted,
+  AppointmentRescheduled,
+  validateEventPayload
+} = require('../../src/shared/core/events/contracts')
 
 let mockUow
 let mockUowRepo
@@ -15,6 +23,14 @@ jest.mock('../../src/shared/core/events/event-bus', () => {
   return {
     EventBus: jest.fn(),
     eventBus: { publish: mockPublish },
+  }
+})
+
+jest.mock('../../src/shared/core/events/contracts', () => {
+  const actual = jest.requireActual('../../src/shared/core/events/contracts')
+  return {
+    ...actual,
+    validateEventPayload: jest.fn(),
   }
 })
 
@@ -47,6 +63,7 @@ function createDefaultUowRepo() {
   return {
     findConflicts: jest.fn().mockResolvedValue([]),
     create: jest.fn(),
+    update: jest.fn(),
   }
 }
 
@@ -196,22 +213,31 @@ describe('AppointmentService — Unit Tests', () => {
         customerPhone: '11999999999',
       }))
       expect(mockUow.addEvent).toHaveBeenCalledWith(
-        'appointment.created',
+        AppointmentCreated.event_name,
         expect.objectContaining({
           appointment_id: 'apt-new',
           company_id: COMPANY_ID,
         }),
         expect.objectContaining({
           companyId: COMPANY_ID,
-          aggregateType: 'appointment',
+          aggregateType: AppointmentCreated.aggregate_type,
           aggregateId: 'apt-new',
         })
       )
       expect(mockUow.commit).toHaveBeenCalled()
       expect(result.id).toBe('apt-new')
 
+      expect(validateEventPayload).toHaveBeenCalledWith(AppointmentCreated, expect.objectContaining({
+        appointment_id: 'apt-new',
+        company_id: COMPANY_ID,
+      }))
+      expect(validateEventPayload).toHaveBeenCalledWith(AppointmentConfirmed, expect.objectContaining({
+        appointment_id: 'apt-new',
+        company_id: COMPANY_ID,
+      }))
+
       expect(eventBus.publish).toHaveBeenCalledWith(
-        'appointment.confirmed',
+        AppointmentConfirmed.event_name,
         expect.objectContaining({
           appointment_id: 'apt-new',
           company_id: COMPANY_ID,
@@ -220,7 +246,7 @@ describe('AppointmentService — Unit Tests', () => {
       )
 
       const createdCalls = eventBus.publish.mock.calls.filter(
-        ([type]) => type === 'appointment.created'
+        ([type]) => type === AppointmentCreated.event_name
       )
       expect(createdCalls.length).toBe(0)
     })
@@ -350,29 +376,67 @@ describe('AppointmentService — Unit Tests', () => {
   })
 
   describe('update', () => {
-    it('updates status', async () => {
-      repo.findById.mockResolvedValue({ id: 'apt-1', collaborator_id: 'col-1', service_id: 'svc-1', customer_name: 'Test Customer', customer_phone: '11999999999', starts_at: FUTURE_DATE, ends_at: new Date(new Date(FUTURE_DATE).getTime() + 30 * 60 * 1000).toISOString() })
-      repo.update.mockResolvedValue({ id: 'apt-1', status: 'confirmed' })
+    const EXISTING_APPOINTMENT = {
+      id: 'apt-1',
+      collaborator_id: 'col-1',
+      service_id: 'svc-1',
+      customer_name: 'Test Customer',
+      customer_phone: '11999999999',
+      starts_at: FUTURE_DATE,
+      ends_at: new Date(new Date(FUTURE_DATE).getTime() + 30 * 60 * 1000).toISOString(),
+    }
+
+    it('updates status to confirmed with UoW + outbox + dual-emit', async () => {
+      repo.findById.mockResolvedValue(EXISTING_APPOINTMENT)
+      mockUowRepo.update.mockResolvedValue({ id: 'apt-1', status: 'confirmed' })
 
       const result = await service.update(COMPANY_ID, ADMIN_USER, 'apt-1', { status: 'confirmed' })
 
       expect(result.status).toBe('confirmed')
-      expect(repo.update).toHaveBeenCalledWith(COMPANY_ID, 'apt-1', {
+
+      expect(mockUow.begin).toHaveBeenCalled()
+      expect(mockUow.repository).toHaveBeenCalledWith(AppointmentRepository)
+      expect(mockUowRepo.update).toHaveBeenCalledWith(COMPANY_ID, 'apt-1', {
         status: 'confirmed',
         notes: undefined,
         canceledReason: undefined,
       })
+      expect(mockUow.addEvent).toHaveBeenCalledWith(
+        AppointmentConfirmed.event_name,
+        expect.objectContaining({ appointment_id: 'apt-1', company_id: COMPANY_ID }),
+        expect.objectContaining({ companyId: COMPANY_ID, aggregateType: AppointmentConfirmed.aggregate_type, aggregateId: 'apt-1' })
+      )
+      expect(mockUow.commit).toHaveBeenCalled()
+
+      expect(validateEventPayload).toHaveBeenCalledWith(AppointmentConfirmed, expect.objectContaining({
+        appointment_id: 'apt-1',
+        company_id: COMPANY_ID,
+      }))
+
+      expect(eventBus.publish).toHaveBeenCalledWith(
+        AppointmentConfirmed.event_name,
+        expect.objectContaining({ appointment_id: 'apt-1', company_id: COMPANY_ID }),
+        expect.any(Object)
+      )
+
+      const canceledCalls = eventBus.publish.mock.calls.filter(([t]) => t === AppointmentCanceled.event_name)
+      expect(canceledCalls.length).toBe(0)
     })
 
-    it('updates notes', async () => {
+    it('updates notes without events', async () => {
       repo.findById.mockResolvedValue({ id: 'apt-1' })
-      repo.update.mockResolvedValue({ id: 'apt-1' })
+      mockUowRepo.update.mockResolvedValue({ id: 'apt-1' })
 
       await service.update(COMPANY_ID, ADMIN_USER, 'apt-1', { notes: 'New notes' })
 
-      expect(repo.update).toHaveBeenCalledWith(COMPANY_ID, 'apt-1', expect.objectContaining({
+      expect(mockUow.begin).toHaveBeenCalled()
+      expect(mockUowRepo.update).toHaveBeenCalledWith(COMPANY_ID, 'apt-1', expect.objectContaining({
         notes: 'New notes',
       }))
+      expect(mockUow.addEvent).not.toHaveBeenCalled()
+      expect(mockUow.commit).toHaveBeenCalled()
+      expect(validateEventPayload).not.toHaveBeenCalled()
+      expect(eventBus.publish).not.toHaveBeenCalled()
     })
 
     it('throws ValidationError when no changes provided', async () => {
@@ -394,47 +458,97 @@ describe('AppointmentService — Unit Tests', () => {
     })
 
     it('allows collaborator to update', async () => {
-      repo.findById.mockResolvedValue({ id: 'apt-1', collaborator_id: 'col-1', service_id: 'svc-1', customer_name: 'Test Customer', customer_phone: '11999999999', starts_at: FUTURE_DATE, ends_at: new Date(new Date(FUTURE_DATE).getTime() + 30 * 60 * 1000).toISOString() })
-      repo.update.mockResolvedValue({ id: 'apt-1' })
+      repo.findById.mockResolvedValue(EXISTING_APPOINTMENT)
+      mockUowRepo.update.mockResolvedValue({ id: 'apt-1' })
 
       const result = await service.update(COMPANY_ID, COLLABORATOR_USER, 'apt-1', { status: 'confirmed' })
 
       expect(result).toBeDefined()
+      expect(mockUow.begin).toHaveBeenCalled()
+      expect(mockUow.commit).toHaveBeenCalled()
+    })
+
+    it('rolls back on repository error', async () => {
+      repo.findById.mockResolvedValue(EXISTING_APPOINTMENT)
+      mockUowRepo.update.mockRejectedValue(new Error('DB_ERROR'))
+
+      await expect(service.update(COMPANY_ID, ADMIN_USER, 'apt-1', { status: 'confirmed' })).rejects.toThrow('DB_ERROR')
+
+      expect(mockUow.begin).toHaveBeenCalled()
+      expect(mockUow.rollback).toHaveBeenCalled()
+      expect(mockUow.commit).not.toHaveBeenCalled()
     })
   })
 
   describe('cancel', () => {
-    it('cancels appointment with reason', async () => {
-      repo.findById.mockResolvedValue({ id: 'apt-1', collaborator_id: 'col-1', service_id: 'svc-1', customer_name: 'Test Customer', customer_phone: '11999999999' })
-      repo.update.mockResolvedValue({ id: 'apt-1', status: 'canceled' })
+    const EXISTING_APPOINTMENT = {
+      id: 'apt-1',
+      collaborator_id: 'col-1',
+      service_id: 'svc-1',
+      customer_name: 'Test Customer',
+      customer_phone: '11999999999',
+      starts_at: FUTURE_DATE,
+      ends_at: new Date(new Date(FUTURE_DATE).getTime() + 30 * 60 * 1000).toISOString(),
+    }
+
+    it('cancels appointment with reason via UoW + outbox + dual-emit', async () => {
+      repo.findById.mockResolvedValue(EXISTING_APPOINTMENT)
+      mockUowRepo.update.mockResolvedValue({ id: 'apt-1', status: 'canceled' })
 
       const result = await service.cancel(COMPANY_ID, ADMIN_USER, 'apt-1', { reason: 'Customer requested' })
 
       expect(result.status).toBe('canceled')
-      expect(repo.update).toHaveBeenCalledWith(COMPANY_ID, 'apt-1', expect.objectContaining({
+
+      expect(mockUow.begin).toHaveBeenCalled()
+      expect(mockUow.repository).toHaveBeenCalledWith(AppointmentRepository)
+      expect(mockUowRepo.update).toHaveBeenCalledWith(COMPANY_ID, 'apt-1', expect.objectContaining({
         status: 'canceled',
         canceledReason: 'Customer requested',
       }))
+      expect(mockUow.addEvent).toHaveBeenCalledWith(
+        AppointmentCanceled.event_name,
+        expect.objectContaining({ appointment_id: 'apt-1', company_id: COMPANY_ID }),
+        expect.any(Object)
+      )
+      expect(mockUow.commit).toHaveBeenCalled()
+
+      expect(validateEventPayload).toHaveBeenCalledWith(AppointmentCanceled, expect.objectContaining({
+        appointment_id: 'apt-1',
+        company_id: COMPANY_ID,
+      }))
+
+      expect(eventBus.publish).toHaveBeenCalledWith(
+        AppointmentCanceled.event_name,
+        expect.objectContaining({ appointment_id: 'apt-1', company_id: COMPANY_ID }),
+        expect.any(Object)
+      )
     })
 
     it('cancels appointment without reason', async () => {
-      repo.findById.mockResolvedValue({ id: 'apt-1', collaborator_id: 'col-1', service_id: 'svc-1', customer_name: 'Test Customer', customer_phone: '11999999999' })
-      repo.update.mockResolvedValue({ id: 'apt-1', status: 'canceled' })
+      repo.findById.mockResolvedValue(EXISTING_APPOINTMENT)
+      mockUowRepo.update.mockResolvedValue({ id: 'apt-1', status: 'canceled' })
 
       await service.cancel(COMPANY_ID, ADMIN_USER, 'apt-1')
 
-      expect(repo.update).toHaveBeenCalledWith(COMPANY_ID, 'apt-1', expect.objectContaining({
+      expect(mockUow.begin).toHaveBeenCalled()
+      expect(mockUowRepo.update).toHaveBeenCalledWith(COMPANY_ID, 'apt-1', expect.objectContaining({
         status: 'canceled',
       }))
+      expect(mockUow.addEvent).toHaveBeenCalledWith(
+        AppointmentCanceled.event_name,
+        expect.any(Object),
+        expect.any(Object)
+      )
+      expect(mockUow.commit).toHaveBeenCalled()
     })
   })
 
   describe('reschedule', () => {
-    it('reschedules appointment when no conflict', async () => {
+    it('reschedules appointment when no conflict via UoW + outbox', async () => {
       const newDate = new Date(Date.now() + 172800000).toISOString()
       repo.findById.mockResolvedValue({ id: 'apt-1', collaborator_id: 'col-1', starts_at: FUTURE_DATE })
       repo.findConflicts.mockResolvedValue([])
-      repo.update.mockResolvedValue({ id: 'apt-1', starts_at: newDate })
+      mockUowRepo.update.mockResolvedValue({ id: 'apt-1', starts_at: newDate })
 
       const result = await service.reschedule(COMPANY_ID, ADMIN_USER, 'apt-1', { starts_at: newDate })
 
@@ -446,6 +560,19 @@ describe('AppointmentService — Unit Tests', () => {
         expect.any(Date),
         'apt-1'
       )
+
+      expect(mockUow.begin).toHaveBeenCalled()
+      expect(mockUow.repository).toHaveBeenCalledWith(AppointmentRepository)
+      expect(mockUowRepo.update).toHaveBeenCalledWith(COMPANY_ID, 'apt-1', expect.objectContaining({
+        startsAt: expect.any(Date),
+        endsAt: expect.any(Date),
+      }))
+      expect(mockUow.addEvent).toHaveBeenCalledWith(
+        AppointmentRescheduled.event_name,
+        expect.objectContaining({ appointment_id: 'apt-1', company_id: COMPANY_ID }),
+        expect.any(Object)
+      )
+      expect(mockUow.commit).toHaveBeenCalled()
     })
 
     it('throws ValidationError when new date is missing', async () => {
@@ -516,11 +643,11 @@ describe('AppointmentService — Unit Tests', () => {
       expect(mockUowRepo.create).toHaveBeenCalledWith('company-b', expect.any(Object))
     })
 
-    it('passes correct company_id to repository on update', async () => {
-      repo.findById.mockResolvedValue({ id: 'apt-1' })
-      repo.update.mockResolvedValue({ id: 'apt-1' })
+    it('passes correct company_id to UoW repository on update', async () => {
+      repo.findById.mockResolvedValue({ id: 'apt-1', collaborator_id: 'col-1', service_id: 'svc-1', customer_name: 'Test', customer_phone: '11999999999', starts_at: FUTURE_DATE, ends_at: new Date(new Date(FUTURE_DATE).getTime() + 30 * 60 * 1000).toISOString() })
+      mockUowRepo.update.mockResolvedValue({ id: 'apt-1' })
       await service.update('company-b', ADMIN_USER, 'apt-1', { status: 'confirmed' })
-      expect(repo.update).toHaveBeenCalledWith('company-b', 'apt-1', expect.any(Object))
+      expect(mockUowRepo.update).toHaveBeenCalledWith('company-b', 'apt-1', expect.any(Object))
     })
 
     it('passes correct company_id to repository on delete', async () => {

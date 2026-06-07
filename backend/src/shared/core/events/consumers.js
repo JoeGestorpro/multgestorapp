@@ -1,5 +1,12 @@
 const { eventBus } = require('./event-bus')
 const { appLogger } = require('../logger')
+const {
+  AppointmentCreated,
+  AppointmentConfirmed,
+  AppointmentCanceled,
+  AppointmentCompleted,
+  AppointmentRescheduled
+} = require('./contracts')
 
 function auditLogConsumer(event) {
   const logger = appLogger.child({ consumer: 'AuditLog' })
@@ -27,17 +34,17 @@ function eventLoggerConsumer(event) {
 }
 
 function registerDefaultConsumers() {
-  eventBus.subscribe('appointment.created', auditLogConsumer, { consumer_name: 'AuditLog' })
-  eventBus.subscribe('appointment.confirmed', auditLogConsumer, { consumer_name: 'AuditLog' })
-  eventBus.subscribe('appointment.canceled', auditLogConsumer, { consumer_name: 'AuditLog' })
-  eventBus.subscribe('appointment.completed', auditLogConsumer, { consumer_name: 'AuditLog' })
-  eventBus.subscribe('appointment.rescheduled', auditLogConsumer, { consumer_name: 'AuditLog' })
+  eventBus.subscribe(AppointmentCreated.event_name, auditLogConsumer, { consumer_name: 'AuditLog' })
+  eventBus.subscribe(AppointmentConfirmed.event_name, auditLogConsumer, { consumer_name: 'AuditLog' })
+  eventBus.subscribe(AppointmentCanceled.event_name, auditLogConsumer, { consumer_name: 'AuditLog' })
+  eventBus.subscribe(AppointmentCompleted.event_name, auditLogConsumer, { consumer_name: 'AuditLog' })
+  eventBus.subscribe(AppointmentRescheduled.event_name, auditLogConsumer, { consumer_name: 'AuditLog' })
 
-  eventBus.subscribe('appointment.created', eventLoggerConsumer, { consumer_name: 'EventLogger' })
-  eventBus.subscribe('appointment.confirmed', eventLoggerConsumer, { consumer_name: 'EventLogger' })
-  eventBus.subscribe('appointment.canceled', eventLoggerConsumer, { consumer_name: 'EventLogger' })
-  eventBus.subscribe('appointment.completed', eventLoggerConsumer, { consumer_name: 'EventLogger' })
-  eventBus.subscribe('appointment.rescheduled', eventLoggerConsumer, { consumer_name: 'EventLogger' })
+  eventBus.subscribe(AppointmentCreated.event_name, eventLoggerConsumer, { consumer_name: 'EventLogger' })
+  eventBus.subscribe(AppointmentConfirmed.event_name, eventLoggerConsumer, { consumer_name: 'EventLogger' })
+  eventBus.subscribe(AppointmentCanceled.event_name, eventLoggerConsumer, { consumer_name: 'EventLogger' })
+  eventBus.subscribe(AppointmentCompleted.event_name, eventLoggerConsumer, { consumer_name: 'EventLogger' })
+  eventBus.subscribe(AppointmentRescheduled.event_name, eventLoggerConsumer, { consumer_name: 'EventLogger' })
 }
 
 function handleAppointmentCreated(payload, context) {
@@ -45,13 +52,13 @@ function handleAppointmentCreated(payload, context) {
 
   logger.info({
     event_id: context.eventId,
-    event_name: 'appointment.created',
+    event_name: AppointmentCreated.event_name,
     company_id: context.companyId,
-    aggregate_type: 'appointment',
+    aggregate_type: AppointmentCreated.aggregate_type,
     aggregate_id: payload.appointment_id,
     occurred_at: new Date().toISOString(),
     payload_keys: Object.keys(payload || {})
-  }, `AUDIT: appointment.created`)
+  }, `AUDIT: ${AppointmentCreated.event_name}`)
 }
 
 function handleAppointmentCreatedEventLog(payload, context) {
@@ -59,10 +66,66 @@ function handleAppointmentCreatedEventLog(payload, context) {
 
   logger.debug({
     event_id: context.eventId,
-    event_name: 'appointment.created',
+    event_name: AppointmentCreated.event_name,
     company_id: context.companyId,
     metadata: { traceId: context.traceId, companyId: context.companyId }
-  }, `EVENT LOG: appointment.created`)
+  }, `EVENT LOG: ${AppointmentCreated.event_name}`)
+}
+
+function handleAppointmentConfirmed(payload, context) {
+  const logger = appLogger.child({ consumer: 'AuditLog', handler: 'outbox' })
+
+  logger.info({
+    event_id: context.eventId,
+    event_name: AppointmentConfirmed.event_name,
+    company_id: context.companyId,
+    aggregate_type: AppointmentConfirmed.aggregate_type,
+    aggregate_id: payload.appointment_id,
+    occurred_at: new Date().toISOString(),
+    payload_keys: Object.keys(payload || {})
+  }, `AUDIT: ${AppointmentConfirmed.event_name}`)
+}
+
+function handleAppointmentCanceled(payload, context) {
+  const logger = appLogger.child({ consumer: 'AuditLog', handler: 'outbox' })
+
+  logger.info({
+    event_id: context.eventId,
+    event_name: AppointmentCanceled.event_name,
+    company_id: context.companyId,
+    aggregate_type: AppointmentCanceled.aggregate_type,
+    aggregate_id: payload.appointment_id,
+    occurred_at: new Date().toISOString(),
+    payload_keys: Object.keys(payload || {})
+  }, `AUDIT: ${AppointmentCanceled.event_name}`)
+}
+
+function handleAppointmentCompleted(payload, context) {
+  const logger = appLogger.child({ consumer: 'AuditLog', handler: 'outbox' })
+
+  logger.info({
+    event_id: context.eventId,
+    event_name: AppointmentCompleted.event_name,
+    company_id: context.companyId,
+    aggregate_type: AppointmentCompleted.aggregate_type,
+    aggregate_id: payload.appointment_id,
+    occurred_at: new Date().toISOString(),
+    payload_keys: Object.keys(payload || {})
+  }, `AUDIT: ${AppointmentCompleted.event_name}`)
+}
+
+function handleAppointmentRescheduled(payload, context) {
+  const logger = appLogger.child({ consumer: 'AuditLog', handler: 'outbox' })
+
+  logger.info({
+    event_id: context.eventId,
+    event_name: AppointmentRescheduled.event_name,
+    company_id: context.companyId,
+    aggregate_type: AppointmentRescheduled.aggregate_type,
+    aggregate_id: payload.appointment_id,
+    occurred_at: new Date().toISOString(),
+    payload_keys: Object.keys(payload || {})
+  }, `AUDIT: ${AppointmentRescheduled.event_name}`)
 }
 
 module.exports = {
@@ -70,5 +133,9 @@ module.exports = {
   eventLoggerConsumer,
   handleAppointmentCreated,
   handleAppointmentCreatedEventLog,
+  handleAppointmentConfirmed,
+  handleAppointmentCanceled,
+  handleAppointmentCompleted,
+  handleAppointmentRescheduled,
   registerDefaultConsumers
 }

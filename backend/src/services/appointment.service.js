@@ -3,6 +3,14 @@ const AppointmentRepository = require('../repositories/appointment.repository')
 const { ValidationError, NotFoundError, ForbiddenError, eventBus, createUnitOfWork } = require('../shared')
 const { normalizeEmail } = require('../utils/validators')
 const { APPOINTMENT_STATUS } = require('../shared/capabilities/booking-engine/scheduling-utils')
+const {
+  AppointmentCreated,
+  AppointmentConfirmed,
+  AppointmentCanceled,
+  AppointmentCompleted,
+  AppointmentRescheduled,
+  validateEventPayload
+} = require('../shared/core/events/contracts')
 
 function ensureCompany(companyId) {
   if (!companyId) {
@@ -160,7 +168,7 @@ class AppointmentService {
         endsAt: new Date(payload.startsAt.getTime() + 30 * 60 * 1000)
       })
 
-      uow.addEvent('appointment.created', {
+      const createdPayload = {
         appointment_id: appointment.id,
         company_id: companyId,
         collaborator_id: appointment.collaborator_id,
@@ -171,16 +179,18 @@ class AppointmentService {
         ends_at: appointment.ends_at,
         status: appointment.status,
         source: appointment.source || 'admin_manual'
-      }, {
+      }
+      validateEventPayload(AppointmentCreated, createdPayload)
+      uow.addEvent(AppointmentCreated.event_name, createdPayload, {
         traceId: crypto.randomUUID(),
         companyId,
-        aggregateType: 'appointment',
+        aggregateType: AppointmentCreated.aggregate_type,
         aggregateId: appointment.id
       })
 
       await uow.commit()
 
-      eventBus.publish('appointment.confirmed', {
+      const confirmedPayload = {
         appointment_id: appointment.id,
         company_id: companyId,
         status: 'confirmed',
@@ -190,9 +200,11 @@ class AppointmentService {
         customer_phone: appointment.customer_phone,
         starts_at: appointment.starts_at,
         ends_at: appointment.ends_at
-      }, {
+      }
+      validateEventPayload(AppointmentConfirmed, confirmedPayload)
+      eventBus.publish(AppointmentConfirmed.event_name, confirmedPayload, {
         company_id: companyId,
-        aggregate_type: 'appointment',
+        aggregate_type: AppointmentConfirmed.aggregate_type,
         aggregate_id: appointment.id,
         source: 'AppointmentService'
       })
@@ -228,60 +240,117 @@ class AppointmentService {
       throw new ValidationError('Status do agendamento invalido')
     }
 
-    const updated = await this.repository.update(companyId, appointmentId, {
-      status,
-      notes,
-      canceledReason
-    })
+    const uow = createUnitOfWork()
 
-    if (status === 'confirmed') {
-      eventBus.publish('appointment.confirmed', {
-        appointment_id: appointmentId,
-        company_id: companyId,
-        status: 'confirmed',
-        collaborator_id: existing.collaborator_id,
-        service_id: existing.service_id,
-        customer_name: existing.customer_name,
-        customer_phone: existing.customer_phone,
-        starts_at: existing.starts_at,
-        ends_at: existing.ends_at
-      }, {
-        company_id: companyId,
-        aggregate_type: 'appointment',
-        aggregate_id: appointmentId,
-        source: 'AppointmentService'
+    try {
+      await uow.begin()
+
+      const repo = uow.repository(AppointmentRepository)
+
+      const updated = await repo.update(companyId, appointmentId, {
+        status,
+        notes,
+        canceledReason
       })
-    } else if (status === 'canceled') {
-      eventBus.publish('appointment.canceled', {
-        appointment_id: appointmentId,
-        company_id: companyId,
-        status: 'canceled',
-        collaborator_id: existing.collaborator_id,
-        customer_name: existing.customer_name,
-        customer_phone: existing.customer_phone,
-        canceled_reason: canceledReason
-      }, {
-        company_id: companyId,
-        aggregate_type: 'appointment',
-        aggregate_id: appointmentId,
-        source: 'AppointmentService'
-      })
-    } else if (status === 'completed') {
-      eventBus.publish('appointment.completed', {
-        appointment_id: appointmentId,
-        company_id: companyId,
-        status: 'completed',
-        collaborator_id: existing.collaborator_id,
-        service_id: existing.service_id
-      }, {
-        company_id: companyId,
-        aggregate_type: 'appointment',
-        aggregate_id: appointmentId,
-        source: 'AppointmentService'
-      })
+
+      if (status === 'confirmed') {
+        const confirmedOutboxPayload = {
+          appointment_id: appointmentId,
+          company_id: companyId,
+          status: 'confirmed',
+          collaborator_id: existing.collaborator_id,
+          service_id: existing.service_id,
+          customer_name: existing.customer_name,
+          customer_phone: existing.customer_phone,
+          starts_at: existing.starts_at,
+          ends_at: existing.ends_at
+        }
+        validateEventPayload(AppointmentConfirmed, confirmedOutboxPayload)
+        uow.addEvent(AppointmentConfirmed.event_name, confirmedOutboxPayload, {
+          traceId: crypto.randomUUID(),
+          companyId,
+          aggregateType: AppointmentConfirmed.aggregate_type,
+          aggregateId: appointmentId
+        })
+      } else if (status === 'canceled') {
+        const canceledOutboxPayload = {
+          appointment_id: appointmentId,
+          company_id: companyId,
+          status: 'canceled',
+          collaborator_id: existing.collaborator_id,
+          customer_name: existing.customer_name,
+          customer_phone: existing.customer_phone,
+          canceled_reason: canceledReason
+        }
+        validateEventPayload(AppointmentCanceled, canceledOutboxPayload)
+        uow.addEvent(AppointmentCanceled.event_name, canceledOutboxPayload, {
+          traceId: crypto.randomUUID(),
+          companyId,
+          aggregateType: AppointmentCanceled.aggregate_type,
+          aggregateId: appointmentId
+        })
+      } else if (status === 'completed') {
+        const completedOutboxPayload = {
+          appointment_id: appointmentId,
+          company_id: companyId,
+          status: 'completed',
+          collaborator_id: existing.collaborator_id,
+          service_id: existing.service_id
+        }
+        validateEventPayload(AppointmentCompleted, completedOutboxPayload)
+        uow.addEvent(AppointmentCompleted.event_name, completedOutboxPayload, {
+          traceId: crypto.randomUUID(),
+          companyId,
+          aggregateType: AppointmentCompleted.aggregate_type,
+          aggregateId: appointmentId
+        })
+      }
+
+      await uow.commit()
+
+      if (status === 'confirmed') {
+        const confirmedInMemoryPayload = {
+          appointment_id: appointmentId,
+          company_id: companyId,
+          status: 'confirmed',
+          collaborator_id: existing.collaborator_id,
+          service_id: existing.service_id,
+          customer_name: existing.customer_name,
+          customer_phone: existing.customer_phone,
+          starts_at: existing.starts_at,
+          ends_at: existing.ends_at
+        }
+        validateEventPayload(AppointmentConfirmed, confirmedInMemoryPayload)
+        eventBus.publish(AppointmentConfirmed.event_name, confirmedInMemoryPayload, {
+          company_id: companyId,
+          aggregate_type: AppointmentConfirmed.aggregate_type,
+          aggregate_id: appointmentId,
+          source: 'AppointmentService'
+        })
+      } else if (status === 'canceled') {
+        const canceledInMemoryPayload = {
+          appointment_id: appointmentId,
+          company_id: companyId,
+          status: 'canceled',
+          collaborator_id: existing.collaborator_id,
+          customer_name: existing.customer_name,
+          customer_phone: existing.customer_phone,
+          canceled_reason: canceledReason
+        }
+        validateEventPayload(AppointmentCanceled, canceledInMemoryPayload)
+        eventBus.publish(AppointmentCanceled.event_name, canceledInMemoryPayload, {
+          company_id: companyId,
+          aggregate_type: AppointmentCanceled.aggregate_type,
+          aggregate_id: appointmentId,
+          source: 'AppointmentService'
+        })
+      }
+
+      return updated
+    } catch (err) {
+      await uow.rollback()
+      throw err
     }
-
-    return updated
   }
 
   async cancel(companyId, user, appointmentId, data = {}) {
@@ -320,26 +389,41 @@ class AppointmentService {
       throw new ValidationError('Horario ja ocupado para este profissional')
     }
 
-    const updated = await this.repository.update(companyId, appointmentId, {
-      startsAt: new Date(startsAt),
-      endsAt: new Date(new Date(startsAt).getTime() + 30 * 60 * 1000)
-    })
+    const uow = createUnitOfWork()
 
-    eventBus.publish('appointment.rescheduled', {
-      appointment_id: appointmentId,
-      company_id: companyId,
-      collaborator_id: existing.collaborator_id,
-      starts_at: updated.starts_at,
-      ends_at: updated.ends_at,
-      old_starts_at: existing.starts_at
-    }, {
-      company_id: companyId,
-      aggregate_type: 'appointment',
-      aggregate_id: appointmentId,
-      source: 'AppointmentService'
-    })
+    try {
+      await uow.begin()
 
-    return updated
+      const repo = uow.repository(AppointmentRepository)
+
+      const updated = await repo.update(companyId, appointmentId, {
+        startsAt: new Date(startsAt),
+        endsAt: new Date(new Date(startsAt).getTime() + 30 * 60 * 1000)
+      })
+
+      const rescheduledPayload = {
+        appointment_id: appointmentId,
+        company_id: companyId,
+        collaborator_id: existing.collaborator_id,
+        starts_at: updated.starts_at,
+        ends_at: updated.ends_at,
+        old_starts_at: existing.starts_at
+      }
+      validateEventPayload(AppointmentRescheduled, rescheduledPayload)
+      uow.addEvent(AppointmentRescheduled.event_name, rescheduledPayload, {
+        traceId: crypto.randomUUID(),
+        companyId,
+        aggregateType: AppointmentRescheduled.aggregate_type,
+        aggregateId: appointmentId
+      })
+
+      await uow.commit()
+
+      return updated
+    } catch (err) {
+      await uow.rollback()
+      throw err
+    }
   }
 
   async delete(companyId, user, appointmentId) {
