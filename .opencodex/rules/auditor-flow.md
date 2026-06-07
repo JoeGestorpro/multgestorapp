@@ -23,6 +23,21 @@
 2. Copiar a missão para `next-task.md` com `status: pending` (allowlist + critérios de aceite + hard stops).
 3. Marcar a entrada do backlog como `promoted`.
 
+## 🔄 Loop de Fechamento da Memória (obrigatório — Segundo Cérebro V3)
+
+Toda missão **APPROVE** deve verificar se o brain (`.opencodex/brain/`) precisa ser atualizado **ANTES** do fechamento.
+
+**Se a missão alterou** arquitetura, capability, regra, integração, evento, deploy, segurança, workflow **ou** o estado do projeto → atualizar o que se aplicar:
+- `brain/project-state.md` (sempre que muda branch/main/missão/risco)
+- `brain/implementation-log.md` (toda missão concluída)
+- `brain/capabilities-map.md` (criou/alterou capability)
+- `brain/architecture-decisions.md` (nova ADR)
+- `brain/lessons-learned.md` (revelou erro de processo)
+
+**Se a atualização necessária não foi feita → `REQUEST_CHANGES`.** O Auditor (OpenCode + Claude Code) verifica essa atualização como item de fechamento, igual ao gate de EVENT CONTRACTS.
+
+> Princípio (L-02): memória que não se atualiza no fechamento morre. O fechamento da missão **inclui** atualizar o cérebro.
+
 ## Modos de execução
 - **EXECUTE:** risco baixo, sem pagamentos/segurança/multi-tenant core. Auto-validação por testes basta;
   Claude faz confirmação final leve.

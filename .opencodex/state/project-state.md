@@ -1,4 +1,8 @@
-# 📌 Project State — índice compacto de governança da fila OpenCodex
+# 📌 Project State (V2) — ⛔ SUPERSEDED por `.opencodex/brain/project-state.md`
+
+> 🔴 **OBSOLETO desde 2026-06-07.** Este arquivo (congelado em 06-04) foi substituído pelo Segundo Cérebro V3.
+> **Fonte oficial de estado:** [`.opencodex/brain/project-state.md`](../brain/project-state.md).
+> Mantido apenas como histórico — **NÃO usar como fonte atual** (campos abaixo estão desatualizados).
 
 > Ponto de entrada **enxuto** para o Cloud Code/Claude reduzir leitura de múltiplos arquivos.
 > **NÃO é fonte da verdade** de implementação — apenas um índice de estado.

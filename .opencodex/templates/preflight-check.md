@@ -43,7 +43,30 @@
 
 ---
 
-## As 5 checagens bloqueantes
+## CHECK 0 — CONTEXT CONFIDENCE (obrigatório, ANTES de tudo)
+
+> Estabelecido pelo Segundo Cérebro V3 (`.opencodex/brain/`). Roda **antes** dos checks 1–5.
+> Objetivo: nenhuma missão inicia sem contexto suficiente (evita drift/regressão).
+
+Obrigatório, nesta ordem:
+1. Ler [`.opencodex/brain/source-of-truth.md`](../brain/source-of-truth.md) — hierarquia de autoridade.
+2. Ler [`.opencodex/brain/project-state.md`](../brain/project-state.md) — estado atual real.
+3. Ler [`.opencodex/brain/capabilities-map.md`](../brain/capabilities-map.md) — o que já existe.
+4. Ler as **regras aplicáveis** (`.opencodex/rules/` + `constitution.md`; se tocar eventos → `event-contracts.md`).
+5. **Pesquisar o workspace** (grep/leitura dos arquivos reais do escopo).
+6. Gerar o **CONTEXT CONFIDENCE REPORT** ([`brain/context-confidence-engine.md`](../brain/context-confidence-engine.md)).
+
+Decisão por score:
+- **< 70** → ⛔ **IMPLEMENTAÇÃO PROIBIDA** — PARAR e perguntar ao humano.
+- **70–79** → 🟠 apenas investigação (não implementar).
+- **≥ 80** → permitir planejamento (execução com riscos declarados).
+- **≥ 95** → execução normal.
+
+> Se `brain/project-state.md` estiver **desatualizado** (ex.: `origin_main` ≠ hash real de `main`), o item 3 não pode ser marcado ✅ → o score cai → trava a missão até a memória ser corrigida.
+
+---
+
+## As 5 checagens bloqueantes (rodam APÓS o CHECK 0)
 
 ### CHECK 1 — Working tree limpo (de CÓDIGO)
 ```bash
@@ -107,9 +130,10 @@ git status --short | grep '^??' | grep -vE '^\?\? (\.opencodex/|docs/private/)'
 ---
 
 ## Resultado do preflight
-- **TODAS as 5 passaram** → ✅ permitir `/next-task` (espelhar `current-task.md` `running`, criar branch
+- **CHECK 0 (score ≥ 95) + TODAS as 5 passaram** → ✅ permitir `/next-task` (espelhar `current-task.md` `running`, criar branch
   conforme o card, executar).
-- **QUALQUER falhou** → ⛔ ABORTAR. Imprimir, para cada falha: **qual problema · por que é perigoso · ação
+- **CHECK 0 entre 80–94** → planejar com riscos declarados; **70–79** só investigação; **< 70** → ⛔ PARAR e perguntar.
+- **QUALQUER um (CHECK 0 ou 1–5) falhou** → ⛔ ABORTAR. Imprimir, para cada falha: **qual problema · por que é perigoso · ação
   segura recomendada**. Não executar nada. Não mexer no git.
 
 ## Bloco de saída padrão (quando aborta)
