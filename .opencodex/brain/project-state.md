@@ -10,9 +10,11 @@ state_version: 3
 phase: "event-bus-hardening + brain-v3"
 
 git:
-  origin_main: "FF p/ tip da branch chore/second-brain-v3 (base 2ba5a2e, CI run 27097235191 VERDE)"
-  active_branch: "chore/second-brain-v3"
-  reconciliation: "FF autorizado (humano 2026-06-07); push de main em execução; CI em main p/ validação final"
+  origin_main: "800c156 (PUSHED 2026-06-07) — stack reconciliado (inc.2 + EVENT CONTRACTS + Brain V3 + fixes)"
+  reconciliation: >-
+    FF concluído fea9708→800c156 + push. CI em main (run 27097402148): TESTES VERDES
+    (Unit+Integration+Frontend no gate 'CI before deploy'); DEPLOY falhou por INFRA pré-existente
+    (não é nosso diff) → OPS-1 (DATABASE_URL secret inválido) + OPS-2 (Vercel root frontend/frontend).
 
 # Reconciliado para main via FF (CI run 27097235191 APPROVE):
 in_main:
@@ -24,9 +26,15 @@ in_main:
   - "fix EventBus ReferenceError (f65cf74) + fix update só-notas (2ba5a2e)"
 
 queue:
-  next_task: "idle (reconciliação)"
-  next_task_status: "reconciling-to-main"
-  last_decision: "Auditoria final consolidada = APPROVE (Claude Code, 06-07); FF confirmado pelo humano"
+  next_task: "idle"
+  next_task_status: "reconciled-to-main (deploy infra pendente — OPS, não código)"
+  last_decision: "Reconciliação APPROVE + FF/push p/ main; main test-green; deploy bloqueado por infra"
+
+deploy_blockers:
+  - id: "OPS-1"
+    desc: "Secret DATABASE_URL do job 'Run Database Migrations' inválido (Invalid URL). Corrigir no GitHub."
+  - id: "OPS-2"
+    desc: "Root Directory do projeto Vercel = 'frontend/frontend' (duplicado). Corrigir para 'frontend'."
 
 gates_abertos:
   - id: "GATE-INTEG"

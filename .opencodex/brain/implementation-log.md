@@ -3,6 +3,12 @@
 > **Atualizado a cada APPROVE** (Loop de Fechamento).
 > **Origem:** continua `.agent/memory/implementation-log.md` (que parou em 2026-06-04). **Status: recuperado o gap 06-05→06-07.**
 
+## 2026-06-07 — FECHAMENTO: reconciliado em main; deploy bloqueado por infra (OPS)
+FF concluído `fea9708→800c156` + push. CI em main (run 27097402148): **gate de testes VERDE**
+(Unit+Integration+Frontend). **Deploy falhou** em `Run Database Migrations` (`DATABASE_URL` Invalid URL)
+e `Deploy Frontend (Vercel)` (root `frontend/frontend`). **Ambos infra pré-existente, fora do diff.**
+Registrados OPS-1/OPS-2 no backlog. Código seguro em main e test-validado. Sem novos merges.
+
 ## 2026-06-07 — Reconciliação para main (GATE-INTEG verde, auditoria consolidada APPROVE)
 **CI run 27097235191 = SUCCESS** (Unit + Integration + Frontend) na tip `2ba5a2e`. Auditoria final
 consolidada do stack (inc.2 + EVENT CONTRACTS + Brain V3 + 3 bug fixes) = **APPROVE**. FF autorizado

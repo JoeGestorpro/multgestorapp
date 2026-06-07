@@ -46,6 +46,14 @@
 > **GATE:** reconciliar/push do inc.2 para `main` **somente** após `npm run test:integration` rodar em
 > Postgres/CI e ficar **verde**. Diagnóstico: `latest-audit.md` (ronda 2, NOTA OBRIGATÓRIA).
 
+> 🔴 **#OPS-1 (infra, NÃO é código) — Secret `DATABASE_URL` do job de migrations inválido.**
+> CI em main (run 27097402148, 2026-06-07): `Run Database Migrations` falha com `Invalid URL`.
+> Corrigir o secret `DATABASE_URL` (GitHub → repo settings) para a URL real do Postgres alvo. Bloqueia o deploy.
+
+> 🔴 **#OPS-2 (infra, NÃO é código) — Vercel Root Directory `frontend/frontend` (duplicado).**
+> `Deploy Frontend (Vercel)`: `path ".../frontend/frontend" does not exist`. Corrigir Root Directory do projeto
+> Vercel para `frontend` (Project Settings). Bloqueia o deploy do frontend.
+
 > ⚠️ **#0 OPS (NÃO é missão de código) — VERIFICAR/TESTAR RESTORE DE BACKUP.**
 > Auditoria 2026-06-04: nenhum script/workflow de backup/restore no repo; presume-se Supabase gerenciado,
 > **não testado**. Prioridade acima de qualquer missão de código: confirmar backup automático E executar um
