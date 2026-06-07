@@ -37,6 +37,15 @@
 > >   A v2 fica registrada aqui para não perder a capacidade que revelou a divergência local vs CI.
 > > **Ativar quando:** Podman/Docker estiver disponível OU houver alternativa cross-platform (testcontainers, pg-temp).
 
+> 🔴 **#GATE-INTEG — Testes de integração dos mutation paths (BLOQUEIA push do inc.2)** — `task_id: ops-test-outbox-mutation-integration`
+> **Status:** ✅ PROMOVIDO para `next-task.md` como `eventbus-mutation-integration-tests` (2026-06-07)
+> **Criado por decisão humana 2026-06-07** (condição do APPROVE_WITH_NOTES do inc.2).
+> **Escopo:** adicionar a `backend/tests/integration/outbox-durability.test.js` cobertura dos mutation paths —
+> `appointment.confirmed`, `appointment.canceled`, `appointment.completed`, `appointment.rescheduled` —
+> provando que cada um grava o evento em `outbox_messages` na mesma transação do `update`/`reschedule`.
+> **GATE:** reconciliar/push do inc.2 para `main` **somente** após `npm run test:integration` rodar em
+> Postgres/CI e ficar **verde**. Diagnóstico: `latest-audit.md` (ronda 2, NOTA OBRIGATÓRIA).
+
 > ⚠️ **#0 OPS (NÃO é missão de código) — VERIFICAR/TESTAR RESTORE DE BACKUP.**
 > Auditoria 2026-06-04: nenhum script/workflow de backup/restore no repo; presume-se Supabase gerenciado,
 > **não testado**. Prioridade acima de qualquer missão de código: confirmar backup automático E executar um

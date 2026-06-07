@@ -3,40 +3,34 @@
 ---
 status: audited
 result: success
-task_id: eventbus-appointment-outbox-durability
-phase: 1-create-path
-title: Durabilidade dos eventos appointment.* — rotear CRIAÇÃO pela outbox durável (incremento 1)
+task_id: eventbus-appointment-outbox-durability-inc2
+phase: 2-mutation-paths
+title: Durabilidade appointment.* — mutation paths (update/cancel/complete/reschedule) → outbox
 completed_at: 2026-06-07
-branch: fix/appointment-outbox-durability
+branch: fix/appointment-outbox-durability-inc2
 commits:
-  - 823107c feat(appointment): rotear appointment.created pela outbox duravel (F2 incremento 1)
+  - 0d654f3 feat(appointment): mutation paths -> outbox duravel (F2 inc.2)
 mode: EXECUTE_WITH_REVIEW
-audit_verdict: REQUEST_CHANGES → APPROVE (após rework)
-claude_decision: APPROVE
+audit_verdict: REQUEST_CHANGES (ronda 1) → APPROVE (OpenCode ronda 2) → APPROVE_WITH_NOTES (Claude Code)
+claude_decision: APPROVE_WITH_NOTES
 claude_decided_at: 2026-06-07
-pushed: false                   # commit LOCAL apenas — push só com confirmação humana
+pushed: false                   # commit LOCAL — push BLOQUEADO até integração verde (ver gate)
 ---
 
 ## Resumo
-`AppointmentService.create` convertido para `UnitOfWork` + outbox durável: `appointment.created` via
-`uow.addEvent()` grava `outbox_messages` na **mesma transação** do INSERT. `appointment.confirmed` preservado
-via `eventBus.publish()` (in-memory) **pós-commit**, mantendo o WhatsApp de confirmação
-(`AppointmentIntegrationConsumer`). Handlers duráveis de auditoria registrados no OutboxWorker.
+`update` (confirmed/canceled/completed) e `reschedule` migrados para a **outbox durável** via `UnitOfWork`,
+atômicos com o `repo.update`. `appointment.confirmed`/`canceled` mantidos in-memory pós-commit (WhatsApp).
+**EVENT CONTRACTS** aplicado: `validateEventPayload` + `event_name`/`aggregate_type` sourceados de `contracts.js`.
 
 ## Ciclo de auditoria
-- **1ª rodada → REQUEST_CHANGES (Claude Code, 2026-06-06):** o create havia **dropado** `appointment.confirmed`,
-  quebrando o WhatsApp de confirmação dos agendamentos criados pelo admin (consumer ativo em server.js:68).
-- **Rework → APPROVE (2026-06-07):** `appointment.confirmed` re-emitido após `uow.commit()` com payload original.
+- **Ronda 1 → REQUEST_CHANGES (Claude):** violava EVENT CONTRACTS (sem validate, literais hardcoded, sem teste de consumer, integração não exercida).
+- **Ronda 2 → APPROVE_WITH_NOTES (Claude):** itens 1–3 corrigidos e **verificados no código real**; unit 634/634 + consumers 6/6.
 
-## Verificação independente (Claude Code)
-- ALLOWLIST respeitada (appointment.service.js, server.js, consumers.js, tests). Sem scope drift.
-- `appointment.created` durável (atômico); `appointment.confirmed` best-effort pós-commit (como antes).
-- **`npm run test:unit` → 627/627 verde** (appointment-service 42/42). Integração `outbox-durability.test.js` valida no CI/Postgres.
-
-## Escopo NÃO incluído (próxima missão)
-- update / cancel / complete / reschedule ainda usam `eventBus` volátil → **incremento 2** (`eventbus-appointment-outbox-durability-inc2`).
-- Migrar `AppointmentIntegrationConsumer` para a outbox (durabilidade do confirmed/canceled) → incremento futuro.
+## 🔴 NOTA OBRIGATÓRIA — gate de push
+Falta cobertura de **integração** dos mutation paths (item 4). Registrado backlog formal
+`ops-test-outbox-mutation-integration`. **Reconciliar/push para `main` SOMENTE após `npm run test:integration`
+verde em Postgres/CI.** Sem push agora.
 
 ## Pendências
-- **Push:** não realizado (aguarda confirmação humana).
-- Próxima missão promovida: `eventbus-appointment-outbox-durability-inc2` (ver `next-task.md`).
+- Próxima missão (promovida): `eventbus-mutation-integration-tests` (adicionar integração dos mutation paths) — `next-task.md`.
+- Push/reconcile: bloqueado pelo gate acima.

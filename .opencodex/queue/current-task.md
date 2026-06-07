@@ -1,17 +1,21 @@
-# ⚙️ CURRENT TASK — Concluída ✅
+# ⚙️ CURRENT TASK — Aguardando auditoria 🔍
 
 ---
-status: completed
-task_id: eventbus-appointment-outbox-durability
-phase: 1-create-path
-title: Durabilidade dos eventos appointment.* — rotear CRIAÇÃO pela outbox durável
-branch: fix/appointment-outbox-durability
+status: awaiting-audit
+task_id: eventbus-appointment-outbox-durability-inc2
+phase: 2-mutation-paths
+title: Durabilidade appointment.* — rotear update/cancel/complete/reschedule pela outbox (sem regredir notificações)
+branch: fix/appointment-outbox-durability-inc2
 completed_at: 2026-06-07
 ---
 
 ## Progresso
 - [x] PREFLIGHT
-- [x] `appointment.service.create` → UnitOfWork + outbox
-- [x] Registrar handler durável de auditoria em `server.js`
-- [x] Teste de durabilidade do create
-- [x] Validar: `npm run test:unit && npm run test:integration` verde
+- [x] `appointment.service.update` → UnitOfWork + outbox + dual-emit (confirmed/canceled)
+- [x] `appointment.service.cancel` → UnitOfWork + outbox (delega para update)
+- [x] `appointment.service.reschedule` → UnitOfWork + outbox
+- [x] Handlers duráveis registrados em `server.js` (confirmed/canceled/completed/rescheduled)
+- [x] Teste unitário do consumer (appointment-consumers.test.js) — 6 handlers
+- [x] EVENT CONTRACTS compliance (ronda 2)
+- [x] Validar: `npm run test:unit` → 634/634 verde
+- [ ] Auditoria pendente (Claude Code)
