@@ -21,6 +21,15 @@ updated_at: 2026-06-07
 diagnosis_source: auditoria F2 (sessão 2026-06-05)
 ---
 
+## 📐 REGRA OBRIGATÓRIA — EVENT CONTRACTS (vinculante)
+> Esta missão toca um Service que **publica eventos** → aplicar `.opencodex/rules/event-contracts.md` na íntegra:
+> 1) localizar o contrato em `backend/src/shared/core/events/contracts.js` (`AppointmentConfirmed`, `AppointmentCanceled`,
+>    `AppointmentCompleted`, `AppointmentRescheduled`); 2) nunca usar campo solto sem origem; 3) acessar pelo formato
+>    correto (in-memory `event.event_name`/`event.company_id`/`event.aggregate_id` **vs** outbox handler `payload.*`
+>    + `context.companyId`/`context.eventId`); 4) helper centralizado se o campo variar entre os dois formatos;
+>    5) criar/atualizar teste unitário do consumer/EventBus; 6) rodar o teste específico **antes** da integração.
+> Validar o payload com `validateEventPayload(<contrato>, payload)` ao publicar. **Auditor reprova se violado.**
+
 ## ⚠️ LIÇÃO DO INCREMENTO 1 (regra dura desta missão)
 O inc.1 falhou na 1ª auditoria por **dropar `appointment.confirmed`**, quebrando o WhatsApp de confirmação.
 **NÃO repita:** o `AppointmentIntegrationConsumer` ([appointment-integration.consumer.js:147-164](../../backend/src/integrations/consumers/appointment-integration.consumer.js)) escuta **no eventBus in-memory** os eventos `appointment.confirmed`, `appointment.canceled` e `appointment.reminder` e envia WhatsApp ao cliente. **Toda migração para a outbox DEVE preservar a emissão in-memory desses eventos** (dual-emit: durável + in-memory pós-commit), até que o consumer de integração seja migrado para a outbox (incremento futuro, fora daqui).
@@ -63,6 +72,7 @@ Set-Location ..
 - [ ] Rollback de mutação **não** deixa evento na outbox.
 - [ ] Handlers duráveis de auditoria registrados para os tipos migrados.
 - [ ] Suítes verdes, sem skip/xfail; sem regressão.
+- [ ] **Event Contracts:** campos acessados pelo objeto do evento (sem variável solta); payload validado com `validateEventPayload`; teste unitário do consumer/EventBus criado/atualizado e rodado antes da integração (`.opencodex/rules/event-contracts.md`).
 - [ ] Diff restrito à ALLOWLIST; sem tocar schema, produção, secrets ou quarentena Fase C.
 
 ## ❌ Escopo proibido

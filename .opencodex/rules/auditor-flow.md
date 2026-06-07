@@ -30,6 +30,7 @@
   **Auditoria final do Claude Code é obrigatória** antes de promover a próxima.
 
 ## Disciplina inviolável
+- **Event Contracts** (`event-contracts.md`): ao auditar diffs de `EventBus`/`Outbox`/`Consumers`/Services que publicam eventos, **reprovar (REQUEST_CHANGES)** se houver campo de evento acessado como variável solta (sem origem), acesso no formato errado (in-memory vs outbox), ausência de helper para campo variável, ou falta do teste unitário do evento.
 - Stage **seletivo** (allowlist 1:1). Sem `git add -A`.
 - **Sem `git clean`** com governança untracked. `.opencodex/` é **rastreada** (commit `ce034ae`).
 - Uma-missão-por-vez. Quarentenas (ex.: Fase C `sale.created`) só saem por promoção formal.
