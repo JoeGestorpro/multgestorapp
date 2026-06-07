@@ -21,6 +21,22 @@ updated_at: 2026-06-07
 diagnosis_source: auditoria F2 (sessão 2026-06-05)
 ---
 
+## 🔴 CHANGES REQUESTED (Claude Code, 2026-06-07) — EVENT CONTRACTS reprovado
+> A execução ficou funcionalmente correta (atomicidade, dual-emit, 628 unit), **mas violou a regra
+> obrigatória EVENT CONTRACTS** — que é critério de aceite. Corrigir **antes** de re-auditar:
+>
+> 1. **Importar `contracts.js`** no `appointment.service.js` e **chamar `validateEventPayload(<contrato>, payload)`**
+>    antes de publicar cada evento (create + update/cancel/complete/reschedule).
+> 2. **Sourcing do contrato:** trocar literais hardcoded por campos do contrato — `AppointmentConfirmed.event_name`,
+>    `AppointmentConfirmed.aggregate_type`, etc. (em `consumers.js` e no service). Nada de `'appointment.confirmed'` solto.
+> 3. **Teste unitário dos handlers de consumer** (`handleAppointmentConfirmed/Canceled/Completed/Rescheduled`)
+>    cobrindo o acesso a campo via `payload.*` + `context.*`.
+> 4. **Integração:** adicionar cobertura dos **mutation paths** em `outbox-durability.test.js` e **rodar
+>    `npm run test:integration` contra um Postgres** (não pode ficar skipped) — passo 2 do plano humano.
+> 5. Rodar o teste específico do evento **antes** da integração (regra item 6).
+>
+> Mantido o que já está certo: formato `payload.*`+`context.*` nos handlers, atomicidade e dual-emit.
+
 ## 📐 REGRA OBRIGATÓRIA — EVENT CONTRACTS (vinculante)
 > Esta missão toca um Service que **publica eventos** → aplicar `.opencodex/rules/event-contracts.md` na íntegra:
 > 1) localizar o contrato em `backend/src/shared/core/events/contracts.js` (`AppointmentConfirmed`, `AppointmentCanceled`,
