@@ -3,32 +3,40 @@
 ---
 status: audited
 result: success
-task_id: eventbus-unhandled-handler-noop
-title: OutboxWorker — evento sem handler vira no-op (processed) em vez de failed permanente (cura F6/F5)
-completed_at: 2026-06-06
-branch: fix/eventbus-unhandled-outbox
+task_id: eventbus-appointment-outbox-durability
+phase: 1-create-path
+title: Durabilidade dos eventos appointment.* — rotear CRIAÇÃO pela outbox durável (incremento 1)
+completed_at: 2026-06-07
+branch: fix/appointment-outbox-durability
 commits:
-  - 6c3c81a fix(outbox): evento sem handler vira no-op (processed) em vez de failed permanente
+  - 823107c feat(appointment): rotear appointment.created pela outbox duravel (F2 incremento 1)
 mode: EXECUTE_WITH_REVIEW
-audit_verdict: APPROVE          # OpenCode Auditor (Big Pickle), 2026-06-06
-claude_decision: APPROVE        # auditoria independente do diff + npm test (outbox-worker 15/15)
-claude_decided_at: 2026-06-06
+audit_verdict: REQUEST_CHANGES → APPROVE (após rework)
+claude_decision: APPROVE
+claude_decided_at: 2026-06-07
 pushed: false                   # commit LOCAL apenas — push só com confirmação humana
 ---
 
 ## Resumo
-`OutboxWorker._process`: evento de tipo **sem handler registrado** passa a ser tratado como **no-op**
-(`status='processed'` + `appLogger.warn`), em vez de `failed` permanente. Respeita o princípio do Event Bus
-*"produtores não conhecem consumidores"*. Cura **F6** (toda venda acumulava `sale.created` failed) e **F5**
-(perda em deploy producer-antes-consumer).
+`AppointmentService.create` convertido para `UnitOfWork` + outbox durável: `appointment.created` via
+`uow.addEvent()` grava `outbox_messages` na **mesma transação** do INSERT. `appointment.confirmed` preservado
+via `eventBus.publish()` (in-memory) **pós-commit**, mantendo o WhatsApp de confirmação
+(`AppointmentIntegrationConsumer`). Handlers duráveis de auditoria registrados no OutboxWorker.
+
+## Ciclo de auditoria
+- **1ª rodada → REQUEST_CHANGES (Claude Code, 2026-06-06):** o create havia **dropado** `appointment.confirmed`,
+  quebrando o WhatsApp de confirmação dos agendamentos criados pelo admin (consumer ativo em server.js:68).
+- **Rework → APPROVE (2026-06-07):** `appointment.confirmed` re-emitido após `uow.commit()` com payload original.
 
 ## Verificação independente (Claude Code)
-- **ALLOWLIST 2/2**, sem scope drift: `outbox-worker.js`, `outbox-worker.test.js`.
-- Diff confere com o spec: import `appLogger`; warn com `event_id`+`type`; `UPDATE ... status='processed', processed_at=NOW()`; `return` precoce; **laço de handlers e retry inalterados**.
-- Teste renomeado afirma `processed` definido + `failed` ausente.
-- **`npx jest tests/unit/outbox-worker` → 15/15 verde** (auditor reportou suíte completa 626/626).
+- ALLOWLIST respeitada (appointment.service.js, server.js, consumers.js, tests). Sem scope drift.
+- `appointment.created` durável (atômico); `appointment.confirmed` best-effort pós-commit (como antes).
+- **`npm run test:unit` → 627/627 verde** (appointment-service 42/42). Integração `outbox-durability.test.js` valida no CI/Postgres.
 
-## Pendências / follow-ups
+## Escopo NÃO incluído (próxima missão)
+- update / cancel / complete / reschedule ainda usam `eventBus` volátil → **incremento 2** (`eventbus-appointment-outbox-durability-inc2`).
+- Migrar `AppointmentIntegrationConsumer` para a outbox (durabilidade do confirmed/canceled) → incremento futuro.
+
+## Pendências
 - **Push:** não realizado (aguarda confirmação humana).
-- **Ops desbloqueado:** `ops/reconcile-failed-sale-created-outbox` (data-fix do histórico já `failed`) — agora liberado por este APPROVE; execução por humano/ops, fora do executor.
-- **Próxima missão promovida:** `eventbus-appointment-outbox-durability` (F2 — ver `next-task.md`).
+- Próxima missão promovida: `eventbus-appointment-outbox-durability-inc2` (ver `next-task.md`).

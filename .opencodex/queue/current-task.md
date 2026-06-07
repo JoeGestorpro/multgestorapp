@@ -1,15 +1,17 @@
-# ⚙️ CURRENT TASK — Em Execução
+# ⚙️ CURRENT TASK — Concluída ✅
 
 ---
 status: completed
-task_id: eventbus-unhandled-handler-noop
-title: OutboxWorker — evento sem handler vira no-op (processed) em vez de failed permanente
-started_at: 2026-06-06
-branch: fix/eventbus-unhandled-outbox
+task_id: eventbus-appointment-outbox-durability
+phase: 1-create-path
+title: Durabilidade dos eventos appointment.* — rotear CRIAÇÃO pela outbox durável
+branch: fix/appointment-outbox-durability
+completed_at: 2026-06-07
 ---
 
 ## Progresso
-- [x] PREFLIGHT aprovado
-- [x] Editar `outbox-worker.js` — sem handler → `processed` (no-op)
-- [x] Editar `outbox-worker.test.js` — testar no-op
-- [x] Validar: `npm run test:unit` verde — 626/626
+- [x] PREFLIGHT
+- [x] `appointment.service.create` → UnitOfWork + outbox
+- [x] Registrar handler durável de auditoria em `server.js`
+- [x] Teste de durabilidade do create
+- [x] Validar: `npm run test:unit && npm run test:integration` verde

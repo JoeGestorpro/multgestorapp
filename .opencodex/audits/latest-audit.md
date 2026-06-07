@@ -7,7 +7,11 @@ phase: 1-create-path
 title: Durabilidade dos eventos appointment.* — caminho de criação
 audited_by: Claude Code (auditoria independente do diff + testes)
 audited_at: 2026-06-06
-claude_decision: REQUEST_CHANGES
+claude_decision: APPROVE
+claude_decided_at: 2026-06-07
+claude_decision_note: >-
+  REQUEST_CHANGES (2026-06-06) resolvido por rework — appointment.confirmed re-emitido após commit (823107c).
+  627/627 unit verdes; sem regressão no WhatsApp de confirmação. Incremento 2 promovido.
 branch: fix/appointment-outbox-durability
 ---
 
