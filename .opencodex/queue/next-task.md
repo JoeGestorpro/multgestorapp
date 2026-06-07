@@ -22,6 +22,20 @@ updated_at: 2026-06-06
 diagnosis_source: auditoria F2 (sessão 2026-06-05)
 ---
 
+## 🔴 CHANGES REQUESTED (Claude Code, 2026-06-06) — corrigir antes de re-auditar
+> A 1ª execução ficou tecnicamente correta na atomicidade do `create`, **mas dropou o evento
+> `appointment.confirmed`**, que está ativo e dispara o WhatsApp de confirmação ao cliente
+> (`AppointmentIntegrationConsumer` em server.js:68 → consumer escuta `appointment.confirmed` no eventBus).
+> Isso é **regressão customer-facing** e desvio do spec ("preservar appointment.confirmed").
+>
+> **Fix mínimo exigido (NÃO mexer em mais nada):**
+> - No `create()`, **após** `uow.commit()`, voltar a emitir `eventBus.publish('appointment.confirmed', {...})`
+>   com o mesmo payload de antes (o consumer de integração escuta o **eventBus in-memory**).
+> - Manter `appointment.created` durável (outbox) como já está.
+> - Atualizar/!adicionar teste cobrindo que `create` dispara `appointment.confirmed` para o consumer.
+> - **Sem** migrar o consumer de integração para a outbox nesta missão (incremento futuro).
+> - Re-rodar `npm run test:unit` (+ integração) e devolver via `/complete-task` → `/audit-task`.
+
 ## MODEL CAPABILITY ASSESSMENT
 - **Executor recomendado:** Big Pickle, **EXECUTE_WITH_REVIEW** — toca um **produtor de domínio P0** e o boot de consumers. Auditoria final do Claude Code obrigatória.
 - **Nível de risco:** **Médio** — muda a entrega de eventos P0 do agendamento de volátil → durável (transação). **Produção:** sem deploy nesta missão.
