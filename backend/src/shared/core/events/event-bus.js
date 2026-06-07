@@ -28,7 +28,7 @@ class EventBus extends EventEmitter {
 
     this.logger.info({
       event_id: event.event_id,
-      event_name,
+      event_name: event.event_name,
       company_id: event.company_id,
       aggregate_type: event.aggregate_type,
       aggregate_id: event.aggregate_id

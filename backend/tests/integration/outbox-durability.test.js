@@ -25,6 +25,14 @@ const describeDb = hasTestDb ? describe : describe.skip
 
 const TEST_COMPANY_IDS = []
 
+let slotCounter = 0
+// Cada agendamento recebe um slot único, distante 1 dia do anterior, para evitar
+// conflito de horário/profissional (slots de 30min) entre os testes do mesmo colaborador.
+function uniqueStartsAt() {
+  slotCounter += 1
+  return new Date(Date.now() + slotCounter * 86400000).toISOString()
+}
+
 describeDb('Outbox Durability — Integration Tests', () => {
   let db
   let service
@@ -60,7 +68,7 @@ describeDb('Outbox Durability — Integration Tests', () => {
   })
 
   it('writes appointment.created event to outbox_messages via UoW', async () => {
-    const startsAt = new Date(Date.now() + 86400000).toISOString()
+    const startsAt = uniqueStartsAt()
 
     const appointment = await service.create(companyId, {
       id: 'user-admin',
@@ -123,7 +131,7 @@ describeDb('Outbox Durability — Integration Tests', () => {
     const { eventBus } = require('../../src/shared')
     const publishSpy = jest.spyOn(eventBus, 'publish')
 
-    const startsAt = new Date(Date.now() + 86400000).toISOString()
+    const startsAt = uniqueStartsAt()
 
     await service.create(companyId, {
       id: 'user-test',
@@ -151,7 +159,7 @@ describeDb('Outbox Durability — Integration Tests', () => {
   const ADMIN = () => ({ id: 'user-admin', role: 'admin', company_id: companyId })
 
   async function createAppointment(name = 'Mutation Test') {
-    const startsAt = new Date(Date.now() + 86400000).toISOString()
+    const startsAt = uniqueStartsAt()
     return service.create(companyId, ADMIN(), {
       service_id: barberService.id,
       collaborator_id: collaborator.id,
@@ -206,7 +214,7 @@ describeDb('Outbox Durability — Integration Tests', () => {
 
   it('writes appointment.rescheduled to outbox on reschedule', async () => {
     const appt = await createAppointment('Reschedule Test')
-    const newStart = new Date(Date.now() + 2 * 86400000).toISOString()
+    const newStart = uniqueStartsAt()
     await service.reschedule(companyId, ADMIN(), appt.id, { starts_at: newStart })
 
     const msg = await latestOutbox(AppointmentRescheduled.event_name, appt.id)

@@ -35,10 +35,12 @@ queue:
 gates_abertos:
   - id: "GATE-INTEG"
     desc: >-
-      Testes de integração dos 4 mutation paths ESCRITOS em outbox-durability.test.js (8 testes, skip local
-      sem Postgres). Push do inc.2 para main ainda bloqueado até npm run test:integration ficar VERDE no CI.
+      1º CI (run 27096576679) FALHOU e pegou 2 bugs: (1) CRÍTICO event-bus.js:31 event_name solto
+      (ReferenceError em todo publish real); (2) conflito de horário nos testes. Ambos corrigidos
+      (fix-eventbus-publish-refzbug); unit 648/648 local. Re-push da branch para novo CI. Push do inc.2
+      para main segue bloqueado até a integração ficar VERDE no CI.
     backlog: "ops-test-outbox-mutation-integration"
-    status: "tests-written-pending-ci-green"
+    status: "fix-applied-pending-ci-rerun"
 
 open_risks:
   - "Brain V3 e inc.2 vivem em branches locais; reconciliar para main é decisão humana (sem push automático)."

@@ -3,6 +3,9 @@
 > **Atualizado a cada APPROVE** (Loop de Fechamento).
 > **Origem:** continua `.agent/memory/implementation-log.md` (que parou em 2026-06-04). **Status: recuperado o gap 06-05→06-07.**
 
+## 2026-06-07 — fix-eventbus-publish-refzbug (bug crítico pego pelo GATE-INTEG)
+CI da branch falhou (7 testes) → 2 bugs: **(1) CRÍTICO** `event-bus.js:31` `event_name` solto → ReferenceError em todo `eventBus.publish` real (7 call sites); **(2)** conflito de horário nos testes de integração. Correções: event-bus.js (1 linha → `event.event_name`); novo `event-bus.test.js` (4 testes, publish real sem mock); `outbox-durability.test.js` com `uniqueStartsAt()` por teste. Local: **unit 648/648**, integração skip (sem Postgres). Re-push da branch p/ CI (GATE-INTEG ainda pendente de verde). Ver L-09.
+
 ## 2026-06-07 — Integração dos mutation paths (1º teste real do CHECK 0)
 Primeira missão sob o **Context Confidence Engine**: report gerado, **score 92/100** (banda 80–94, riscos declarados — sem Postgres local). Adicionados 5 testes de integração em `outbox-durability.test.js` (confirmed/canceled/completed/rescheduled + notes-only=sem-evento), tipos sourceados de `contracts.js` (EVENT CONTRACTS). **8 testes skip local** (sem DB); validação verde **pendente no CI** (GATE-INTEG). Unit 644/644. Sem push.
 
