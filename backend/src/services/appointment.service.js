@@ -3,14 +3,7 @@ const AppointmentRepository = require('../repositories/appointment.repository')
 const { ValidationError, NotFoundError, ForbiddenError, eventBus, createUnitOfWork } = require('../shared')
 const { normalizeEmail } = require('../utils/validators')
 const { APPOINTMENT_STATUS } = require('../shared/capabilities/booking-engine/scheduling-utils')
-const {
-  AppointmentCreated,
-  AppointmentConfirmed,
-  AppointmentCanceled,
-  AppointmentCompleted,
-  AppointmentRescheduled,
-  validateEventPayload
-} = require('../shared/core/events/contracts')
+const AppointmentEvents = require('../shared/core/events/factories/appointment-events')
 
 function ensureCompany(companyId) {
   if (!companyId) {
@@ -168,7 +161,7 @@ class AppointmentService {
         endsAt: new Date(payload.startsAt.getTime() + 30 * 60 * 1000)
       })
 
-      const createdPayload = {
+      const createdEvt = AppointmentEvents.created({
         appointment_id: appointment.id,
         company_id: companyId,
         collaborator_id: appointment.collaborator_id,
@@ -178,34 +171,32 @@ class AppointmentService {
         starts_at: appointment.starts_at,
         ends_at: appointment.ends_at,
         status: appointment.status,
-        source: appointment.source || 'admin_manual'
-      }
-      validateEventPayload(AppointmentCreated, createdPayload)
-      uow.addEvent(AppointmentCreated.event_name, createdPayload, {
+        source: appointment.source
+      })
+      uow.addEvent(createdEvt.event_name, createdEvt.payload, {
         traceId: crypto.randomUUID(),
         companyId,
-        aggregateType: AppointmentCreated.aggregate_type,
-        aggregateId: appointment.id
+        aggregateType: createdEvt.aggregate_type,
+        aggregateId: createdEvt.aggregate_id
       })
 
       await uow.commit()
 
-      const confirmedPayload = {
+      // Dual-emit in-memory: confirma para o AppointmentIntegrationConsumer (WhatsApp).
+      const confirmedEvt = AppointmentEvents.confirmed({
         appointment_id: appointment.id,
         company_id: companyId,
-        status: 'confirmed',
         collaborator_id: appointment.collaborator_id,
         service_id: appointment.service_id,
         customer_name: appointment.customer_name,
         customer_phone: appointment.customer_phone,
         starts_at: appointment.starts_at,
         ends_at: appointment.ends_at
-      }
-      validateEventPayload(AppointmentConfirmed, confirmedPayload)
-      eventBus.publish(AppointmentConfirmed.event_name, confirmedPayload, {
+      })
+      eventBus.publish(confirmedEvt.event_name, confirmedEvt.payload, {
         company_id: companyId,
-        aggregate_type: AppointmentConfirmed.aggregate_type,
-        aggregate_id: appointment.id,
+        aggregate_type: confirmedEvt.aggregate_type,
+        aggregate_id: confirmedEvt.aggregate_id,
         source: 'AppointmentService'
       })
 
@@ -253,95 +244,53 @@ class AppointmentService {
         canceledReason
       })
 
+      let mutationEvt = null
       if (status === 'confirmed') {
-        const confirmedOutboxPayload = {
+        mutationEvt = AppointmentEvents.confirmed({
           appointment_id: appointmentId,
           company_id: companyId,
-          status: 'confirmed',
           collaborator_id: existing.collaborator_id,
           service_id: existing.service_id,
           customer_name: existing.customer_name,
           customer_phone: existing.customer_phone,
           starts_at: existing.starts_at,
           ends_at: existing.ends_at
-        }
-        validateEventPayload(AppointmentConfirmed, confirmedOutboxPayload)
-        uow.addEvent(AppointmentConfirmed.event_name, confirmedOutboxPayload, {
-          traceId: crypto.randomUUID(),
-          companyId,
-          aggregateType: AppointmentConfirmed.aggregate_type,
-          aggregateId: appointmentId
         })
       } else if (status === 'canceled') {
-        const canceledOutboxPayload = {
+        mutationEvt = AppointmentEvents.canceled({
           appointment_id: appointmentId,
           company_id: companyId,
-          status: 'canceled',
           collaborator_id: existing.collaborator_id,
           customer_name: existing.customer_name,
           customer_phone: existing.customer_phone,
           canceled_reason: canceledReason
-        }
-        validateEventPayload(AppointmentCanceled, canceledOutboxPayload)
-        uow.addEvent(AppointmentCanceled.event_name, canceledOutboxPayload, {
-          traceId: crypto.randomUUID(),
-          companyId,
-          aggregateType: AppointmentCanceled.aggregate_type,
-          aggregateId: appointmentId
         })
       } else if (status === 'completed') {
-        const completedOutboxPayload = {
+        mutationEvt = AppointmentEvents.completed({
           appointment_id: appointmentId,
           company_id: companyId,
-          status: 'completed',
           collaborator_id: existing.collaborator_id,
           service_id: existing.service_id
-        }
-        validateEventPayload(AppointmentCompleted, completedOutboxPayload)
-        uow.addEvent(AppointmentCompleted.event_name, completedOutboxPayload, {
+        })
+      }
+
+      if (mutationEvt) {
+        uow.addEvent(mutationEvt.event_name, mutationEvt.payload, {
           traceId: crypto.randomUUID(),
           companyId,
-          aggregateType: AppointmentCompleted.aggregate_type,
-          aggregateId: appointmentId
+          aggregateType: mutationEvt.aggregate_type,
+          aggregateId: mutationEvt.aggregate_id
         })
       }
 
       await uow.commit()
 
-      if (status === 'confirmed') {
-        const confirmedInMemoryPayload = {
-          appointment_id: appointmentId,
+      // Dual-emit in-memory apenas onde há consumer de integração ativo (WhatsApp): confirmed e canceled.
+      if (status === 'confirmed' || status === 'canceled') {
+        eventBus.publish(mutationEvt.event_name, mutationEvt.payload, {
           company_id: companyId,
-          status: 'confirmed',
-          collaborator_id: existing.collaborator_id,
-          service_id: existing.service_id,
-          customer_name: existing.customer_name,
-          customer_phone: existing.customer_phone,
-          starts_at: existing.starts_at,
-          ends_at: existing.ends_at
-        }
-        validateEventPayload(AppointmentConfirmed, confirmedInMemoryPayload)
-        eventBus.publish(AppointmentConfirmed.event_name, confirmedInMemoryPayload, {
-          company_id: companyId,
-          aggregate_type: AppointmentConfirmed.aggregate_type,
-          aggregate_id: appointmentId,
-          source: 'AppointmentService'
-        })
-      } else if (status === 'canceled') {
-        const canceledInMemoryPayload = {
-          appointment_id: appointmentId,
-          company_id: companyId,
-          status: 'canceled',
-          collaborator_id: existing.collaborator_id,
-          customer_name: existing.customer_name,
-          customer_phone: existing.customer_phone,
-          canceled_reason: canceledReason
-        }
-        validateEventPayload(AppointmentCanceled, canceledInMemoryPayload)
-        eventBus.publish(AppointmentCanceled.event_name, canceledInMemoryPayload, {
-          company_id: companyId,
-          aggregate_type: AppointmentCanceled.aggregate_type,
-          aggregate_id: appointmentId,
+          aggregate_type: mutationEvt.aggregate_type,
+          aggregate_id: mutationEvt.aggregate_id,
           source: 'AppointmentService'
         })
       }
@@ -401,20 +350,19 @@ class AppointmentService {
         endsAt: new Date(new Date(startsAt).getTime() + 30 * 60 * 1000)
       })
 
-      const rescheduledPayload = {
+      const rescheduledEvt = AppointmentEvents.rescheduled({
         appointment_id: appointmentId,
         company_id: companyId,
         collaborator_id: existing.collaborator_id,
         starts_at: updated.starts_at,
         ends_at: updated.ends_at,
         old_starts_at: existing.starts_at
-      }
-      validateEventPayload(AppointmentRescheduled, rescheduledPayload)
-      uow.addEvent(AppointmentRescheduled.event_name, rescheduledPayload, {
+      })
+      uow.addEvent(rescheduledEvt.event_name, rescheduledEvt.payload, {
         traceId: crypto.randomUUID(),
         companyId,
-        aggregateType: AppointmentRescheduled.aggregate_type,
-        aggregateId: appointmentId
+        aggregateType: rescheduledEvt.aggregate_type,
+        aggregateId: rescheduledEvt.aggregate_id
       })
 
       await uow.commit()
