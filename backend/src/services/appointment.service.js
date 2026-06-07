@@ -1,5 +1,6 @@
+const crypto = require('crypto')
 const AppointmentRepository = require('../repositories/appointment.repository')
-const { ValidationError, NotFoundError, ForbiddenError, eventBus } = require('../shared')
+const { ValidationError, NotFoundError, ForbiddenError, eventBus, createUnitOfWork } = require('../shared')
 const { normalizeEmail } = require('../utils/validators')
 const { APPOINTMENT_STATUS } = require('../shared/capabilities/booking-engine/scheduling-utils')
 
@@ -136,58 +137,71 @@ class AppointmentService {
     const payload = normalizeAppointmentPayload(data)
     validateAppointmentPayload(payload)
 
-    const conflicts = await this.repository.findConflicts(
-      companyId,
-      payload.collaboratorId,
-      payload.startsAt,
-      new Date(payload.startsAt.getTime() + 30 * 60 * 1000)
-    )
+    const uow = createUnitOfWork()
 
-    if (conflicts.length > 0) {
-      throw new ValidationError('Horario ja ocupado para este profissional')
+    try {
+      await uow.begin()
+
+      const repo = uow.repository(AppointmentRepository)
+
+      const conflicts = await repo.findConflicts(
+        companyId,
+        payload.collaboratorId,
+        payload.startsAt,
+        new Date(payload.startsAt.getTime() + 30 * 60 * 1000)
+      )
+
+      if (conflicts.length > 0) {
+        throw new ValidationError('Horario ja ocupado para este profissional')
+      }
+
+      const appointment = await repo.create(companyId, {
+        ...payload,
+        endsAt: new Date(payload.startsAt.getTime() + 30 * 60 * 1000)
+      })
+
+      uow.addEvent('appointment.created', {
+        appointment_id: appointment.id,
+        company_id: companyId,
+        collaborator_id: appointment.collaborator_id,
+        service_id: appointment.service_id,
+        customer_name: appointment.customer_name,
+        customer_phone: appointment.customer_phone,
+        starts_at: appointment.starts_at,
+        ends_at: appointment.ends_at,
+        status: appointment.status,
+        source: appointment.source || 'admin_manual'
+      }, {
+        traceId: crypto.randomUUID(),
+        companyId,
+        aggregateType: 'appointment',
+        aggregateId: appointment.id
+      })
+
+      await uow.commit()
+
+      eventBus.publish('appointment.confirmed', {
+        appointment_id: appointment.id,
+        company_id: companyId,
+        status: 'confirmed',
+        collaborator_id: appointment.collaborator_id,
+        service_id: appointment.service_id,
+        customer_name: appointment.customer_name,
+        customer_phone: appointment.customer_phone,
+        starts_at: appointment.starts_at,
+        ends_at: appointment.ends_at
+      }, {
+        company_id: companyId,
+        aggregate_type: 'appointment',
+        aggregate_id: appointment.id,
+        source: 'AppointmentService'
+      })
+
+      return appointment
+    } catch (err) {
+      await uow.rollback()
+      throw err
     }
-
-    const appointment = await this.repository.create(companyId, {
-      ...payload,
-      endsAt: new Date(payload.startsAt.getTime() + 30 * 60 * 1000)
-    })
-
-    eventBus.publish('appointment.created', {
-      appointment_id: appointment.id,
-      company_id: companyId,
-      collaborator_id: appointment.collaborator_id,
-      service_id: appointment.service_id,
-      customer_name: appointment.customer_name,
-      customer_phone: appointment.customer_phone,
-      starts_at: appointment.starts_at,
-      ends_at: appointment.ends_at,
-      status: appointment.status,
-      source: appointment.source || 'admin_manual'
-    }, {
-      company_id: companyId,
-      aggregate_type: 'appointment',
-      aggregate_id: appointment.id,
-      source: 'AppointmentService'
-    })
-
-    eventBus.publish('appointment.confirmed', {
-      appointment_id: appointment.id,
-      company_id: companyId,
-      status: 'confirmed',
-      collaborator_id: appointment.collaborator_id,
-      service_id: appointment.service_id,
-      customer_name: appointment.customer_name,
-      customer_phone: appointment.customer_phone,
-      starts_at: appointment.starts_at,
-      ends_at: appointment.ends_at
-    }, {
-      company_id: companyId,
-      aggregate_type: 'appointment',
-      aggregate_id: appointment.id,
-      source: 'AppointmentService'
-    })
-
-    return appointment
   }
 
   async update(companyId, user, appointmentId, data = {}) {

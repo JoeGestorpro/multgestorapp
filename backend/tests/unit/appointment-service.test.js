@@ -1,11 +1,15 @@
-// tests/unit/appointment-service.test.js
-// BLOCO 2F — Service-Level Tests: AppointmentService
-// Tests service behavior with mocked repository
-
+const AppointmentRepository = require('../../src/repositories/appointment.repository')
 const AppointmentService = require('../../src/services/appointment.service')
-const { ValidationError, NotFoundError, ForbiddenError } = require('../../src/shared/core/errors')
+const { ValidationError, NotFoundError, ForbiddenError, eventBus } = require('../../src/shared')
 
-// Mock eventBus to prevent actual event publishing
+let mockUow
+let mockUowRepo
+
+jest.mock('../../src/shared/core/database/unit-of-work', () => ({
+  UnitOfWork: jest.fn(),
+  createUnitOfWork: jest.fn(() => mockUow),
+}))
+
 jest.mock('../../src/shared/core/events/event-bus', () => {
   const mockPublish = jest.fn()
   return {
@@ -26,6 +30,26 @@ function createMockRepository() {
   }
 }
 
+function createDefaultUow() {
+  return {
+    begin: jest.fn().mockResolvedValue(),
+    commit: jest.fn().mockResolvedValue(),
+    rollback: jest.fn().mockResolvedValue(),
+    addEvent: jest.fn(),
+    repository: jest.fn(),
+    client: null,
+    events: [],
+    isActive: false,
+  }
+}
+
+function createDefaultUowRepo() {
+  return {
+    findConflicts: jest.fn().mockResolvedValue([]),
+    create: jest.fn(),
+  }
+}
+
 const ADMIN_USER = { id: 'user-1', role: 'admin', company_id: 'company-a' }
 const COLLABORATOR_USER = { id: 'user-2', role: 'collaborator', company_id: 'company-a' }
 const CLIENT_USER = { id: 'user-3', role: 'client', company_id: 'company-a' }
@@ -38,9 +62,15 @@ describe('AppointmentService — Unit Tests', () => {
   let repo
 
   beforeEach(() => {
+    mockUow = createDefaultUow()
+    mockUowRepo = createDefaultUowRepo()
+    mockUow.repository.mockReturnValue(mockUowRepo)
+
     repo = createMockRepository()
     service = new AppointmentService(repo)
     jest.clearAllMocks()
+
+    mockUow.repository.mockReturnValue(mockUowRepo)
   })
 
   describe('list', () => {
@@ -135,8 +165,8 @@ describe('AppointmentService — Unit Tests', () => {
 
   describe('create', () => {
     it('creates appointment with valid data', async () => {
-      repo.findConflicts.mockResolvedValue([])
-      repo.create.mockResolvedValue({
+      mockUowRepo.findConflicts.mockResolvedValue([])
+      mockUowRepo.create.mockResolvedValue({
         id: 'apt-new',
         company_id: COMPANY_ID,
         collaborator_id: 'col-1',
@@ -157,13 +187,42 @@ describe('AppointmentService — Unit Tests', () => {
         starts_at: FUTURE_DATE,
       })
 
-      expect(result.id).toBe('apt-new')
-      expect(repo.create).toHaveBeenCalledWith(COMPANY_ID, expect.objectContaining({
+      expect(mockUow.begin).toHaveBeenCalled()
+      expect(mockUow.repository).toHaveBeenCalledWith(AppointmentRepository)
+      expect(mockUowRepo.create).toHaveBeenCalledWith(COMPANY_ID, expect.objectContaining({
         serviceId: 'svc-1',
         collaboratorId: 'col-1',
         customerName: 'Test Customer',
         customerPhone: '11999999999',
       }))
+      expect(mockUow.addEvent).toHaveBeenCalledWith(
+        'appointment.created',
+        expect.objectContaining({
+          appointment_id: 'apt-new',
+          company_id: COMPANY_ID,
+        }),
+        expect.objectContaining({
+          companyId: COMPANY_ID,
+          aggregateType: 'appointment',
+          aggregateId: 'apt-new',
+        })
+      )
+      expect(mockUow.commit).toHaveBeenCalled()
+      expect(result.id).toBe('apt-new')
+
+      expect(eventBus.publish).toHaveBeenCalledWith(
+        'appointment.confirmed',
+        expect.objectContaining({
+          appointment_id: 'apt-new',
+          company_id: COMPANY_ID,
+        }),
+        expect.any(Object)
+      )
+
+      const createdCalls = eventBus.publish.mock.calls.filter(
+        ([type]) => type === 'appointment.created'
+      )
+      expect(createdCalls.length).toBe(0)
     })
 
     it('throws ValidationError when service_id is missing', async () => {
@@ -212,7 +271,7 @@ describe('AppointmentService — Unit Tests', () => {
     })
 
     it('throws ValidationError when there is a scheduling conflict', async () => {
-      repo.findConflicts.mockResolvedValue([{ id: 'apt-conflict' }])
+      mockUowRepo.findConflicts.mockResolvedValue([{ id: 'apt-conflict' }])
 
       await expect(service.create(COMPANY_ID, ADMIN_USER, {
         service_id: 'svc-1',
@@ -221,11 +280,16 @@ describe('AppointmentService — Unit Tests', () => {
         customer_phone: '11999999999',
         starts_at: FUTURE_DATE,
       })).rejects.toThrow(ValidationError)
+
+      expect(mockUow.begin).toHaveBeenCalled()
+      expect(mockUowRepo.findConflicts).toHaveBeenCalled()
+      expect(mockUow.rollback).toHaveBeenCalled()
+      expect(mockUow.commit).not.toHaveBeenCalled()
     })
 
     it('normalizes email before creating', async () => {
-      repo.findConflicts.mockResolvedValue([])
-      repo.create.mockResolvedValue({ id: 'apt-new' })
+      mockUowRepo.findConflicts.mockResolvedValue([])
+      mockUowRepo.create.mockResolvedValue({ id: 'apt-new' })
 
       await service.create(COMPANY_ID, ADMIN_USER, {
         service_id: 'svc-1',
@@ -236,14 +300,14 @@ describe('AppointmentService — Unit Tests', () => {
         starts_at: FUTURE_DATE,
       })
 
-      expect(repo.create).toHaveBeenCalledWith(COMPANY_ID, expect.objectContaining({
+      expect(mockUowRepo.create).toHaveBeenCalledWith(COMPANY_ID, expect.objectContaining({
         customerEmail: 'test@example.com',
       }))
     })
 
     it('allows collaborator to create appointment', async () => {
-      repo.findConflicts.mockResolvedValue([])
-      repo.create.mockResolvedValue({ id: 'apt-new' })
+      mockUowRepo.findConflicts.mockResolvedValue([])
+      mockUowRepo.create.mockResolvedValue({ id: 'apt-new' })
 
       const result = await service.create(COMPANY_ID, COLLABORATOR_USER, {
         service_id: 'svc-1',
@@ -264,6 +328,24 @@ describe('AppointmentService — Unit Tests', () => {
         customer_phone: '11999999999',
         starts_at: FUTURE_DATE,
       })).rejects.toThrow(ForbiddenError)
+    })
+
+    it('rolls back on repository error', async () => {
+      mockUowRepo.findConflicts.mockResolvedValue([])
+      mockUowRepo.create.mockRejectedValue(new Error('DB_ERROR'))
+
+      await expect(service.create(COMPANY_ID, ADMIN_USER, {
+        service_id: 'svc-1',
+        collaborator_id: 'col-1',
+        customer_name: 'Test',
+        customer_phone: '11999999999',
+        starts_at: FUTURE_DATE,
+      })).rejects.toThrow('DB_ERROR')
+
+      expect(mockUow.begin).toHaveBeenCalled()
+      expect(mockUowRepo.create).toHaveBeenCalled()
+      expect(mockUow.rollback).toHaveBeenCalled()
+      expect(mockUow.commit).not.toHaveBeenCalled()
     })
   })
 
@@ -421,9 +503,9 @@ describe('AppointmentService — Unit Tests', () => {
       expect(repo.findAll).toHaveBeenCalledWith('company-b', expect.any(Object))
     })
 
-    it('passes correct company_id to repository on create', async () => {
-      repo.findConflicts.mockResolvedValue([])
-      repo.create.mockResolvedValue({ id: 'apt-new' })
+    it('passes correct company_id to UoW repository on create', async () => {
+      mockUowRepo.findConflicts.mockResolvedValue([])
+      mockUowRepo.create.mockResolvedValue({ id: 'apt-new' })
       await service.create('company-b', ADMIN_USER, {
         service_id: 'svc-1',
         collaborator_id: 'col-1',
@@ -431,7 +513,7 @@ describe('AppointmentService — Unit Tests', () => {
         customer_phone: '11999999999',
         starts_at: FUTURE_DATE,
       })
-      expect(repo.create).toHaveBeenCalledWith('company-b', expect.any(Object))
+      expect(mockUowRepo.create).toHaveBeenCalledWith('company-b', expect.any(Object))
     })
 
     it('passes correct company_id to repository on update', async () => {

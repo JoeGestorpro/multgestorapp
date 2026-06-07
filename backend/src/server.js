@@ -390,6 +390,7 @@ const outboxWorker = new OutboxWorker(pool, {
 });
 
 const { handleBillingProvisioning, handleWalletTopup, handleWalletTopupFailed, handleSaleLoyaltyAccrual, handleSalePackageRedemption } = require('./integrations/consumers');
+const { handleAppointmentCreated, handleAppointmentCreatedEventLog } = require('./shared/core/events/consumers');
 outboxWorker.register('payment.approved', handleBillingProvisioning);
 outboxWorker.register('subscription.renewed', handleBillingProvisioning);
 outboxWorker.register('subscription.past_due', handleBillingProvisioning);
@@ -412,6 +413,10 @@ appLogger.info('[OutboxWorker] Wallet provisioning consumers registered (approve
 // outboxWorker.register('sale.created', handleSalePackageRedemption);
 // appLogger.info('[OutboxWorker] Fase C consumers registered (loyalty + package)');
 appLogger.warn('[OutboxWorker] Fase C (sale.created → loyalty/package) em QUARENTENA — wiring desativado até promoção formal');
+
+outboxWorker.register('appointment.created', handleAppointmentCreated);
+outboxWorker.register('appointment.created', handleAppointmentCreatedEventLog);
+appLogger.info('[OutboxWorker] Appointment audit consumers registered');
 
 outboxWorker.start();
 appLogger.info('[OutboxWorker] Iniciado');
