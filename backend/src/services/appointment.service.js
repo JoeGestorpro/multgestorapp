@@ -238,11 +238,11 @@ class AppointmentService {
 
       const repo = uow.repository(AppointmentRepository)
 
-      const updated = await repo.update(companyId, appointmentId, {
-        status,
-        notes,
-        canceledReason
-      })
+      // Só atualiza status quando informado — update só-notas não deve gravar status='' (viola CHECK constraint).
+      const updatePayload = { notes, canceledReason }
+      if (status) updatePayload.status = status
+
+      const updated = await repo.update(companyId, appointmentId, updatePayload)
 
       let mutationEvt = null
       if (status === 'confirmed') {

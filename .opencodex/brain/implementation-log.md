@@ -3,6 +3,11 @@
 > **Atualizado a cada APPROVE** (Loop de Fechamento).
 > **Origem:** continua `.agent/memory/implementation-log.md` (que parou em 2026-06-04). **Status: recuperado o gap 06-05→06-07.**
 
+## 2026-06-07 — fix update só-notas (status='' viola CHECK) — continuação do fix
+CI run 2: 7→1 falha (eventbus + conflito resolvidos). Restou `update` só-notas gravando `status=''`
+(`chk_barber_appointments_status`). Fix no service: `status` só entra no payload quando não-vazio.
+Unit 648/648; integração validada no CI. Ver L-10.
+
 ## 2026-06-07 — fix-eventbus-publish-refzbug (bug crítico pego pelo GATE-INTEG)
 CI da branch falhou (7 testes) → 2 bugs: **(1) CRÍTICO** `event-bus.js:31` `event_name` solto → ReferenceError em todo `eventBus.publish` real (7 call sites); **(2)** conflito de horário nos testes de integração. Correções: event-bus.js (1 linha → `event.event_name`); novo `event-bus.test.js` (4 testes, publish real sem mock); `outbox-durability.test.js` com `uniqueStartsAt()` por teste. Local: **unit 648/648**, integração skip (sem Postgres). Re-push da branch p/ CI (GATE-INTEG ainda pendente de verde). Ver L-09.
 

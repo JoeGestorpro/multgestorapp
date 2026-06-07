@@ -40,7 +40,7 @@ gates_abertos:
       (fix-eventbus-publish-refzbug); unit 648/648 local. Re-push da branch para novo CI. Push do inc.2
       para main segue bloqueado até a integração ficar VERDE no CI.
     backlog: "ops-test-outbox-mutation-integration"
-    status: "fix-applied-pending-ci-rerun"
+    status: "fixes-applied-pending-ci-run3 (eventbus + conflito + update-só-notas)"
 
 open_risks:
   - "Brain V3 e inc.2 vivem em branches locais; reconciliar para main é decisão humana (sem push automático)."

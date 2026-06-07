@@ -24,6 +24,9 @@ O OpenCode Auditor deu APPROVE ignorando a regra EVENT CONTRACTS recém-criada. 
 ## L-07 — RLS inerte por BYPASSRLS
 RLS `ENABLE` não isola nada se o role de runtime tem BYPASSRLS. **Aprendizado:** isolamento real exige role least-privilege; até lá, a app é a única barreira (filtros `company_id`).
 
+## L-10 — Update só-notas gravava status='' (CHECK constraint) — 2026-06-07
+`AppointmentService.update` normalizava `status` para `''` quando ausente e **sempre** o passava ao `repo.update`, que incluía `status='' ` no SET → `chk_barber_appointments_status`. Atualizar só observações → 500. Pré-existente; exposto pelo teste de integração "notes-only". **Fix:** só incluir `status` no payload quando não-vazio. **Aprendizado:** normalização defensiva (`String(x||'')`) pode transformar "ausente" em "valor inválido" — distinguir *não-informado* de *vazio* antes de persistir. (Mesmo padrão do L-09: integração pegou o que o unit não via.)
+
 ## L-09 — Mocks escondiam bug crítico do EventBus; o GATE-INTEG pegou (2026-06-07)
 `event-bus.js:31` usava `event_name` (variável solta) em vez de `event.event_name` → **ReferenceError em TODA chamada real de `eventBus.publish`** (7 call sites: appointment confirmed/canceled dual-emit, reminder job, whatsapp-webhook, integration-manager). Latente desde a criação do arquivo. **Por que invisível:** todos os unit tests **mockam o eventBus**; nenhum exercitava o `publish` real. O **1º teste de integração real** (outbox-durability, sob o GATE-INTEG do Brain V3) expôs o bug antes de chegar em `main`.
 **Aprendizados:**
