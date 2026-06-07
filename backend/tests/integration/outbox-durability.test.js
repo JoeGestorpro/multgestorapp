@@ -13,6 +13,12 @@ const {
   shutdownTestPool,
 } = require('./helpers/test-database')
 const { createCompanyA, createUserForCompany, createCollaboratorPayload, createServicePayload } = require('../helpers/tenant-factories')
+const {
+  AppointmentConfirmed,
+  AppointmentCanceled,
+  AppointmentCompleted,
+  AppointmentRescheduled,
+} = require('../../src/shared/core/events/contracts')
 
 const hasTestDb = !!(process.env.TEST_DATABASE_URL || process.env.DATABASE_URL)
 const describeDb = hasTestDb ? describe : describe.skip
@@ -137,5 +143,87 @@ describeDb('Outbox Durability — Integration Tests', () => {
     expect(appointmentCreatedCalls.length).toBe(0)
 
     publishSpy.mockRestore()
+  })
+
+  // ─── Mutation paths → outbox durável (gate do inc.2) ───────────────────────
+  // EVENT CONTRACTS: o tipo esperado vem do contrato (AppointmentX.event_name), nunca literal.
+
+  const ADMIN = () => ({ id: 'user-admin', role: 'admin', company_id: companyId })
+
+  async function createAppointment(name = 'Mutation Test') {
+    const startsAt = new Date(Date.now() + 86400000).toISOString()
+    return service.create(companyId, ADMIN(), {
+      service_id: barberService.id,
+      collaborator_id: collaborator.id,
+      customer_name: name,
+      customer_phone: '11988887777',
+      starts_at: startsAt,
+    })
+  }
+
+  async function latestOutbox(type, aggregateId) {
+    const r = await db.query(
+      `SELECT type, company_id, aggregate_type, aggregate_id, payload, status
+       FROM outbox_messages
+       WHERE company_id = $1 AND type = $2 AND aggregate_id = $3
+       ORDER BY created_at DESC LIMIT 1`,
+      [companyId, type, aggregateId]
+    )
+    return r.rows[0]
+  }
+
+  it('writes appointment.confirmed to outbox on update→confirmed', async () => {
+    const appt = await createAppointment('Confirm Test')
+    await service.update(companyId, ADMIN(), appt.id, { status: 'confirmed' })
+
+    const msg = await latestOutbox(AppointmentConfirmed.event_name, appt.id)
+    expect(msg).toBeDefined()
+    expect(msg.type).toBe(AppointmentConfirmed.event_name)
+    expect(msg.aggregate_type).toBe(AppointmentConfirmed.aggregate_type)
+    expect(msg.aggregate_id).toBe(appt.id)
+  })
+
+  it('writes appointment.canceled to outbox on update→canceled', async () => {
+    const appt = await createAppointment('Cancel Test')
+    await service.update(companyId, ADMIN(), appt.id, { status: 'canceled', canceled_reason: 'cliente desistiu' })
+
+    const msg = await latestOutbox(AppointmentCanceled.event_name, appt.id)
+    expect(msg).toBeDefined()
+    expect(msg.type).toBe(AppointmentCanceled.event_name)
+    const payload = typeof msg.payload === 'string' ? JSON.parse(msg.payload) : msg.payload
+    expect(payload.canceled_reason).toBe('cliente desistiu')
+  })
+
+  it('writes appointment.completed to outbox on update→completed', async () => {
+    const appt = await createAppointment('Complete Test')
+    await service.update(companyId, ADMIN(), appt.id, { status: 'completed' })
+
+    const msg = await latestOutbox(AppointmentCompleted.event_name, appt.id)
+    expect(msg).toBeDefined()
+    expect(msg.type).toBe(AppointmentCompleted.event_name)
+    expect(msg.aggregate_id).toBe(appt.id)
+  })
+
+  it('writes appointment.rescheduled to outbox on reschedule', async () => {
+    const appt = await createAppointment('Reschedule Test')
+    const newStart = new Date(Date.now() + 2 * 86400000).toISOString()
+    await service.reschedule(companyId, ADMIN(), appt.id, { starts_at: newStart })
+
+    const msg = await latestOutbox(AppointmentRescheduled.event_name, appt.id)
+    expect(msg).toBeDefined()
+    expect(msg.type).toBe(AppointmentRescheduled.event_name)
+    expect(msg.aggregate_type).toBe(AppointmentRescheduled.aggregate_type)
+  })
+
+  it('update with notes only (no status) does NOT write a mutation event', async () => {
+    const appt = await createAppointment('Notes Only Test')
+    await service.update(companyId, ADMIN(), appt.id, { notes: 'apenas observação' })
+
+    const confirmed = await latestOutbox(AppointmentConfirmed.event_name, appt.id)
+    const canceled = await latestOutbox(AppointmentCanceled.event_name, appt.id)
+    const completed = await latestOutbox(AppointmentCompleted.event_name, appt.id)
+    expect(confirmed).toBeUndefined()
+    expect(canceled).toBeUndefined()
+    expect(completed).toBeUndefined()
   })
 })

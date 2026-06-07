@@ -28,14 +28,17 @@ local_not_in_main:
   - "Brain V3 — este diretório (.opencodex/brain) [em andamento]"
 
 queue:
-  next_task: "eventbus-mutation-integration-tests"   # gate de push do inc.2
-  next_task_status: "pending"
+  next_task: "eventbus-mutation-integration-tests"   # testes ESCRITOS; aguardando CI verde
+  next_task_status: "implemented-pending-ci"
   last_decision: "F2 inc.2 = APPROVE_WITH_NOTES (Claude Code, 06-07)"
 
 gates_abertos:
   - id: "GATE-INTEG"
-    desc: "Push do inc.2 para main bloqueado até npm run test:integration verde em Postgres/CI (mutation paths)."
+    desc: >-
+      Testes de integração dos 4 mutation paths ESCRITOS em outbox-durability.test.js (8 testes, skip local
+      sem Postgres). Push do inc.2 para main ainda bloqueado até npm run test:integration ficar VERDE no CI.
     backlog: "ops-test-outbox-mutation-integration"
+    status: "tests-written-pending-ci-green"
 
 open_risks:
   - "Brain V3 e inc.2 vivem em branches locais; reconciliar para main é decisão humana (sem push automático)."

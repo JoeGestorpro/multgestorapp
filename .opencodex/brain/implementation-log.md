@@ -3,6 +3,9 @@
 > **Atualizado a cada APPROVE** (Loop de Fechamento).
 > **Origem:** continua `.agent/memory/implementation-log.md` (que parou em 2026-06-04). **Status: recuperado o gap 06-05→06-07.**
 
+## 2026-06-07 — Integração dos mutation paths (1º teste real do CHECK 0)
+Primeira missão sob o **Context Confidence Engine**: report gerado, **score 92/100** (banda 80–94, riscos declarados — sem Postgres local). Adicionados 5 testes de integração em `outbox-durability.test.js` (confirmed/canceled/completed/rescheduled + notes-only=sem-evento), tipos sourceados de `contracts.js` (EVENT CONTRACTS). **8 testes skip local** (sem DB); validação verde **pendente no CI** (GATE-INTEG). Unit 644/644. Sem push.
+
 ## 2026-06-07 — Brain V3 (Segundo Cérebro)
 Criação de `.opencodex/brain/` como fonte única; migração do OURO da `.agent`; CHECK 0 + Loop de Fechamento; archive-index. Branch `chore/second-brain-v3`. **EXECUTE_WITH_REVIEW.**
 
