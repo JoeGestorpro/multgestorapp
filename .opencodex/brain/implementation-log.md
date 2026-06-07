@@ -3,6 +3,12 @@
 > **Atualizado a cada APPROVE** (Loop de Fechamento).
 > **Origem:** continua `.agent/memory/implementation-log.md` (que parou em 2026-06-04). **Status: recuperado o gap 06-05→06-07.**
 
+## 2026-06-07 — Reconciliação para main (GATE-INTEG verde, auditoria consolidada APPROVE)
+**CI run 27097235191 = SUCCESS** (Unit + Integration + Frontend) na tip `2ba5a2e`. Auditoria final
+consolidada do stack (inc.2 + EVENT CONTRACTS + Brain V3 + 3 bug fixes) = **APPROVE**. FF autorizado
+pelo humano → `main` avança (FF linear, sem rebase). CI em `main` para validação final. Origin/main
+sai de `fea9708`. (Closure final registrado após o CI em main passar.)
+
 ## 2026-06-07 — fix update só-notas (status='' viola CHECK) — continuação do fix
 CI run 2: 7→1 falha (eventbus + conflito resolvidos). Restou `update` só-notas gravando `status=''`
 (`chk_barber_appointments_status`). Fix no service: `status` só entra no payload quando não-vazio.

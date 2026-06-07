@@ -10,27 +10,23 @@ state_version: 3
 phase: "event-bus-hardening + brain-v3"
 
 git:
-  origin_main: "fea9708"          # RLS Fase 1 + F6 + F2 inc.1 (PUSHED)
-  local_main: "fea9708"
-  active_branch: "chore/second-brain-v3"   # esta missão (brain V3)
-  inc2_branch: "fix/appointment-outbox-durability-inc2"  # HEAD bc8e6f8 (NÃO em main)
+  origin_main: "FF p/ tip da branch chore/second-brain-v3 (base 2ba5a2e, CI run 27097235191 VERDE)"
+  active_branch: "chore/second-brain-v3"
+  reconciliation: "FF autorizado (humano 2026-06-07); push de main em execução; CI em main p/ validação final"
 
-# Em origin/main (auditado APPROVE + pushed):
+# Reconciliado para main via FF (CI run 27097235191 APPROVE):
 in_main:
-  - "RLS Fase 1 CI-only — role app_runtime sem BYPASSRLS (a179085)"
-  - "F6 — OutboxWorker: evento sem handler vira no-op/processed (6c3c81a)"
-  - "F2 inc.1 — appointment.created durável via outbox (823107c)"
-
-# Local, NÃO em main (aguardando gate de integração + push):
-local_not_in_main:
-  - "F2 inc.2 — mutation paths (update/cancel/complete/reschedule) duráveis (0d654f3)"
-  - "EVENT CONTRACTS — regra + AppointmentEvents factory (50a64dd, bc8e6f8)"
-  - "Brain V3 — este diretório (.opencodex/brain) [em andamento]"
+  - "RLS Fase 1 CI-only (a179085) · F6 outbox no-op (6c3c81a) · F2 inc.1 (823107c)"
+  - "F2 inc.2 — mutation paths duráveis (0d654f3) + dual-emit"
+  - "EVENT CONTRACTS — regra + AppointmentEvents factory + gate (50a64dd, bc8e6f8)"
+  - "Brain V3 — .opencodex/brain (source-of-truth, CHECK 0, Loop de Fechamento) (67ee6ac)"
+  - "GATE-INTEG — 8 testes de integração mutation paths (eb5b10b)"
+  - "fix EventBus ReferenceError (f65cf74) + fix update só-notas (2ba5a2e)"
 
 queue:
-  next_task: "eventbus-mutation-integration-tests"   # testes ESCRITOS; aguardando CI verde
-  next_task_status: "implemented-pending-ci"
-  last_decision: "F2 inc.2 = APPROVE_WITH_NOTES (Claude Code, 06-07)"
+  next_task: "idle (reconciliação)"
+  next_task_status: "reconciling-to-main"
+  last_decision: "Auditoria final consolidada = APPROVE (Claude Code, 06-07); FF confirmado pelo humano"
 
 gates_abertos:
   - id: "GATE-INTEG"
