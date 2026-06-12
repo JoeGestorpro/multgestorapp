@@ -108,4 +108,50 @@ async function handleWalletTopup(eventPayload, context) {
   }
 }
 
-module.exports = { handleWalletTopup }
+async function handleWalletTopupFailed(eventPayload, context) {
+  const {
+    company_id,
+    topup_request_id,
+    payment_gateway_event_id,
+    failure_reason
+  } = eventPayload
+
+  if (!topup_request_id && !payment_gateway_event_id) {
+    appLogger.warn({ eventPayload }, '[WalletProvisioning] wallet.topup.failed sem topup_request_id nem payment_gateway_event_id — ignorando')
+    return
+  }
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    if (topup_request_id) {
+      await client.query(
+        `UPDATE topup_requests
+         SET status = 'failed', failed_at = NOW(), failure_reason = $2
+         WHERE id = $1 AND status = 'pending'`,
+        [topup_request_id, failure_reason || null]
+      )
+    }
+
+    if (payment_gateway_event_id) {
+      await client.query(
+        `UPDATE payment_gateway_events
+         SET processing_status = 'processed', company_id = COALESCE($2, company_id), processed_at = NOW()
+         WHERE id = $1`,
+        [payment_gateway_event_id, company_id || null]
+      )
+    }
+
+    await client.query('COMMIT')
+    appLogger.info({ company_id, topup_request_id, failure_reason }, '[WalletProvisioning] topup marcado como failed')
+  } catch (err) {
+    await client.query('ROLLBACK')
+    appLogger.error({ err, company_id, topup_request_id }, '[WalletProvisioning] falha ao marcar topup como failed')
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
+module.exports = { handleWalletTopup, handleWalletTopupFailed }
