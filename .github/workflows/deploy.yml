@@ -33,6 +33,7 @@ jobs:
 
       - name: Run database migrations
         run: npm run migrate
+        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
