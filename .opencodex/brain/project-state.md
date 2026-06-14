@@ -39,9 +39,9 @@ prod_evidence_2026_06_14:
   - "POST /api/auth/register com <script> → 400 (portão XSS ativo)"
 
 queue:
-  current_task: "fix-xss-register-hardening (DONE — b75d34a, deployado)"
-  next_task: "xss-data-sanitization-block-a (pending — MCP guarded, requer aprovação humana)"
-  last_decision: "PR #6 squash-merge + deploy automático OK; próximo = sanitizar 3 registros XSS"
+  current_task: "xss-data-sanitization-block-a-users (DONE — users.name limpo, count=0; ciclo XSS fechado)"
+  next_task: "e2e-public-booking-validation (pending — validação read-only do fluxo público)"
+  last_decision: "Bloco A v2 executado (UPDATE só nos 3 IDs); ciclo XSS CLOSED; próximo = E2E booking"
 
 deploy_blockers:
   - id: "OPS-1"
@@ -53,21 +53,31 @@ deploy_blockers:
 
 gates_abertos: []
 
+xss_cycle_status: >-
+  CLOSED (2026-06-14). companies.name ~ '[<>]' = 0 E users.name ~ '[<>]' = 0;
+  public_display_name, business_description, barber_services.name também 0. Portão de
+  entrada (/register com <script>) → 400. Bloco A v2 (users.name): UPDATE afetou exatamente
+  os 3 IDs autorizados, sem DELETE/migration/schema/código/commit/push. Ciclo XSS fechado de fato.
+
 open_risks:
   - "Migrations automáticas no CI desativadas (continue-on-error) — drift volta a acumular se novas migrations não forem aplicadas manualmente via MCP."
-  - "3 registros com stored XSS em companies.name ainda no banco (sem exploração ativa) — Bloco A pendente de aprovação."
   - ".agent/ ainda fisicamente presente (rebaixado a histórico) — consolidação de namespaces é backlog separado."
 
+# RESOLVIDO nesta sessão:
+#   - stored XSS em companies.name (3 registros) → sanitizado, count=0.
+#   - stored XSS em users.name (3 registros) → sanitizado via Bloco A v2, count=0 → ciclo XSS CLOSED.
+
 ultimas_missoes:
-  - "F2 inc.2 mutation paths + integração — APPROVE (reconciliado em main)"
   - "Drift reminder_sent_at (023) — aplicado em prod via MCP"
   - "Drift outbox_message_handlers (022) — aplicado em prod via MCP"
   - "XSS register hardening (Bloco B+C) — APPROVE, PR #6 mergeado + deployado"
+  - "XSS Bloco A (companies.name) — DONE (count=0)"
+  - "XSS Bloco A v2 (users.name) — DONE (count=0) → ciclo XSS CLOSED"
 
 next_recommended_action: >-
-  Executar o Bloco A (sanitização dos 3 registros XSS em companies.name) via MCP Supabase,
-  com SELECT prévio + aprovação humana + UPDATE só nos 3 IDs + SELECT pós. Depois, planejar
-  remoção do continue-on-error quando o OPS-SUPAVISOR for resolvido.
+  Validação E2E read-only do fluxo público de agendamento (slug barbearia-joefelipe):
+  booking-info + available-slots. Backlog: remover continue-on-error quando OPS-SUPAVISOR
+  resolver; consolidar namespaces; opcional desativar as 3 contas de pentest sanitizadas.
 ```
 
 ## Módulos

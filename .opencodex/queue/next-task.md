@@ -1,62 +1,40 @@
-# 📥 NEXT TASK — Bloco A: sanitização dos registros XSS já armazenados
+# 📥 NEXT TASK — Validação E2E do fluxo de agendamento público
 
-> Escrito pelo **Claude Code**. Execução via **MCP Supabase** (não via OpenCode Executor).
-> **Pré-requisito JÁ ATENDIDO:** o portão de entrada (Bloco B) está **live em produção** —
-> nenhum payload HTML novo entra durante a limpeza.
+> Escrito pelo **Claude Code**. Missão de validação (read-only / curl), sem alteração de código.
+> Ciclo XSS já fechado (companies.name=0, users.name=0, portão de entrada ativo).
 
 ---
 status: pending
-task_id: xss-data-sanitization-block-a
-title: Sanitizar `companies.name` dos 3 registros maliciosos remanescentes (stored XSS)
-mode: MCP_SUPABASE_GUARDED
-requires_human_approval: true
+task_id: e2e-public-booking-validation
+title: Validar o fluxo público de agendamento end-to-end (slug barbearia-joefelipe)
+mode: READ_ONLY_VALIDATION
+requires_human_approval: false
 created_by: Claude Code
 created_at: 2026-06-14
-depends_on: fix-xss-register-hardening (DONE — b75d34a, deployado)
 ---
 
 ## Contexto
-3 empresas têm payloads de XSS armazenados em `companies.name` (sessão de pentest 2026-04-28).
-O frontend React escapa por padrão (sem `dangerouslySetInnerHTML`) e os emails escapam via
-`baseLayout`, então **não há exploração ativa** — mas os dados devem ser neutralizados.
+Backend estável em prod (health 200, login 401, DB conectado, drifts 022/023 resolvidos).
+Tenant completo para teste: **`barbearia-joefelipe`** (16 serviços, 7 colaboradores, 7 working_hours).
+`barbearia-teste` tem 0 working_hours → slots vazios (não usar).
 
-## IDs autorizados (e SOMENTE estes 3)
-- `ceff8114-b490-4103-9ba8-6b1e7b4133e9`
-- `ae9a18dc-9bda-4a94-9c90-2ba09baba58a`
-- `db0aaf31-baf2-48b2-af52-e9180983f76e`
+## Objetivo
+Provar, via requisições reais (sem tocar código), que o fluxo público funciona:
+1. `GET /api/public/booking/barbearia-joefelipe` → 200 com info do tenant.
+2. `GET /api/barber/public/barbearia-joefelipe/available-slots?date=<futura>` → 200 com horários.
+3. (Opcional, cria dado real) `POST /api/public/booking/barbearia-joefelipe/appointments` →
+   **só com aprovação humana**, pois grava agendamento + dispara outbox.
 
-## Procedimento obrigatório (nesta ordem)
-1. **SELECT prévio** (confirmar os 3 IDs e o conteúdo malicioso atual):
-   ```sql
-   SELECT id, name FROM companies
-   WHERE id IN ('ceff8114-b490-4103-9ba8-6b1e7b4133e9',
-                'ae9a18dc-9bda-4a94-9c90-2ba09baba58a',
-                'db0aaf31-baf2-48b2-af52-e9180983f76e');
-   ```
-2. **APROVAÇÃO HUMANA explícita** antes de qualquer escrita.
-3. **UPDATE somente nos 3 IDs** (idempotente, sem DELETE):
-   ```sql
-   UPDATE companies
-   SET name = 'Empresa (nome sanitizado)', updated_at = NOW()
-   WHERE id IN ('ceff8114-b490-4103-9ba8-6b1e7b4133e9',
-                'ae9a18dc-9bda-4a94-9c90-2ba09baba58a',
-                'db0aaf31-baf2-48b2-af52-e9180983f76e');
-   ```
-4. **SELECT pós-validação** (esperado: 0 linhas):
-   ```sql
-   SELECT count(*) FROM companies WHERE name ~ '[<>]';
-   ```
-
-## Proibições (vinculantes)
-- ❌ DELETE / DROP / TRUNCATE.
-- ❌ UPDATE fora dos 3 IDs listados.
-- ❌ Qualquer alteração de código (backend/frontend).
-- ❌ Deploy manual.
-- ❌ Mudança em `DATABASE_URL` / secrets.
-- ❌ Executar sem o SELECT prévio e sem aprovação humana.
+## Proibições
+- ❌ Alterar código/backend/frontend · ❌ SQL de escrita · ❌ deploy.
+- ❌ POST de agendamento sem aprovação humana explícita (cria dado de produção).
 
 ## Critérios de aceite
-- [ ] SELECT prévio confirmou os 3 IDs.
-- [ ] Aprovação humana registrada.
-- [ ] UPDATE afetou exatamente 3 linhas.
-- [ ] SELECT pós → `count = 0` para `name ~ '[<>]'`.
+- [ ] booking-info 200 · available-slots 200 com lista não vazia.
+- [ ] Separar erro de dados/config de erro de código (se houver).
+
+## Backlog (missões separadas, fora desta)
+- OPS-SUPAVISOR: resolver tenant sa-east-1 e remover `continue-on-error` do deploy.yml.
+- Consolidar namespaces `.agent/` vs `.opencode/` vs `.opencodex/`.
+- Limpeza de branches locais órfãs.
+- (Opcional) Desativar — não deletar — as 3 contas admin de pentest já sanitizadas.
