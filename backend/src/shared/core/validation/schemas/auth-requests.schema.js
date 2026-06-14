@@ -7,14 +7,25 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Senha obrigatoria').max(128)
 })
 
+// Bloqueia `<` e `>` para impedir injeção de HTML/scripts em campos de nome
+// armazenados e potencialmente renderizados. Acentos, espaço, `&`, hífen e
+// apóstrofo continuam válidos (ex.: "Barbearia João & Filhos").
+const NO_HTML = /^[^<>]*$/
+const noHtmlText = (min, max, label) => {
+  let s = z.string().trim()
+  if (min != null) s = s.min(min, `${label} deve ter ao menos ${min} caracteres`)
+  if (max != null) s = s.max(max)
+  return s.regex(NO_HTML, `${label} contém caracteres inválidos`)
+}
+
 const registerSchema = z.object({
-  name: z.string().min(2, 'Nome deve ter ao menos 2 caracteres').max(100).trim(),
+  name: noHtmlText(2, 100, 'Nome'),
   email: emailSchema,
   password: passwordSchema,
-  company_name: z.string().min(2).max(100).trim().optional(),
-  companyName: z.string().min(2).max(100).trim().optional(),
-  niche_type: z.string().max(50).optional(),
-  nicheType: z.string().max(50).optional()
+  company_name: noHtmlText(2, 100, 'Nome da empresa').optional(),
+  companyName: noHtmlText(2, 100, 'Nome da empresa').optional(),
+  niche_type: noHtmlText(null, 50, 'Nicho').optional(),
+  nicheType: noHtmlText(null, 50, 'Nicho').optional()
 })
 
 const forgotPasswordSchema = z.object({

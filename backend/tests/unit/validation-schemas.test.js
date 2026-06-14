@@ -41,6 +41,24 @@ describe('registerSchema', () => {
   it('rejeita senha menor que 6 chars', () => {
     expect(registerSchema.safeParse({ ...valid, password: '123' }).success).toBe(false)
   })
+  it('rejeita HTML/script no name (XSS armazenado)', () => {
+    expect(registerSchema.safeParse({ ...valid, name: '<script>x</script>' }).success).toBe(false)
+  })
+  it('rejeita < ou > no company_name', () => {
+    expect(registerSchema.safeParse({ ...valid, company_name: 'Empresa <img src=x onerror=alert(1)>' }).success).toBe(false)
+    expect(registerSchema.safeParse({ ...valid, companyName: 'Empresa "> payload' }).success).toBe(false)
+  })
+  it('rejeita HTML no niche_type', () => {
+    expect(registerSchema.safeParse({ ...valid, niche_type: '<b>barbearia</b>' }).success).toBe(false)
+  })
+  it('aceita nome valido com acentos, & e apostrofo (regressao)', () => {
+    const r = registerSchema.safeParse({
+      ...valid,
+      name: 'João',
+      company_name: "Barbearia João & Filhos - O'Brien"
+    })
+    expect(r.success).toBe(true)
+  })
 })
 
 describe('createSaleSchema', () => {
