@@ -1,21 +1,36 @@
-# ⚙️ CURRENT TASK — Aguardando auditoria 🔍
+# ⚙️ CURRENT TASK — XSS hardening (register) ✅ CONCLUÍDO
 
 ---
-status: awaiting-audit
-task_id: eventbus-appointment-outbox-durability-inc2
-phase: 2-mutation-paths
-title: Durabilidade appointment.* — rotear update/cancel/complete/reschedule pela outbox (sem regredir notificações)
-branch: fix/appointment-outbox-durability-inc2
-completed_at: 2026-06-07
+status: done
+task_id: fix-xss-register-hardening
+phase: security-input-validation
+title: Endurecer validação de input do registro contra stored XSS (Bloco B+C)
+branch: fix/xss-register-hardening-clean
+pr: 6
+merge_commit: b75d34a
+completed_at: 2026-06-14
 ---
 
-## Progresso
-- [x] PREFLIGHT
-- [x] `appointment.service.update` → UnitOfWork + outbox + dual-emit (confirmed/canceled)
-- [x] `appointment.service.cancel` → UnitOfWork + outbox (delega para update)
-- [x] `appointment.service.reschedule` → UnitOfWork + outbox
-- [x] Handlers duráveis registrados em `server.js` (confirmed/canceled/completed/rescheduled)
-- [x] Teste unitário do consumer (appointment-consumers.test.js) — 6 handlers
-- [x] EVENT CONTRACTS compliance (ronda 2)
-- [x] Validar: `npm run test:unit` → 634/634 verde
-- [ ] Auditoria pendente (Claude Code)
+## Resultado
+- [x] **Bloco B** — `registerSchema` bloqueia `<`/`>` em `name`, `company_name`, `companyName`, `niche_type`, `nicheType` (helper `noHtmlText`, regex `^[^<>]*$`).
+- [x] **Bloco B** — testes unitários (rejeita `<script>`, regressão "Barbearia João & Filhos").
+- [x] **Bloco B** — teste de integração (`POST /api/auth/register` → 400 sem tocar DB).
+- [x] **Bloco C** — ESLint `no-restricted-syntax` bloqueia `dangerouslySetInnerHTML` (sem nova dependência; `react/no-danger` evitado por exigir `eslint-plugin-react`).
+- [x] Suíte unit completa **652/652 verde**; lint frontend **0 errors**.
+- [x] **PR #6 mergeado** na `main` (squash, `b75d34a`).
+- [x] Deploy automático (Render) **success** (workflow run 27511295814).
+
+## Validação em produção (2026-06-14)
+- `GET /api/health` → **200** (`Backend rodando`).
+- Login inválido → **401** (não 500).
+- `POST /api/auth/register` com `name = "<script>alert(1)</script>"` → **400** `Dados inválidos` (portão ativo).
+- Sem erro `reminder_sent_at` (DB conecta e consulta normalmente).
+
+## Diff (4 arquivos, sem contaminação)
+- `backend/src/shared/core/validation/schemas/auth-requests.schema.js`
+- `backend/tests/unit/validation-schemas.test.js`
+- `backend/tests/integration/register-validation.test.js`
+- `frontend/eslint.config.js`
+
+> Histórico da fila anterior (appointment/outbox inc.2) arquivado em
+> `.opencodex/queue/archive/2026-06-14-appointment-outbox-inc2-closeout.md`.

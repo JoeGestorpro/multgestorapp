@@ -1,67 +1,73 @@
 # 📌 PROJECT STATE — Estado Atual Real
 
-> **Atualizado:** 2026-06-07 · **state_version:** 3
+> **Atualizado:** 2026-06-14 · **state_version:** 4
 > **REGRA:** este arquivo é atualizado a cada missão APPROVE (Loop de Fechamento). Se estiver desatualizado, o CHECK 0 deve bloquear/reduzir o Context Confidence.
 > **Origem:** substitui `.opencodex/state/project-state.md` (V2, congelado 06-04) e `.agent/memory/current-state.md`.
 
 ```yaml
 project: MultGestor v2
-state_version: 3
-phase: "event-bus-hardening + brain-v3"
+state_version: 4
+phase: "prod-stabilization + security-hardening"
 
 git:
-  origin_main: "800c156 (PUSHED 2026-06-07) — stack reconciliado (inc.2 + EVENT CONTRACTS + Brain V3 + fixes)"
+  origin_main: "b75d34a (PUSHED 2026-06-14) — XSS register hardening (PR #6, squash)"
   reconciliation: >-
-    FF concluído fea9708→800c156 + push. CI em main (run 27097402148): TESTES VERDES
-    (Unit+Integration+Frontend no gate 'CI before deploy'); DEPLOY falhou por INFRA pré-existente
-    (não é nosso diff) → OPS-1 (DATABASE_URL secret inválido) + OPS-2 (Vercel root frontend/frontend).
+    inc.2 + EVENT CONTRACTS + Brain V3 já reconciliados em main (state v3). Em 2026-06-14:
+    drifts de schema aplicados em prod via MCP Supabase (022 + 023) e PR #6 (XSS hardening)
+    mergeado + deployado (Render workflow run 27511295814 = success).
 
-# Reconciliado para main via FF (CI run 27097235191 APPROVE):
+# Reconciliado para main:
 in_main:
   - "RLS Fase 1 CI-only (a179085) · F6 outbox no-op (6c3c81a) · F2 inc.1 (823107c)"
   - "F2 inc.2 — mutation paths duráveis (0d654f3) + dual-emit"
+  - "GATE-INTEG — testes de integração dos 4 mutation paths em outbox-durability.test.js"
   - "EVENT CONTRACTS — regra + AppointmentEvents factory + gate (50a64dd, bc8e6f8)"
   - "Brain V3 — .opencodex/brain (source-of-truth, CHECK 0, Loop de Fechamento) (67ee6ac)"
-  - "GATE-INTEG — 8 testes de integração mutation paths (eb5b10b)"
-  - "fix EventBus ReferenceError (f65cf74) + fix update só-notas (2ba5a2e)"
+  - "fix(outbox) export handleWalletTopup/Failed (c3a06d6)"
+  - "XSS register hardening — Bloco B+C (b75d34a, PR #6)"
+
+# Aplicado direto em produção via MCP Supabase (NÃO via CI — Supavisor OPS pendente):
+prod_db_migrations_applied:
+  - "20260604_022 outbox_message_handlers — 2026-06-14 (idempotência por handler estava ausente)"
+  - "20260604_023 barber_appointments_reminder — 2026-06-14 (coluna reminder_sent_at)"
+
+prod_evidence_2026_06_14:
+  - "Render conecta no banco: aws-1-sa-east-1.pooler.supabase.com:5432/postgres → [database] conectado"
+  - "Supabase MCP conectado (project mfayajizbkqkcbhqmean)"
+  - "drift reminder_sent_at RESOLVIDO (job AppointmentReminderJob sobe sem erro)"
+  - "GET /api/health → 200; login inválido → 401 (não 500)"
+  - "POST /api/auth/register com <script> → 400 (portão XSS ativo)"
 
 queue:
-  next_task: "idle"
-  next_task_status: "reconciled-to-main (deploy infra pendente — OPS, não código)"
-  last_decision: "Reconciliação APPROVE + FF/push p/ main; main test-green; deploy bloqueado por infra"
+  current_task: "fix-xss-register-hardening (DONE — b75d34a, deployado)"
+  next_task: "xss-data-sanitization-block-a (pending — MCP guarded, requer aprovação humana)"
+  last_decision: "PR #6 squash-merge + deploy automático OK; próximo = sanitizar 3 registros XSS"
 
 deploy_blockers:
   - id: "OPS-1"
-    desc: "Secret DATABASE_URL do job 'Run Database Migrations' inválido (Invalid URL). Corrigir no GitHub."
+    status: "RESOLVIDO — Render conecta; DATABASE_URL corrigida (pooler sa-east-1)."
   - id: "OPS-2"
-    desc: "Root Directory do projeto Vercel = 'frontend/frontend' (duplicado). Corrigir para 'frontend'."
+    status: "RESOLVIDO — path Vercel corrigido (4a058d2)."
+  - id: "OPS-SUPAVISOR"
+    status: "PENDENTE — migrations no CI com continue-on-error (Supavisor sa-east-1 rejeita tenant). Enquanto durar, cada migration nova é aplicada manualmente via MCP. Ver [[project-supavisor-ops-pending]]."
 
-gates_abertos:
-  - id: "GATE-INTEG"
-    desc: >-
-      1º CI (run 27096576679) FALHOU e pegou 2 bugs: (1) CRÍTICO event-bus.js:31 event_name solto
-      (ReferenceError em todo publish real); (2) conflito de horário nos testes. Ambos corrigidos
-      (fix-eventbus-publish-refzbug); unit 648/648 local. Re-push da branch para novo CI. Push do inc.2
-      para main segue bloqueado até a integração ficar VERDE no CI.
-    backlog: "ops-test-outbox-mutation-integration"
-    status: "fixes-applied-pending-ci-run3 (eventbus + conflito + update-só-notas)"
+gates_abertos: []
 
 open_risks:
-  - "Brain V3 e inc.2 vivem em branches locais; reconciliar para main é decisão humana (sem push automático)."
-  - "Integração dos mutation paths skipa local (sem Postgres); validável só no CI."
-  - ".agent/ ainda fisicamente presente (rebaixado a histórico, não apagado) — risco de consulta indevida até o archive-index ser conhecido."
+  - "Migrations automáticas no CI desativadas (continue-on-error) — drift volta a acumular se novas migrations não forem aplicadas manualmente via MCP."
+  - "3 registros com stored XSS em companies.name ainda no banco (sem exploração ativa) — Bloco A pendente de aprovação."
+  - ".agent/ ainda fisicamente presente (rebaixado a histórico) — consolidação de namespaces é backlog separado."
 
 ultimas_missoes:
-  - "RLS Fase 1 CI-only — APPROVE"
-  - "F6 outbox no-op — APPROVE"
-  - "F2 inc.1 appointment.created durável — APPROVE"
-  - "F2 inc.2 mutation paths — APPROVE_WITH_NOTES (gate integração)"
-  - "EVENT CONTRACTS factory + gate — entregue (EXECUTE_WITH_REVIEW)"
-  - "Brain V3 — em andamento (esta missão)"
+  - "F2 inc.2 mutation paths + integração — APPROVE (reconciliado em main)"
+  - "Drift reminder_sent_at (023) — aplicado em prod via MCP"
+  - "Drift outbox_message_handlers (022) — aplicado em prod via MCP"
+  - "XSS register hardening (Bloco B+C) — APPROVE, PR #6 mergeado + deployado"
 
 next_recommended_action: >-
-  Concluir a missão de integração (eventbus-mutation-integration-tests) no CI;
-  então reconciliar inc.2 + EVENT CONTRACTS + Brain V3 para main (decisão humana de push).
+  Executar o Bloco A (sanitização dos 3 registros XSS em companies.name) via MCP Supabase,
+  com SELECT prévio + aprovação humana + UPDATE só nos 3 IDs + SELECT pós. Depois, planejar
+  remoção do continue-on-error quando o OPS-SUPAVISOR for resolvido.
 ```
 
 ## Módulos
