@@ -24,6 +24,14 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      // Proteção preventiva contra XSS: bloqueia dangerouslySetInnerHTML.
+      // Usa a regra core `no-restricted-syntax` para não exigir eslint-plugin-react.
+      // Se um uso legítimo surgir, sanitizar o HTML (ex.: DOMPurify) e desativar
+      // a regra localmente com justificativa via eslint-disable-next-line.
+      'no-restricted-syntax': ['error', {
+        selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+        message: 'dangerouslySetInnerHTML é proibido (risco de XSS). Sanitize o HTML antes e desative a regra localmente com justificativa.'
+      }],
       // TODO: regras do eslint-plugin-react-hooks v5 — ainda controversas; fixar em cleanup sprint
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/purity': 'warn',
