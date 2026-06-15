@@ -68,6 +68,11 @@ Thumbs.db
 # OpenCode — contém credenciais, nunca commitar
 opencode.json
 
+# Inventários/segredos privados e capturas de request — NUNCA commitar
+# (SECURITY-SECRETS-ROTATION, contenção 2026-06-15)
+docs/private/
+body-login.json
+
 # Cobertura de testes (artefato de build)
 backend/coverage/
 coverage/

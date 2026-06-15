@@ -49,7 +49,7 @@ deploy_blockers:
   - id: "OPS-2"
     status: "RESOLVIDO — path Vercel corrigido (4a058d2)."
   - id: "OPS-SUPAVISOR"
-    status: "PENDENTE — migrations no CI com continue-on-error (Supavisor sa-east-1 rejeita tenant). Enquanto durar, cada migration nova é aplicada manualmente via MCP. Ver [[project-supavisor-ops-pending]]."
+    status: "⛔ BLOQUEADO/PAUSADO (2026-06-15) por missão prioritária SECURITY-SECRETS-ROTATION. NÃO alterar o continue-on-error das migrations até os secrets serem rotacionados e validados (logs de migration podem imprimir DATABASE_URL atual). Detalhe: [[security-secrets-rotation]]. Pendência técnica original mantida: Supavisor sa-east-1 rejeita tenant; migrations novas aplicadas via MCP. Ver [[project-supavisor-ops-pending]]."
 
 gates_abertos: []
 
