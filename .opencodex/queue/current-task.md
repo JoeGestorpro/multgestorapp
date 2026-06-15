@@ -1,21 +1,32 @@
-# ⚙️ CURRENT TASK — Aguardando auditoria 🔍
+# ⚙️ CURRENT TASK — Bloco A v2: sanitização XSS em users.name ✅ DONE (ciclo fechado)
 
 ---
-status: awaiting-audit
-task_id: eventbus-appointment-outbox-durability-inc2
-phase: 2-mutation-paths
-title: Durabilidade appointment.* — rotear update/cancel/complete/reschedule pela outbox (sem regredir notificações)
-branch: fix/appointment-outbox-durability-inc2
-completed_at: 2026-06-07
+status: done
+task_id: xss-data-sanitization-block-a-users
+phase: security-data-sanitization
+title: Sanitizar os 3 registros maliciosos em users.name (stored XSS) — fecha o ciclo XSS
+completed_at: 2026-06-14
+executed_via: MCP Supabase (UPDATE guardado, SELECT prévio + aprovação humana + SELECT pós)
 ---
 
-## Progresso
-- [x] PREFLIGHT
-- [x] `appointment.service.update` → UnitOfWork + outbox + dual-emit (confirmed/canceled)
-- [x] `appointment.service.cancel` → UnitOfWork + outbox (delega para update)
-- [x] `appointment.service.reschedule` → UnitOfWork + outbox
-- [x] Handlers duráveis registrados em `server.js` (confirmed/canceled/completed/rescheduled)
-- [x] Teste unitário do consumer (appointment-consumers.test.js) — 6 handlers
-- [x] EVENT CONTRACTS compliance (ronda 2)
-- [x] Validar: `npm run test:unit` → 634/634 verde
-- [ ] Auditoria pendente (Claude Code)
+## Resultado
+- [x] `UPDATE users SET name='Usuario (nome sanitizado)', updated_at=now()` nos **3 IDs autorizados**:
+  - `a0b3022a-2d97-4000-9f6b-cb7404538631` (martelo@gmail.com)
+  - `72ace2b4-2a09-47f3-b266-114fb6d660bf` (kidbengala@gmail.com)
+  - `47ff3602-d2d7-4c9f-b72e-3699a1372436` (testeaaa@email.com)
+- [x] UPDATE afetou **exatamente os 3 IDs autorizados** (nenhum outro).
+- [x] `SELECT count(*) FROM users WHERE name ~ '[<>]'` → **0**.
+
+## Estado do ciclo XSS — CLOSED ✅
+| Superfície | Estado |
+|---|---|
+| `companies.name ~ '[<>]'` | 0 |
+| `users.name ~ '[<>]'` | 0 |
+| Portão de entrada `/register` com `<script>` | 400 (bloqueado) |
+
+## Garantias da execução
+- ❌ Sem DELETE · ❌ sem migration · ❌ sem schema change.
+- ❌ `companies` não tocado nesta etapa · ❌ backend/frontend intactos.
+- ❌ Sem commit · ❌ sem push · ❌ PR #7 intacto.
+
+> Bloco A (companies.name) registrado em archive; Bloco A v2 (users.name) fecha o ciclo.
