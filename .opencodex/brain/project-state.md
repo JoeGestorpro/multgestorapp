@@ -1,16 +1,16 @@
 # 📌 PROJECT STATE — Estado Atual Real
 
-> **Atualizado:** 2026-06-14 · **state_version:** 4
+> **Atualizado:** 2026-06-15 · **state_version:** 5
 > **REGRA:** este arquivo é atualizado a cada missão APPROVE (Loop de Fechamento). Se estiver desatualizado, o CHECK 0 deve bloquear/reduzir o Context Confidence.
 > **Origem:** substitui `.opencodex/state/project-state.md` (V2, congelado 06-04) e `.agent/memory/current-state.md`.
 
 ```yaml
 project: MultGestor v2
-state_version: 4
+state_version: 5
 phase: "prod-stabilization + security-hardening"
 
 git:
-  origin_main: "b75d34a (PUSHED 2026-06-14) — XSS register hardening (PR #6, squash)"
+  origin_main: "21317cd (PUSHED 2026-06-15) — PR #6 (b75d34a) + PR #7 chore/brain-queue-cleanup (squash)"
   reconciliation: >-
     inc.2 + EVENT CONTRACTS + Brain V3 já reconciliados em main (state v3). Em 2026-06-14:
     drifts de schema aplicados em prod via MCP Supabase (022 + 023) e PR #6 (XSS hardening)
@@ -31,7 +31,7 @@ prod_db_migrations_applied:
   - "20260604_022 outbox_message_handlers — 2026-06-14 (idempotência por handler estava ausente)"
   - "20260604_023 barber_appointments_reminder — 2026-06-14 (coluna reminder_sent_at)"
 
-prod_evidence_2026_06_14:
+prod_evidence_2026_06_15:
   - "Render conecta no banco: aws-1-sa-east-1.pooler.supabase.com:5432/postgres → [database] conectado"
   - "Supabase MCP conectado (project mfayajizbkqkcbhqmean)"
   - "drift reminder_sent_at RESOLVIDO (job AppointmentReminderJob sobe sem erro)"
@@ -39,9 +39,9 @@ prod_evidence_2026_06_14:
   - "POST /api/auth/register com <script> → 400 (portão XSS ativo)"
 
 queue:
-  current_task: "xss-data-sanitization-block-a-users (DONE — users.name limpo, count=0; ciclo XSS fechado)"
-  next_task: "e2e-public-booking-validation (pending — validação read-only do fluxo público)"
-  last_decision: "Bloco A v2 executado (UPDATE só nos 3 IDs); ciclo XSS CLOSED; próximo = E2E booking"
+  current_task: "xss-data-sanitization-block-a (DONE — companies.name + users.name; ciclo XSS fechado)"
+  next_task: "backup-restore-check (P0 PLAN_ONLY — backup/restore bloqueia E2E e data-fix)"
+  last_decision: "BACKUP-RESTORE-CHECK promovido a P0; E2E bloqueado até backup/restore confirmado"
 
 deploy_blockers:
   - id: "OPS-1"
@@ -49,7 +49,7 @@ deploy_blockers:
   - id: "OPS-2"
     status: "RESOLVIDO — path Vercel corrigido (4a058d2)."
   - id: "OPS-SUPAVISOR"
-    status: "⛔ BLOQUEADO/PAUSADO (2026-06-15) por missão prioritária SECURITY-SECRETS-ROTATION. NÃO alterar o continue-on-error das migrations até os secrets serem rotacionados e validados (logs de migration podem imprimir DATABASE_URL atual). Detalhe: [[security-secrets-rotation]]. Pendência técnica original mantida: Supavisor sa-east-1 rejeita tenant; migrations novas aplicadas via MCP. Ver [[project-supavisor-ops-pending]]."
+    status: "⛔ BLOQUEADO (2026-06-15). SECURITY-SECRETS-ROTATION foi PAUSADA por decisão humana (deferred) — rotação adiada para janela futura. Antes de reconsiderar OPS-SUPAVISOR, confirmar que nenhum log/CI exibirá secrets (ex.: DATABASE_URL em log de migration). NÃO alterar o continue-on-error das migrations até essa confirmação. Detalhe: [[security-secrets-rotation]]. Pendência técnica original mantida: Supavisor sa-east-1 rejeita tenant; migrations novas aplicadas via MCP. Ver [[project-supavisor-ops-pending]]."
 
 gates_abertos: []
 
@@ -62,22 +62,25 @@ xss_cycle_status: >-
 open_risks:
   - "Migrations automáticas no CI desativadas (continue-on-error) — drift volta a acumular se novas migrations não forem aplicadas manualmente via MCP."
   - ".agent/ ainda fisicamente presente (rebaixado a histórico) — consolidação de namespaces é backlog separado."
+  - "NENHUM backup do Supabase (plano Free) — risco de perda total de dados. BACKUP-RESTORE-CHECK (P0) bloqueia E2E e data-fix até backup/restore ser confirmado."
 
-# RESOLVIDO nesta sessão:
-#   - stored XSS em companies.name (3 registros) → sanitizado, count=0.
-#   - stored XSS em users.name (3 registros) → sanitizado via Bloco A v2, count=0 → ciclo XSS CLOSED.
+# RESOLVIDO nesta sessão (state v5):
+#   - stored XSS em companies.name (3 registros) → sanitizado via 3 UPDATEs (só name; updated_at não alterado); count(~'[<>]') = 0.
+#   - stored XSS em users.name (3 registros) → sanitizado via 3 UPDATEs; count(~'[<>]') = 0 → ciclo XSS CLOSED.
+#   - PR #7 (chore/brain-queue-cleanup) — mergeado (21317cd); deploy workflow verde.
 
 ultimas_missoes:
   - "Drift reminder_sent_at (023) — aplicado em prod via MCP"
   - "Drift outbox_message_handlers (022) — aplicado em prod via MCP"
   - "XSS register hardening (Bloco B+C) — APPROVE, PR #6 mergeado + deployado"
-  - "XSS Bloco A (companies.name) — DONE (count=0)"
+  - "XSS Bloco A (companies.name) — DONE (3 UPDATEs, só name, sem updated_at)"
   - "XSS Bloco A v2 (users.name) — DONE (count=0) → ciclo XSS CLOSED"
+  - "PR #7 chore/brain-queue-cleanup — mergeado (21317cd); deploy verde"
 
 next_recommended_action: >-
-  Validação E2E read-only do fluxo público de agendamento (slug barbearia-joefelipe):
-  booking-info + available-slots. Backlog: remover continue-on-error quando OPS-SUPAVISOR
-  resolver; consolidar namespaces; opcional desativar as 3 contas de pentest sanitizadas.
+  BACKUP-RESTORE-CHECK (P0 PLAN_ONLY) — verificar/testar restore de backup do Supabase.
+  E2E booking permanece BLOQUEADO até backup/restore ser confirmado.
+  OPS-SUPAVISOR mantido como candidato técnico futuro (não promovido agora).
 ```
 
 ## Módulos

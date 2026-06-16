@@ -4,13 +4,27 @@
 > **Regra inviolável deste registro:** nunca imprimir/armazenar VALORES de secrets. Apenas NOMES.
 
 ---
-status: plan_only
+status: deferred
+paused_by_human: true
+paused_at: 2026-06-15
 task_id: security-secrets-rotation
-mode: PLAN_ONLY
-priority: prioritária (bloqueia OPS-SUPAVISOR)
+mode: EXECUTE_WITH_REVIEW
+priority: prioridade FUTURA de segurança (bloqueia OPS-SUPAVISOR)
 created_by: Claude Code
 created_at: 2026-06-15
 ---
+
+## ⏸️ PAUSA POR DECISÃO HUMANA (2026-06-15)
+- **Decisão:** pausar a execução da rotação por enquanto. Registrada como **prioridade futura de segurança**.
+- **Justificativa humana:** secrets não considerados expostos em produção pública; ambiente controlado/teste;
+  contenção inicial já aplicada (`docs/private/` + `body-login.json` no `.gitignore`); evitar impacto operacional agora.
+- **Progresso até a pausa:** Etapa 1 iniciou apenas o Passo 1 (criar nova secret key Supabase). **Interrompido** —
+  nada foi trocado em Render/`.env`, nada revogado, nenhuma outra etapa tocada.
+- **Alerta permanente:** push/compartilhamento de `docs/private/` e `body-login.json` segue **PROIBIDO**.
+- **OPS-SUPAVISOR:** pode voltar a ser considerado no futuro, mas **só** após confirmar que nenhum log/CI exibirá
+  secrets (ex.: `DATABASE_URL` em log de migration). Até lá, permanece bloqueado.
+- **Para retomar:** reativar esta missão em `next-task.md` (status `pending`), confirmar branch
+  `security/secrets-rotation`, e seguir as etapas gated a partir da Etapa 1.
 
 ## Decisões registradas
 1. **OPS-SUPAVISOR está PAUSADO/BLOQUEADO.**

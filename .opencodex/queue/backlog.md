@@ -298,14 +298,19 @@ type: ops-data-fix
 created_by: Claude Code
 created_at: 2026-06-06
 depends_on: eventbus-unhandled-handler-noop
+blocked_by: backup-restore-check
+block_reason: >-
+  BACKUP-RESTORE-CHECK é P0 e bloqueia qualquer data-fix que altere dados em produção
+  até backup/restore ser confirmado. Sem backup, sem restore possível em caso de incidente.
 unblock_condition: >-
+  BACKUP-RESTORE-CHECK confirmado (backup verificado + restore testado) E
   `eventbus-unhandled-handler-noop` **APPROVE** (auditoria OpenCode + decisão final Claude Code).
   NÃO executar antes — a missão F6 corrige o COMPORTAMENTO FUTURO (sem handler → processed/no-op);
   este item corrige apenas o HISTÓRICO já marcado `failed` por "No handler". Itens separados de propósito.
 human_decision: APROVADO registrar como ops separado (2026-06-06). NÃO executar agora. NÃO misturar com F6.
 status_note: >-
-  ✅ DEPENDÊNCIA SATISFEITA em 2026-06-06 — F6 (`eventbus-unhandled-handler-noop`) APPROVE (commit 6c3c81a).
-  Item agora LIBERADO para execução por humano/ops (data-fix), respeitando dry-run + backup. Não é missão do executor.
+  ⛔ BLOQUEADO em 2026-06-15 por BACKUP-RESTORE-CHECK (P0). Data-fix só após backup/restore confirmado.
+  ✅ DEPENDÊNCIA F6 SATISFEITA em 2026-06-06 — F6 (`eventbus-unhandled-handler-noop`) APPROVE (commit 6c3c81a).
 ---
 
 ### Por que é ops, não missão de código
@@ -341,20 +346,22 @@ o alvo é produção/staging). Por isso entra como **ops** e exige a mesma disci
 
 ---
 
-## [ADIADA por bloqueio de segurança] Validação E2E do fluxo público de agendamento
+## [BLOQUEADO por BACKUP-RESTORE-CHECK] Validação E2E do fluxo público de agendamento
 
 ---
-status: deferred
+status: blocked
 task_id: e2e-public-booking-validation
 title: Validar o fluxo público de agendamento end-to-end (slug barbearia-joefelipe)
 mode: READ_ONLY_VALIDATION
 requires_human_approval: false
 created_by: Claude Code
 created_at: 2026-06-14
-deferred_at: 2026-06-15
-deferred_reason: >-
-  Desalojada de next-task.md pela missão prioritária `security-secrets-rotation` (one-mission-per-time).
-  Conteúdo preservado abaixo. Repromover quando a rotação de secrets + validação concluírem.
+blocked_at: 2026-06-15
+blocked_by: backup-restore-check
+block_reason: >-
+  BACKUP-RESTORE-CHECK é P0 e bloqueia qualquer E2E, data-fix ou operação que crie/altere dados
+  até backup/restore ser confirmado. Sem backup, sem restore possível em caso de incidente.
+  Repromover somente após backup/restore confirmado e aprovado.
 ---
 
 ### Contexto
