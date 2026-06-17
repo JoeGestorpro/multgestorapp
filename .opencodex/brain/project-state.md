@@ -1,12 +1,12 @@
-# 📌 PROJECT STATE — Estado Atual Real
+# 📌 ESTADO DO PROJETO — Estado Atual Real
 
-> **Atualizado:** 2026-06-15 · **state_version:** 5
+> **Atualizado:** 2026-06-17 · **state_version:** 6
 > **REGRA:** este arquivo é atualizado a cada missão APPROVE (Loop de Fechamento). Se estiver desatualizado, o CHECK 0 deve bloquear/reduzir o Context Confidence.
 > **Origem:** substitui `.opencodex/state/project-state.md` (V2, congelado 06-04) e `.agent/memory/current-state.md`.
 
 ```yaml
 project: MultGestor v2
-state_version: 5
+state_version: 6
 phase: "prod-stabilization + security-hardening"
 
 git:
@@ -39,9 +39,10 @@ prod_evidence_2026_06_15:
   - "POST /api/auth/register com <script> → 400 (portão XSS ativo)"
 
 queue:
-  current_task: "xss-data-sanitization-block-a (DONE — companies.name + users.name; ciclo XSS fechado)"
-  next_task: "backup-restore-check (P0 PLAN_ONLY — backup/restore bloqueia E2E e data-fix)"
-  last_decision: "BACKUP-RESTORE-CHECK promovido a P0; E2E bloqueado até backup/restore confirmado"
+  current_task: "idle — ciclo XSS data-sanitization (Bloco A + A v2) ARQUIVADO em queue/archive/2026-06-15-xss-data-sanitization.md"
+  next_task: "backup-restore-check (P0 PLAN_ONLY — backup/restore bloqueia E2E, Fase C integração e data-fix)"
+  blocked_behind_backup: "fase-c-integracao-e-testes (Integração) · e2e-public-booking-validation · ops/reconcile-failed-sale-created-outbox"
+  last_decision: "Fila normalizada (2026-06-17): XSS arquivada; backup-restore-check = P0 atual; Fase C Integração bloqueada explicitamente atrás do plano de backup aprovado"
 
 deploy_blockers:
   - id: "OPS-1"

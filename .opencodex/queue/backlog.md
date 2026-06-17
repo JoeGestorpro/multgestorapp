@@ -171,7 +171,7 @@ diagnosis_source: docs/SECURITY-TENANT-ISOLATION.md
 
 ---
 
-## [BLOCKED] Fase C — Integração de Negócio + Testes de Integração Reais
+## [BLOCKED por BACKUP-RESTORE-CHECK] Fase C — Integração de Negócio + Testes de Integração Reais
 
 ---
 status: blocked
@@ -180,7 +180,13 @@ title: Fase C — Integração de Negócio + Testes de Integração Reais
 created_by: Claude Code
 created_at: 2026-06-03
 depends_on: fase1-b2-outbox-handler-idempotency
+blocked_by: backup-restore-check
+block_reason: >-
+  BACKUP-RESTORE-CHECK (P0) bloqueia a Fase C — ela liga `sale.created` a múltiplos handlers e
+  cria/credita dados reais (loyalty + package). Sem backup/restore confirmado, um erro de integração
+  fica sem recuperação. Só sai do bloqueio DEPOIS DO PLANO DE BACKUP APROVADO.
 unblock_condition: >-
+  PLANO DE BACKUP APROVADO (backup verificado + restore testado + aprovação humana) E
   `fase1-b2-outbox-handler-idempotency` APPROVE [✅ `e137217`] + aprovação final do Claude Code.
   MOTIVO: a Fase C liga `sale.created` a múltiplos handlers (loyalty + package); sem idempotência por
   handler (B2), um retry credita em DOBRO. NÃO depende obrigatoriamente do B1/RLS.
@@ -188,7 +194,10 @@ unblock_condition: >-
   (um handler que falha permanentemente bloqueia os seguintes). Resolver antes de promover.
   NOTA: wiring `sale.created` em QUARENTENA LÓGICA (comentado em `backend/src/server.js`).
 mission_source: docs/runbooks/fase-c-integracao-e-testes.md
-status_note: B2 já satisfez a dependência — Fase C está desbloqueada porém EM ESPERA (não promover sem decisão).
+status_note: >-
+  ⛔ BLOQUEADA em 2026-06-17 por BACKUP-RESTORE-CHECK (P0) — só depois do plano de backup aprovado.
+  Dependência B2 já satisfeita (desbloqueio técnico), mas a missão permanece EM ESPERA atrás do backup;
+  não promover sem decisão humana.
 ---
 
 ### Como promover (somente Claude Code)

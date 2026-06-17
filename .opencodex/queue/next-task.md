@@ -1,4 +1,4 @@
-# 📥 NEXT TASK — BACKUP-RESTORE-CHECK 🟢 P0 ATIVO
+# 📥 PRÓXIMA MISSÃO — BACKUP-RESTORE-CHECK 🟢 P0 ATIVO (atual)
 
 > **Promovido em 2026-06-15.** Fechar gate operacional de backup/restore antes de qualquer
 > E2E, criação de dados reais, notificações reais ou data-fix.
@@ -16,6 +16,7 @@ created_by: Claude Code
 created_at: 2026-06-15
 blocks:
   - e2e-public-booking-validation
+  - fase-c-integracao-e-testes
   - ops/reconcile-failed-sale-created-outbox
   - security-secrets-rotation
   - OPS-SUPAVISOR
@@ -51,3 +52,18 @@ Sem backup, sem restore possível.
 - ❌ Sem alterar secrets · ❌ sem deploy · ❌ sem push · ❌ sem merge
 - ❌ Sem tocar backend · ❌ sem tocar frontend · ❌ sem migrations
 - ❌ Sem SQL de escrita · ❌ sem alterar código
+
+---
+
+## 🔒 Próxima na fila (BLOQUEADA) — só depois do plano de backup aprovado
+- **Missão:** Fase C — Integração de Negócio + Testes de Integração Reais (`fase-c-integracao-e-testes`).
+- **Bloqueio:** ⛔ BLOQUEADA por `backup-restore-check`. **Só sai do bloqueio depois do PLANO DE BACKUP
+  APROVADO** (backup verificado + restore testado + aprovação humana). Liga `sale.created` a múltiplos
+  handlers e credita dados reais (loyalty + package) — sem restore confirmado, um erro fica sem recuperação.
+- **Card completo:** em [`backlog.md`](backlog.md). Missões bloqueadas vivem no backlog, **nunca** aqui no
+  slot executável (CHECK 3 do preflight só roda `status: pending`). Esta seção é apenas um ponteiro de ordem.
+
+## 🔒 Demais missões bloqueadas pelo gate de backup
+- **Validação E2E** (`e2e-public-booking-validation`) — bloqueada até backup/restore confirmado.
+- **Data-fix outbox** (`ops/reconcile-failed-sale-created-outbox`) — bloqueado até backup/restore confirmado.
+- **Fase C Integração** (`fase-c-integracao-e-testes`) — bloqueada até plano de backup aprovado.
