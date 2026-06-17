@@ -44,7 +44,7 @@ Sem backup, sem restore possível.
 ## Objetivo
 1. [ ] Executar `pg_dump` da produção (dump de segurança)
 2. [ ] Restore em projeto Supabase Free descartável (validar dump)
-3. [ ] Documentar RPO/RTO real e plano de backup recorrente
+3. [ ] Documentar RPO/RTO real e plano de backup recorrente — **plano detalhado + baseline read-only (2026-06-17):** [`../brain/runbooks/backup-restore-plan.md`](../brain/runbooks/backup-restore-plan.md)
 4. [ ] Só então desbloquear E2E, data-fix e demais missões
 
 ## Restrições (PLAN_ONLY)
