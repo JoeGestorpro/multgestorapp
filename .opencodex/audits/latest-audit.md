@@ -1,4 +1,4 @@
-# Audit Report — Ronda 2 — appointment.* mutation paths + EVENT CONTRACTS
+# Relatório de Auditoria — Ronda 2 — appointment.* mutation paths + CONTRATOS DE EVENTOS
 
 ---
 status: decided
@@ -36,7 +36,7 @@ Ronda 1 (`REQUEST_CHANGES`) apontou violação de EVENT CONTRACTS. Ronda 2 corri
 4. **`aggregateType`** sourceado dos contratos (`.aggregate_type`)
 5. **Teste unitário**: `appointment-consumers.test.js` (novo) — 6 handlers cobertos
 
-## Acceptance criteria verification
+## Verificação dos critérios de aceite
 
 ### 1. update/reschedule emitem eventos via outbox durável (atômico com write)
 ✅ **PASS** — `uow.addEvent(AppointmentConfirmed/Canceled/Completed.event_name, ...)` chamado dentro do

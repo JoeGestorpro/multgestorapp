@@ -208,7 +208,7 @@ status_note: >-
 
 ---
 
-## [BLOCKED] Queue Auto-Branch — Helper humano determinístico (ergonomia do preflight)
+## [BLOQUEADO] Queue Auto-Branch — Helper humano determinístico (ergonomia do preflight)
 
 ---
 status: blocked
@@ -237,7 +237,7 @@ O preflight (CHECK 2) bloqueia corretamente quando a branch atual ≠ branch exi
 2026-06-04) **não pode** ser enfraquecida. Reconciliação aprovada: a automação vive num **helper
 determinístico invocado pelo HUMANO** — a invocação humana É a autorização. O runner agente permanece proibido.
 
-### MODEL CAPABILITY ASSESSMENT
+### AVALIAÇÃO DE CAPACIDADE DO MODELO
 - **Executor recomendado:** Big Pickle, **EXECUTE_WITH_REVIEW** (toca governança/fluxo de fila → auditoria final do Claude obrigatória).
 - **Nível de risco:** **Baixo** (tooling local + docs). **Produção: nulo.** Sem runtime, sem secrets, sem deploy.
 - **Escalonamento:** qualquer tentativa de colocar auto-branch no preflight do AGENTE, ou de adicionar
@@ -297,7 +297,7 @@ trocar branch.
 
 ---
 
-## [BLOCKED] OPS (NÃO é missão de código) — Reconciliar linhas `sale.created` já `failed` na outbox
+## [BLOQUEADO] OPS (NÃO é missão de código) — Reconciliar linhas `sale.created` já `failed` na outbox
 
 ---
 status: blocked

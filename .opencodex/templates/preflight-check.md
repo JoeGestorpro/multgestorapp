@@ -1,4 +1,4 @@
-# 🛡️ PREFLIGHT CHECK — Protocolo obrigatório antes de `/next-task`
+# 🛡️ VERIFICAÇÃO PREFLIGHT — Protocolo obrigatório antes de `/next-task`
 
 > **Quem executa:** o OpenCode Executor (Big Pickle), ANTES de espelhar `next-task.md` → `current-task.md`
 > e antes de criar qualquer branch. Origem do incidente que motivou esta regra: 2026-06-04, um `git clean`

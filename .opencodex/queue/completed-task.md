@@ -1,4 +1,4 @@
-# ✅ COMPLETED TASK — Resultado Final
+# ✅ MISSÃO CONCLUÍDA — Resultado Final
 
 ---
 status: audited
@@ -32,5 +32,5 @@ Falta cobertura de **integração** dos mutation paths (item 4). Registrado back
 verde em Postgres/CI.** Sem push agora.
 
 ## Pendências
-- Próxima missão (promovida): `eventbus-mutation-integration-tests` (adicionar integração dos mutation paths) — `next-task.md`.
+- Missão `eventbus-mutation-integration-tests` foi promovida para `next-task.md` em 2026-06-07, mas posteriormente ARQUIVADA em 2026-06-14 (os testes de integração dos 4 mutation paths já existiam em `main`). Ver [`archive/2026-06-14-appointment-outbox-inc2-closeout.md`](archive/2026-06-14-appointment-outbox-inc2-closeout.md).
 - Push/reconcile: bloqueado pelo gate acima.

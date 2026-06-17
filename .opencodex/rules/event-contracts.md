@@ -1,4 +1,4 @@
-# 📐 EVENT CONTRACTS — Regra obrigatória ao tocar eventos (canônico)
+# 📐 CONTRATOS DE EVENTOS — Regra obrigatória ao tocar eventos (canônico)
 
 > **Decisão humana 2026-06-07 (REGRA OBRIGATÓRIA).** Vale para **qualquer** mudança em `EventBus`, `Outbox`,
 > `Consumers` ou `Services` que **publicam eventos**. Repo = fonte da verdade.
@@ -34,7 +34,7 @@
 5. **Criar ou atualizar o teste unitário do EventBus/Outbox/consumer** cobrindo o acesso ao campo.
 6. **Rodar o teste específico antes da integração completa** (`npx jest tests/unit/<arquivo>` antes de `test:integration`).
 
-## Producers — validar payload contra o contrato
+## Produtores — validar payload contra o contrato
 - Ao publicar, validar com `validateEventPayload(AppointmentCreated, payload)` (ou o contrato correspondente)
   para garantir os `required_fields`. Hoje `sale.service`/`appointment.service` **não** validam — ao tocá-los,
   adicionar a validação é a aplicação direta desta regra.
@@ -55,7 +55,7 @@ Checklist (TODOS obrigatórios):
 5. teste unitário cobrindo o producer (factory) **ou** o consumer;
 6. se for fluxo crítico (customer-facing / pagamento): teste de integração **ou** follow-up formal obrigatório no backlog.
 
-## 🏭 Factory obrigatória para producers de domínio
+## 🏭 Factory obrigatória para produtores de domínio
 - Eventos de domínio **não** devem ser montados à mão no service. Usar a **factory central** correspondente:
   - Appointment → `backend/src/shared/core/events/factories/appointment-events.js` (`AppointmentEvents.created/confirmed/canceled/completed/rescheduled`).
 - A factory é a aplicação prática dos itens 1–4: monta o payload, busca `event_name`/`aggregate_type` do contrato e chama `validateEventPayload`. Novos domínios (billing, etc.) que repetirem o incidente devem ganhar sua própria factory (começar pequeno, sem registry).

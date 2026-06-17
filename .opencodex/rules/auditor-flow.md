@@ -1,4 +1,4 @@
-# 🔁 AUDITOR FLOW — Regras de auditoria e promoção (canônico)
+# 🔁 FLUXO DE AUDITORIA — Regras de auditoria e promoção (canônico)
 
 > ⚠️ Reconstruído em 2026-06-04 após o incidente do `git clean` que apagou o original untracked.
 > Conteúdo refeito a partir do fluxo praticado nesta sessão; revise se divergir da intenção original.

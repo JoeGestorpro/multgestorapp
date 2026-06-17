@@ -7,7 +7,7 @@
 ```yaml
 project: MultGestor v2
 state_version: 6
-phase: "prod-stabilization + security-hardening"
+phase: "estabilizacao-de-producao + endurecimento-de-seguranca"
 
 git:
   origin_main: "21317cd (PUSHED 2026-06-15) — PR #6 (b75d34a) + PR #7 chore/brain-queue-cleanup (squash)"

@@ -1,4 +1,4 @@
-# 🎯 CONTEXT CONFIDENCE ENGINE
+# 🎯 MOTOR DE CONFIANÇA DE CONTEXTO (Context Confidence Engine)
 
 > **Status:** OFICIAL • VINCULANTE · **Criado:** 2026-06-07
 > Toda missão gera um **CONTEXT CONFIDENCE REPORT** antes de planejar/executar. Aplicado pelo **CHECK 0** do preflight.

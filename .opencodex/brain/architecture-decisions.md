@@ -1,4 +1,4 @@
-# 🏛️ ARCHITECTURE DECISIONS (ADRs) — MultGestor
+# 🏛️ DECISÕES DE ARQUITETURA (ADRs) — MultGestor
 
 > **Status:** OFICIAL • VINCULANTE · **Atualizado:** 2026-06-07
 > **Origem:** `docs/architecture-decisions.md` (v1.0, OURO) — **Consolidado** + ADRs novas de 06-05→06-07.

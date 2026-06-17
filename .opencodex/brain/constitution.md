@@ -1,4 +1,4 @@
-# ⚖️ CONSTITUTION — Princípios e Regras Invioláveis
+# ⚖️ CONSTITUIÇÃO — Princípios e Regras Invioláveis
 
 > **Status:** OFICIAL • VINCULANTE · não muda por missão.
 > **Origem:** consolidado de `.agent/context/memory-snapshot.md` + `docs/architecture-decisions.md` + `.opencodex/rules/*`. **Status: Consolidado/Atualizado (2026-06-07).**

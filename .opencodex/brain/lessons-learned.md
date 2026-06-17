@@ -1,4 +1,4 @@
-# 🎓 LESSONS LEARNED — MultGestor
+# 🎓 LIÇÕES APRENDIDAS — MultGestor
 
 > Incidentes e aprendizados para **não repetir**. Atualizado no Loop de Fechamento quando uma missão revela um erro de processo.
 > **Origem:** `docs/lessons-learned.md` + incidentes reais de 06-04→06-07. **Status: Consolidado + Atualizado.**

@@ -1,4 +1,4 @@
-# 📦 ARCHIVED — SECURITY-SECRETS-ROTATION (deferred, prioridade futura)
+# 📦 ARQUIVADO — SECURITY-SECRETS-ROTATION (adiado, prioridade futura)
 
 > Arquivado em 2026-06-15. Promovido BACKUP-RESTORE-CHECK como P0.
 > Motivo: backup/restore é pré-requisito para qualquer operação que crie/altere dados.
@@ -41,7 +41,7 @@ standing_alert: >-
   OPS-SUPAVISOR só volta a ser considerado após confirmar que nenhum log/CI exibirá secrets.
 ---
 
-## MODEL CAPABILITY ASSESSMENT
+## AVALIAÇÃO DE CAPACIDADE DO MODELO
 - **Executor recomendado:** Big Pickle, **EXECUTE_WITH_REVIEW** (mexe em credenciais de produção em provedores externos → auditoria final do Claude obrigatória).
 - **Modo de execução:** **GATED por etapa.** Cada secret é um portão: PARAR → reportar nome + onde atualizar → aguardar aprovação humana → só então o humano aplica no provedor. O executor **não** rotaciona secret sozinho.
 - **Nível de risco:** **Alto** (sessões/usuários, conexão de banco, integrações de pagamento/WhatsApp). Blast radius de produção real.

@@ -1,4 +1,4 @@
-# 🗄️ AGENT ARCHIVE INDEX — Ponte rastreável para `.agent/` (histórico)
+# 🗄️ ÍNDICE DE ARQUIVO DO AGENT — Ponte rastreável para `.agent/` (histórico)
 
 > **Status:** OFICIAL · **Criado:** 2026-06-07
 > `.agent/` foi **rebaixado a biblioteca histórica** (NÃO apagado). Em conflito com o brain, **o brain prevalece**.

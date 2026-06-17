@@ -78,18 +78,18 @@ server.js → [CORS, helmet, cookieParser, correlationId, metrics, requestLogger
 - **Gaps de UX (a validar com uso real):** responsividade mobile (há pasta `mobile/` — sinal positivo, mas precisa teste em campo); onboarding completo até primeiro agendamento; estados de erro/vazio; o "dia-a-dia" do barbeiro (caixa, comissão) precisa de teste de usabilidade real.
 
 ## 7. Integrações
-| Integração | Status | Onde | Risco | Valor comercial | Próximo passo |
-|---|---|---|---|---|---|
-| **Supabase (DB)** | ✅ real | `config/database` | médio (Supavisor) | base de tudo | resolver pooler/migrations |
-| **Supabase Storage** | ✅ real | `config/supabase.js` | baixo | avatares | validar com nova key |
-| **Render** | ✅ real | deploy.yml | baixo | hospeda backend | — |
-| **Vercel** | ✅ real | deploy.yml | baixo | hospeda front | — |
-| **Kiwify (pagamento)** | ✅ real | `billing/providers/kiwify` | médio | **receita** | testar webhook fim-a-fim |
-| **AbacatePay (Pix)** | 🟡 parcial | `billing/providers/abacatepay` | — | receita Pix | secret vazio → ativar |
-| **WhatsApp (Meta)** | 🟡 **mock em prod** | `integrations/whatsapp` | **alto p/ valor** | **lembrete = retenção** | trocar `WHATSAPP_PROVIDER=meta_cloud_api` + credenciais |
-| **E-mail (Resend/SMTP)** | 🟡 **mock em prod** | `providers/email` | alto | verificação/trial | `EMAIL_PROVIDER=resend` + validar domínio |
-| **Redis** | ✅ real (opcional) | `cache/redis-client` | baixo | rate limit/cache | configurar `REDIS_URL` em prod |
-| **Sentry** | 🟡 inativo | `monitoring/sentry` | médio | observabilidade | configurar DSN |
+| Integração               | Status              | Onde                           | Risco             | Valor comercial         | Próximo passo                                           |
+| ------------------------ | ------------------- | ------------------------------ | ----------------- | ----------------------- | ------------------------------------------------------- |
+| **Supabase (DB)**        | ✅ real              | `config/database`              | médio (Supavisor) | base de tudo            | resolver pooler/migrations                              |
+| **Supabase Storage**     | ✅ real              | `config/supabase.js`           | baixo             | avatares                | validar com nova key                                    |
+| **Render**               | ✅ real              | deploy.yml                     | baixo             | hospeda backend         | —                                                       |
+| **Vercel**               | ✅ real              | deploy.yml                     | baixo             | hospeda front           | —                                                       |
+| **Kiwify (pagamento)**   | ✅ real              | `billing/providers/kiwify`     | médio             | **receita**             | testar webhook fim-a-fim                                |
+| **AbacatePay (Pix)**     | 🟡 parcial          | `billing/providers/abacatepay` | —                 | receita Pix             | secret vazio → ativar                                   |
+| **WhatsApp (Meta)**      | 🟡 **mock em prod** | `integrations/whatsapp`        | **alto p/ valor** | **lembrete = retenção** | trocar `WHATSAPP_PROVIDER=meta_cloud_api` + credenciais |
+| **E-mail (Resend/SMTP)** | 🟡 **mock em prod** | `providers/email`              | alto              | verificação/trial       | `EMAIL_PROVIDER=resend` + validar domínio               |
+| **Redis**                | ✅ real (opcional)   | `cache/redis-client`           | baixo             | rate limit/cache        | configurar `REDIS_URL` em prod                          |
+| **Sentry**               | 🟡 inativo          | `monitoring/sentry`            | médio             | observabilidade         | configurar DSN                                          |
 
 > **Real vs mock — resumo:** o **código** das integrações é real e bem-feito; o que está **mock em produção** é **e-mail e WhatsApp** (por env), e **AbacatePay/Sentry/Redis** estão inativos por config vazia. Loyalty/packages/anamnese/wallet têm código mas **schema não confirmado**.
 

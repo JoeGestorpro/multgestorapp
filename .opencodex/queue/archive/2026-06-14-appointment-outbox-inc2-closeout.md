@@ -1,4 +1,4 @@
-# 🗄️ ARCHIVE — Baixa de fila (appointment/outbox inc.2)
+# 🗄️ ARQUIVO — Baixa de fila (appointment/outbox inc.2)
 
 > **Arquivado em:** 2026-06-14 · **Por:** Claude Code (Passo 1 — limpeza de fila stale)
 > **Motivo:** as tasks abaixo já estão **concluídas e reconciliadas na `main`**; a fila ficou

@@ -1,4 +1,4 @@
-# 🔀 RECONCILIATION PLAN — inc.2 + EVENT CONTRACTS + Brain V3 → main
+# 🔀 PLANO DE RECONCILIAÇÃO — inc.2 + CONTRATOS DE EVENTOS + Brain V3 → main
 
 > **Status:** PREPARADO (não executado) · **Criado:** 2026-06-07
 > **Regra inviolável:** GATE-INTEG primeiro. Push para `main` **só com confirmação humana**.
@@ -60,7 +60,7 @@ git push origin main                         # ⛔ só após confirmação expl�
 | c) Brain V3 (source-of-truth/CHECK 0/loop) | `67ee6ac` |
 | GATE-INTEG (testes de integração) | `eb5b10b` |
 
-## Stop conditions (invioláveis)
+## Condições de parada (invioláveis)
 - ❌ Não pular o PASSO 1 (GATE-INTEG verde no CI).
 - ❌ Não fazer push para `main` sem confirmação humana explícita.
 - ❌ Não reescrever histórico (sem rebase interativo) para "separar" as frentes.

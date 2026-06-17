@@ -1,4 +1,4 @@
-# 📜 SOURCE OF TRUTH — Hierarquia de Autoridade (canônico)
+# 📜 FONTE DA VERDADE — Hierarquia de Autoridade (canônico)
 
 > **Status:** OFICIAL • VINCULANTE · **Criado:** 2026-06-07
 > Resolve o cisma identificado na auditoria do Segundo Cérebro (2026-06-07).

@@ -1,4 +1,4 @@
-# 🧩 CAPABILITIES MAP — MultGestor Core
+# 🧩 MAPA DE CAPACIDADES — MultGestor Core
 
 > **Status:** OFICIAL • VIVO · **Atualizado:** 2026-06-07
 > **Origem:** `docs/capabilities-map.md` (v1.0, OURO) — **Status: Consolidado + Atualizado** com capabilities reais de 06-05→06-07.
@@ -43,5 +43,5 @@
 | BarberGestor | ✅ Completo |
 | ClimaGestor | 🟡 Scaffold + agendamento |
 
-## Gaps / capabilities aspiracionais (documentadas, NÃO implementadas)
+## Lacunas / capacidades aspiracionais (documentadas, NÃO implementadas)
 - Automation Engine, AI Operational Layer, N8N Bridge, Omnichannel — descritas em `docs/` e `.agent/runtime/` mas **não executadas**. Não tratar como reais (ver `lessons-learned`).

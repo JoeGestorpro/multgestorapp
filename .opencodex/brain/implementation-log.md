@@ -1,4 +1,4 @@
-# 📓 IMPLEMENTATION LOG — MultGestor
+# 📓 REGISTRO DE IMPLEMENTAÇÃO — MultGestor
 
 > **Atualizado a cada APPROVE** (Loop de Fechamento).
 > **Origem:** continua `.agent/memory/implementation-log.md` (que parou em 2026-06-04). **Status: recuperado o gap 06-05→06-07.**
