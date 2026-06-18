@@ -21,31 +21,50 @@ blocks:
   - security-secrets-rotation
   - OPS-SUPAVISOR
 standing_alert: >-
-  NENHUM backup automático existe (plano Free). NENHUM dump manual foi executado.
-  Risco de perda total de dados. NÃO executar restore real sem nova aprovação.
+  Fase 1 dump-only ATIVA desde 2026-06-18 (backup diário recorrente, RPO ~24 h).
+  Restore real ainda NÃO executado — human-gated. NÃO executar Fase 2 sem nova aprovação.
 ---
 
 ## Diagnóstico inicial (PLAN_ONLY — 2026-06-15)
 
-| Item | Estado |
-|---|---|
-| Plano Supabase | **Free** |
-| Backup diário automático | ❌ **NÃO EXISTE** |
-| PITR (Point-in-Time Recovery) | ❌ **NÃO DISPONÍVEL** |
-| pg_dump manual | ❌ **NUNCA EXECUTADO** |
-| Supabase Branches | ❌ **NENHUMA** |
-| Off-site backup | ❌ **NÃO EXISTE** |
-| **RPO atual** | ♾️ Infinito (desde criação: 2026-04-20) |
+| Item                          | Estado                                  |
+| ----------------------------- | --------------------------------------- |
+| Plano Supabase                | **Free**                                |
+| Backup diário automático      | ❌ **NÃO EXISTE**                        |
+| PITR (Point-in-Time Recovery) | ❌ **NÃO DISPONÍVEL**                    |
+| pg_dump manual                | ❌ **NUNCA EXECUTADO**                   |
+| Supabase Branches             | ❌ **NENHUMA**                           |
+| Off-site backup               | ❌ **NÃO EXISTE**                        |
+| **RPO atual**                 | ♾️ Infinito (desde criação: 2026-04-20) |
 
 ## Risco
 🚨 **PERDA TOTAL DE DADOS** em caso de corrupção, erro humano ou incidente.
 Sem backup, sem restore possível.
 
 ## Objetivo
-1. [ ] Executar `pg_dump` da produção (dump de segurança)
-2. [ ] Restore em projeto Supabase Free descartável (validar dump)
-3. [ ] Documentar RPO/RTO real e plano de backup recorrente — **plano detalhado + baseline read-only (2026-06-17):** [`../brain/runbooks/backup-restore-plan.md`](../brain/runbooks/backup-restore-plan.md)
-4. [ ] Só então desbloquear E2E, data-fix e demais missões
+1. [x] Executar `pg_dump` da produção — **Fase 1 dump-only concluída (2026-06-18). Ver resultado abaixo.**
+2. [ ] Restore em projeto Supabase Free descartável (validar dump) — **PENDENTE, human-gated (Fase 2)**
+3. [x] Documentar RPO/RTO real e plano de backup recorrente — [`../brain/runbooks/backup-restore-plan.md`](../brain/runbooks/backup-restore-plan.md)
+4. [ ] Só então desbloquear E2E, data-fix e demais missões — **bloqueado até Fase 2 aprovada**
+
+## Fase 1 — resultado da execução manual (2026-06-18)
+
+```
+Executor:          humano (Windows, run-backup.ps1 manual)
+Modo:              dump-only (sem restore, sem BRCHK_TARGET_DB_URL)
+Data/hora:         2026-06-18T07:39:26.586Z
+Dump:              principal-2026-06-18T07-39-26-586Z.dump (650 645 bytes)
+Log:               backup-restore-check-2026-06-18T07-39-26-586Z.json
+last-status.json:  status=OK, exit_code=0
+Baseline:          public_tables=55  policies=45  rls_on/off=37/18
+Restore:           NÃO executado
+Target DB:         não definido
+Task diária:       registrada (MultGestor-Backup-Daily, 02:00, dump-only)
+RPO anterior:      ♾️ (infinito)
+RPO atual:         ~24 h
+```
+
+> Arquivos locais — NÃO versionados: `.mg-backup\brchk.env`, `backups\daily\*.dump`, `backups\logs\*.json`.
 
 ## Restrições (PLAN_ONLY)
 - ❌ Sem restore ainda · ❌ sem tocar banco de produção

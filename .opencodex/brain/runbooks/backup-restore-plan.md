@@ -1,9 +1,8 @@
 # 🛟 RUNBOOK — Backup & Restore (DR) do Supabase — MultGestor v2
 
-> **Status:** PLAN_ONLY / human-gated · **Vetado por:** Claude Code, 2026-06-17 (sobre o plano do Big Pickle).
+> **Status:** Fase 1 dump-only CONCLUÍDA (2026-06-18) · Fase 2 restore PLAN_ONLY / human-gated.
 > **Deliverable do objetivo #3** da missão [`backup-restore-check`](../../queue/next-task.md).
-> ⚠️ **NADA aqui foi executado.** Backup/restore reais são **ação HUMANA manual no Windows**.
-> Claude/MCP só auxilia em **verificação read-only**. Restore real exige **nova aprovação humana** (standing alert).
+> Restore real exige **nova aprovação humana** (standing alert). Claude/MCP = **só leitura**.
 
 ## 0. Regras invioláveis
 - ❌ Agente/MCP **NUNCA** roda `pg_dump` / `pg_restore` / `supabase db dump` / restore / migration / deploy.
@@ -125,6 +124,28 @@ barber_collaborators 12, working_hours 7, appointments 1, storage.objects 4). Se
 - [ ] Arquivos do Storage backupeados à parte.
 
 ## 5. Veredito
-Missão **continua PLAN_ONLY / human-gated**. **Não** promover a executável do OpenCode — o núcleo
-(`pg_dump`/`pg_restore`) não roda via executor/MCP. Próximo passo real = humano executa Passos 1–3 sob
+Missão **continua PLAN_ONLY / human-gated para Fase 2 (restore)**. Fase 1 dump-only concluída.
+Núcleo (`pg_restore`) não roda via executor/MCP. Próximo passo real = humano executa Passos 3–4 sob
 aprovação; Claude faz o Passo 4 (verificação read-only).
+
+## 6. Fase 1 — execução manual (2026-06-18)
+
+| Item | Valor |
+|---|---|
+| Modo | dump-only (`run-backup.ps1 --dump-only`, sem restore) |
+| Data/hora UTC | 2026-06-18T07:39:26.586Z |
+| Dump | `principal-2026-06-18T07-39-26-586Z.dump` · 650 645 bytes |
+| Legibilidade | ✅ header PGDMP válido |
+| Baseline capturado | `public_tables=55` · `policies=45` · `rls_on/off=37/18` |
+| Restore | ❌ não executado (fora do escopo Fase 1) |
+| Target DB | não definido (`BRCHK_TARGET_DB_URL` ausente) |
+| `last-status.json` | `status=OK, exit_code=0` |
+| Task diária | registrada (`MultGestor-Backup-Daily`, 02:00, dump-only) |
+| RPO | ♾️ → **~24 h** |
+
+**O que ainda falta (Fase 2, human-gated):**
+- Restore no projeto Supabase descartável com `--target-is-disposable`
+- Verificação read-only via MCP (Passo 4 do procedimento acima)
+- Desbloqueio de E2E, Fase C e data-fix
+
+> Arquivos locais (NÃO versionados): `.mg-backup\brchk.env` · `backups\daily\*.dump` · `backups\logs\*.json`

@@ -1,6 +1,6 @@
 # 📌 ESTADO DO PROJETO — Estado Atual Real
 
-> **Atualizado:** 2026-06-17 · **state_version:** 6
+> **Atualizado:** 2026-06-18 · **state_version:** 7
 > **REGRA:** este arquivo é atualizado a cada missão APPROVE (Loop de Fechamento). Se estiver desatualizado, o CHECK 0 deve bloquear/reduzir o Context Confidence.
 > **Origem:** substitui `.opencodex/state/project-state.md` (V2, congelado 06-04) e `.agent/memory/current-state.md`.
 
@@ -40,9 +40,9 @@ prod_evidence_2026_06_15:
 
 queue:
   current_task: "idle — ciclo XSS data-sanitization (Bloco A + A v2) ARQUIVADO em queue/archive/2026-06-15-xss-data-sanitization.md"
-  next_task: "backup-restore-check (P0 PLAN_ONLY — backup/restore bloqueia E2E, Fase C integração e data-fix)"
+  next_task: "backup-restore-check (P0 — Fase 1 dump-only CONCLUÍDA 2026-06-18; Fase 2 restore PENDENTE human-gated)"
   blocked_behind_backup: "fase-c-integracao-e-testes (Integração) · e2e-public-booking-validation · ops/reconcile-failed-sale-created-outbox"
-  last_decision: "Fila normalizada (2026-06-17): XSS arquivada; backup-restore-check = P0 atual; Fase C Integração bloqueada explicitamente atrás do plano de backup aprovado"
+  last_decision: "Fase 1 dump-only executada manualmente (2026-06-18): backup diário recorrente ativo, RPO ~24 h. Fase 2 restore bloqueada até projeto Supabase descartável criado e aprovado."
 
 deploy_blockers:
   - id: "OPS-1"
@@ -63,7 +63,7 @@ xss_cycle_status: >-
 open_risks:
   - "Migrations automáticas no CI desativadas (continue-on-error) — drift volta a acumular se novas migrations não forem aplicadas manualmente via MCP."
   - ".agent/ ainda fisicamente presente (rebaixado a histórico) — consolidação de namespaces é backlog separado."
-  - "NENHUM backup do Supabase (plano Free) — risco de perda total de dados. BACKUP-RESTORE-CHECK (P0) bloqueia E2E e data-fix até backup/restore ser confirmado."
+  - "Backup dump-only ATIVO desde 2026-06-18 (RPO ~24 h). Restore real ainda NÃO executado — Fase 2 human-gated. BACKUP-RESTORE-CHECK (P0) permanece bloqueando E2E e data-fix até restore validado."
 
 # RESOLVIDO nesta sessão (state v5):
 #   - stored XSS em companies.name (3 registros) → sanitizado via 3 UPDATEs (só name; updated_at não alterado); count(~'[<>]') = 0.
@@ -71,6 +71,7 @@ open_risks:
 #   - PR #7 (chore/brain-queue-cleanup) — mergeado (21317cd); deploy workflow verde.
 
 ultimas_missoes:
+  - "BACKUP Fase 1 dump-only — executado manualmente (2026-06-18); dump 650 kB; RPO ♾️→~24 h; task diária registrada; restore pendente"
   - "Drift reminder_sent_at (023) — aplicado em prod via MCP"
   - "Drift outbox_message_handlers (022) — aplicado em prod via MCP"
   - "XSS register hardening (Bloco B+C) — APPROVE, PR #6 mergeado + deployado"
