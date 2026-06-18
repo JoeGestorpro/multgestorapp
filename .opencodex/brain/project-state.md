@@ -6,7 +6,7 @@
 
 ```yaml
 project: MultGestor v2
-state_version: 8
+state_version: 10
 phase: "estabilizacao-de-producao + endurecimento-de-seguranca"
 
 git:
@@ -40,12 +40,13 @@ prod_evidence_2026_06_15:
 
 queue:
   current_task: "idle — ciclo XSS data-sanitization (Bloco A + A v2) ARQUIVADO em queue/archive/2026-06-15-xss-data-sanitization.md"
-  next_task: "backup-restore-check CONCLUÍDO (gate passou 2026-06-18) — aguardando promoção da próxima missão"
+  next_task: "ops/register-daily-backup-scheduler CONCLUÍDO (2026-06-18) — scheduler ativo, State=Ready, NextRunTime=2026-06-19 02:00"
   unblocked_ready: "fase-c-integracao-e-testes · e2e-public-booking-validation · ops/reconcile-failed-sale-created-outbox"
   last_decision: >-
-    backup-restore-check GATE PASSOU (2026-06-18). Fase 1 dump-only executada; Fase 2 restore
-    evidenciado via MCP read-only (counts batem baseline em multgestor-restore-test; lacuna de log
-    aceita por decisão humana). Missões bloqueadas desbloqueadas. Próxima missão a definir.
+    Auditoria read-only 2026-06-18: identificou scheduler INEXISTENTE + corrigiu governança.
+    Missão ops/register-daily-backup-scheduler aberta e CONCLUÍDA no mesmo dia — humano registrou
+    MultGestor-Backup-Daily via Register-ScheduledTask; Get-ScheduledTask confirmou State=Ready,
+    NextRunTime=2026-06-19 02:00. RPO ~24h agora verificado. backup-restore-check permanece CONCLUÍDO.
 
 deploy_blockers:
   - id: "OPS-1"
@@ -66,7 +67,7 @@ xss_cycle_status: >-
 open_risks:
   - "Migrations automáticas no CI desativadas (continue-on-error) — drift volta a acumular se novas migrations não forem aplicadas manualmente via MCP."
   - ".agent/ ainda fisicamente presente (rebaixado a histórico) — consolidação de namespaces é backlog separado."
-  - "Rotina dump-only recorrente ativa (RPO ~24 h). RPO comprovado por execução manual; confirmação por execução agendada observada ainda pendente."
+  - "Rotina dump-only diária ATIVA — Task Scheduler 'MultGestor-Backup-Daily' State=Ready, NextRunTime=2026-06-19 02:00 (verificado 2026-06-18). RPO ~24h confirmado."
   - "Restore validado por evidência MCP (Fase 2); log original do restore não disponível — aceito por decisão humana. Replay limpo é opção futura se auditoria exigir."
 
 # RESOLVIDO nesta sessão (state v5):
@@ -75,6 +76,7 @@ open_risks:
 #   - PR #7 (chore/brain-queue-cleanup) — mergeado (21317cd); deploy workflow verde.
 
 ultimas_missoes:
+  - "ops/register-daily-backup-scheduler CONCLUÍDO (2026-06-18) — scheduler ativo State=Ready, NextRunTime=2026-06-19 02:00, RPO ~24h verificado"
   - "BACKUP-RESTORE-CHECK gate PASSOU (2026-06-18) — dump Fase 1 OK; restore Fase 2 evidenciado via MCP; missões desbloqueadas"
   - "Drift reminder_sent_at (023) — aplicado em prod via MCP"
   - "Drift outbox_message_handlers (022) — aplicado em prod via MCP"
@@ -84,9 +86,9 @@ ultimas_missoes:
   - "PR #7 chore/brain-queue-cleanup — mergeado (21317cd); deploy verde"
 
 next_recommended_action: >-
-  BACKUP-RESTORE-CHECK (P0 PLAN_ONLY) — verificar/testar restore de backup do Supabase.
-  E2E booking permanece BLOQUEADO até backup/restore ser confirmado.
-  OPS-SUPAVISOR mantido como candidato técnico futuro (não promovido agora).
+  Promover próxima missão a next-task.md (instrução humana): fase-c-integracao-e-testes,
+  e2e-public-booking-validation ou ops/reconcile-failed-sale-created-outbox. Scheduler ativo,
+  backup confirmado, restore confirmado — sem bloqueadores operacionais pendentes.
 ```
 
 ## Módulos

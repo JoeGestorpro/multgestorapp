@@ -140,7 +140,7 @@ aprovação; Claude faz o Passo 4 (verificação read-only).
 | Restore | ❌ não executado (fora do escopo Fase 1) |
 | Target DB | não definido (`BRCHK_TARGET_DB_URL` ausente) |
 | `last-status.json` | `status=OK, exit_code=0` |
-| Task diária | registrada (`MultGestor-Backup-Daily`, 02:00, dump-only) |
+| Task diária | ✅ registrada e verificada (2026-06-18) — `State: Ready` · `NextRunTime: 2026-06-19 02:00` · `LastRunTime` ausente (primeira execução pendente — esperado). Ver §9. |
 | RPO | ♾️ → **~24 h** |
 
 > Arquivos locais (NÃO versionados): `.mg-backup\brchk.env` · `backups\daily\*.dump` · `backups\logs\*.json`
@@ -200,3 +200,69 @@ de sintaxe no PowerShell causados por colagem acidental de prompts e saídas do 
 > **Aprendizado registrado:** o runbook agora documenta que a colagem de prompts e saídas
 > do terminal é a principal fonte de erro operacional. Futuras execuções devem usar um
 > "modo limpo": janela PowerShell dedicada, comando por vez, sem copiar prompts.
+
+## 9. Scheduler diário — estado real e comandos de registro
+
+> **Auditoria 2026-06-18:** `Get-ScheduledTask -TaskName "MultGestor-Backup-Daily"` = nenhum resultado.
+> A task foi declarada registrada na governança da Fase 1, mas **nunca foi criada**. O RPO ~24h
+> declarado não está garantido automaticamente. Missão `ops/register-daily-backup-scheduler` aberta (P0).
+
+### Verificação do estado atual (read-only)
+
+```powershell
+Get-ScheduledTask -TaskName 'MultGestor-Backup-Daily' | Select-Object TaskName, State, TaskPath
+# Se vazio: task não existe — executar bloco de registro abaixo.
+# Se State = Ready: task registrada corretamente.
+```
+
+### Registro (humano executa uma única vez — PowerShell como Administrador)
+
+```powershell
+$action = New-ScheduledTaskAction `
+    -Execute 'powershell.exe' `
+    -Argument ('-NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}"' -f 'C:\MultGestor.v2\ops\backup\run-backup.ps1') `
+    -WorkingDirectory 'C:\MultGestor.v2'
+
+$trigger = New-ScheduledTaskTrigger -Daily -At '02:00'
+
+$settings = New-ScheduledTaskSettingsSet `
+    -ExecutionTimeLimit (New-TimeSpan -Hours 1) `
+    -MultipleInstances IgnoreNew `
+    -StartWhenAvailable
+
+Register-ScheduledTask `
+    -TaskName 'MultGestor-Backup-Daily' `
+    -Action $action `
+    -Trigger $trigger `
+    -Settings $settings `
+    -RunLevel Highest `
+    -Description 'MultGestor v2 — backup diario dump-only (run-backup.ps1). BRCHK_TARGET_DB_URL ausente por design.'
+```
+
+### Verificação pós-registro
+
+```powershell
+# Confirmar que a task existe e está Ready
+Get-ScheduledTask -TaskName 'MultGestor-Backup-Daily' | Select-Object TaskName, State
+
+# Confirmar que BRCHK_TARGET_DB_URL não está nas variáveis de sistema ou usuário
+[System.Environment]::GetEnvironmentVariable('BRCHK_TARGET_DB_URL', 'Machine')
+[System.Environment]::GetEnvironmentVariable('BRCHK_TARGET_DB_URL', 'User')
+# Ambos devem retornar vazio/$null — correto; o script nunca restaura por design.
+```
+
+> **Após `Get-ScheduledTask` retornar `State: Ready`:** informar Claude Code para atualizar governança —
+> substituir "scheduler pendente" por "scheduler ativo (verificado)". RPO ~24h passa de **declarado**
+> para **verificado**. Missão `ops/register-daily-backup-scheduler` pode ser encerrada.
+
+### Estado verificado (2026-06-18)
+
+| Resultado | Valor |
+|---|---|
+| `TaskName` | `MultGestor-Backup-Daily` |
+| `State` | `Ready` ✅ |
+| `NextRunTime` | `2026-06-19 02:00` ✅ |
+| `LastRunTime` | `1999-11-30` (ainda não executou — esperado) |
+| `LastTaskResult` | `267011` (SCHED_S_TASK_HAS_NOT_RUN — ainda não executou — esperado) |
+
+Missão `ops/register-daily-backup-scheduler` **CONCLUÍDA**. RPO ~24h verificado.
