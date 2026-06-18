@@ -154,13 +154,33 @@ function buildLogRecord({
   };
 }
 
+/** Guard explícito: --dump-only NUNCA restaura. */
+function willRestore(args) {
+  return !args['dump-only'];
+}
+
+/** Veredito do modo dump-only: aprova se o dump foi gerado e é legível (sem pg_restore). */
+function dumpOnlyVerdict(dumpReadable) {
+  return dumpReadable
+    ? { verdict: 'APPROVED', reasons: [] }
+    : { verdict: 'BLOCKED', reasons: ['dump não gerado ou ilegível (header/tamanho inválidos)'] };
+}
+
 function loadConfig(args, env = process.env) {
+  const dumpOnly = !!args['dump-only'];
   const sourceUrl = env.BRCHK_SOURCE_DB_URL;
-  const targetUrl = env.BRCHK_TARGET_DB_URL;
   if (!sourceUrl) throw new Error('BRCHK_SOURCE_DB_URL ausente (origem — só leitura/dump).');
-  if (!targetUrl) throw new Error('BRCHK_TARGET_DB_URL ausente (destino — projeto descartável).');
   const source = parseEndpoint(sourceUrl);
-  const target = parseEndpoint(targetUrl);
+
+  // Modo --dump-only NÃO tem destino: BRCHK_TARGET_DB_URL não é exigido nem usado (nenhum restore).
+  let targetUrl = null;
+  let target = null;
+  if (!dumpOnly) {
+    targetUrl = env.BRCHK_TARGET_DB_URL;
+    if (!targetUrl) throw new Error('BRCHK_TARGET_DB_URL ausente (destino — projeto descartável).');
+    target = parseEndpoint(targetUrl);
+  }
+
   const protectedHosts = String(env.BRCHK_PROTECTED_HOSTS || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
   // A origem NUNCA pode ser destino — adiciona-se sempre à denylist (defesa em profundidade).
   if (!protectedHosts.includes(source.host)) protectedHosts.push(source.host);
@@ -172,6 +192,7 @@ function loadConfig(args, env = process.env) {
   }
   const backupDir = env.BRCHK_BACKUP_DIR || path.join(os.homedir(), 'backups');
   return {
+    dumpOnly,
     sourceUrl, targetUrl, source, target,
     disposableFlag: !!args['target-is-disposable'],
     protectedHosts,
@@ -221,6 +242,25 @@ function verifyDumpReadable(dumpPath) {
   try {
     execFileSync(pgBinary('pg_restore'), ['-l', dumpPath], { stdio: ['ignore', 'pipe', 'pipe'] });
     return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+// Legibilidade do dump SEM invocar pg_restore (modo --dump-only): confere o magic header do
+// formato custom do pg_dump ("PGDMP") + tamanho mínimo. Não toca em nenhum banco.
+function verifyDumpFile(dumpPath) {
+  try {
+    const stat = fs.statSync(dumpPath);
+    if (!stat.isFile() || stat.size < 512) return false;
+    const fd = fs.openSync(dumpPath, 'r');
+    try {
+      const buf = Buffer.alloc(5);
+      fs.readSync(fd, buf, 0, 5, 0);
+      return buf.toString('latin1') === 'PGDMP';
+    } finally {
+      fs.closeSync(fd);
+    }
   } catch (_) {
     return false;
   }
@@ -323,8 +363,81 @@ function printSummary(record, restore, logPath) {
   console.log(`\n${BAR}\n  ${ok ? '✓ APROVADO — schema public, RLS, policies e dados críticos batem.' : '✗ BLOQUEADO — ver motivos acima.'}\n  log: ${path.basename(logPath)}\n${BAR}\n`);
 }
 
+// Modo --dump-only (Fase 1 do agendamento): só backup. SEM destino, SEM pg_restore.
+async function runDumpOnly(config) {
+  const startedAt = new Date().toISOString();
+  const stamp = startedAt.replace(/[:.]/g, '-');
+  ensureDir(config.backupDir);
+  const dumpPath = path.join(config.backupDir, `${config.sourceLabel}-${stamp}.dump`);
+
+  // 1. Dump da origem (somente leitura). NENHUM pg_restore é invocado neste modo.
+  let dumpStatus = 'ok';
+  try {
+    runPgDump(config.source, dumpPath);
+  } catch (_) {
+    dumpStatus = 'failed';
+  }
+
+  // 2. Legibilidade SEM pg_restore (header PGDMP + tamanho).
+  const dumpReadable = dumpStatus === 'ok' && verifyDumpFile(dumpPath);
+
+  // 3. Baseline read-only da origem (best-effort; não falha o backup se indisponível).
+  let sourceStats = null;
+  let sourceCounts = null;
+  let src;
+  try {
+    src = await connectSafe(config.sourceUrl, config.sourceLabel, { readOnly: true });
+    sourceStats = await gatherPublicStats(src);
+    sourceCounts = await gatherCriticalCounts(src, config.criticalTables);
+  } catch (_) {
+    // não fatal — o dump é o artefato de durabilidade.
+  } finally {
+    if (src) await src.end();
+  }
+
+  const verdict = dumpOnlyVerdict(dumpReadable);
+  const record = buildLogRecord({
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    sourceLabel: config.sourceLabel,
+    targetLabel: '(dump-only)',
+    dumpFile: dumpPath,
+    dumpStatus,
+    restoreStatus: 'skipped (dump-only)',
+    restoreWarnings: 0,
+    sourceStats,
+    targetStats: null,
+    sourceCounts,
+    targetCounts: null,
+    verdict,
+  });
+  record.mode = 'dump-only';
+
+  ensureDir(config.logDir);
+  const logPath = path.join(config.logDir, `backup-restore-check-${stamp}.json`);
+  fs.writeFileSync(logPath, JSON.stringify(record, null, 2));
+
+  const ok = verdict.verdict === 'APPROVED';
+  console.log(`\n${BAR}\n  BACKUP (dump-only)\n  ${startedAt}\n${BAR}`);
+  console.log(`  origem (label):  ${config.sourceLabel}`);
+  console.log(`  dump:            ${dumpStatus} (${path.basename(dumpPath)})`);
+  console.log(`  legível (PGDMP): ${dumpReadable ? 'sim' : 'NÃO'}`);
+  if (sourceStats) {
+    console.log(`  baseline:        public_tables=${sourceStats.public_tables} policies=${sourceStats.public_policies} rls_on/off=${sourceStats.rls_on}/${sourceStats.rls_off}`);
+  }
+  console.log(`${BAR}\n  ${ok ? '✓ BACKUP OK' : '✗ BACKUP FALHOU — dump não gerado/ilegível.'}\n  log: ${path.basename(logPath)}\n${BAR}\n`);
+
+  return ok ? 0 : 1;
+}
+
 async function main(argv) {
   const config = loadConfig(parseArgs(argv));
+
+  // Modo --dump-only: apenas backup (sem destino, sem restore). Fase 1 do agendamento.
+  if (config.dumpOnly) {
+    return runDumpOnly(config);
+  }
+
   // Guards de segurança ANTES de qualquer operação.
   assertSafeTopology({
     source: config.source,
@@ -412,6 +525,9 @@ module.exports = {
   computeVerdict,
   buildLogRecord,
   loadConfig,
+  willRestore,
+  dumpOnlyVerdict,
+  verifyDumpFile,
 };
 
 if (require.main === module) {

@@ -170,3 +170,53 @@ describe('backup-restore-check — log sem secrets (regra #7)', () => {
     expect(rec.verdict).toBe('APPROVED');
   });
 });
+
+describe('backup-restore-check — modo --dump-only (Fase 1)', () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+
+  test('willRestore: --dump-only NUNCA restaura; full-check restaura', () => {
+    expect(brc.willRestore({ 'dump-only': true })).toBe(false);
+    expect(brc.willRestore(brc.parseArgs(['--dump-only']))).toBe(false);
+    expect(brc.willRestore({ 'target-is-disposable': true })).toBe(true);
+    expect(brc.willRestore({})).toBe(true);
+  });
+
+  test('loadConfig em --dump-only NÃO exige BRCHK_TARGET_DB_URL', () => {
+    const cfg = brc.loadConfig({ 'dump-only': true }, { BRCHK_SOURCE_DB_URL: SRC });
+    expect(cfg.dumpOnly).toBe(true);
+    expect(cfg.targetUrl).toBeNull();
+    expect(cfg.target).toBeNull();
+    expect(cfg.source.host).toBe('db-main.example.com');
+  });
+
+  test('loadConfig sem --dump-only continua exigindo destino', () => {
+    expect(() => brc.loadConfig({}, { BRCHK_SOURCE_DB_URL: SRC })).toThrow(/BRCHK_TARGET_DB_URL/);
+  });
+
+  test('dumpOnlyVerdict: legível → APPROVED, ilegível → BLOCKED', () => {
+    expect(brc.dumpOnlyVerdict(true).verdict).toBe('APPROVED');
+    const blocked = brc.dumpOnlyVerdict(false);
+    expect(blocked.verdict).toBe('BLOCKED');
+    expect(blocked.reasons.join(' ')).toMatch(/ileg|dump/);
+  });
+
+  test('verifyDumpFile: aceita header PGDMP (sem pg_restore), rejeita lixo/pequeno/ausente', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brchk-'));
+    try {
+      const ok = path.join(dir, 'ok.dump');
+      const bad = path.join(dir, 'bad.dump');
+      const tiny = path.join(dir, 'tiny.dump');
+      fs.writeFileSync(ok, Buffer.concat([Buffer.from('PGDMP'), Buffer.alloc(1024)]));
+      fs.writeFileSync(bad, Buffer.concat([Buffer.from('NOPE!'), Buffer.alloc(1024)]));
+      fs.writeFileSync(tiny, Buffer.from('PGDMP')); // < 512 bytes
+      expect(brc.verifyDumpFile(ok)).toBe(true);
+      expect(brc.verifyDumpFile(bad)).toBe(false);
+      expect(brc.verifyDumpFile(tiny)).toBe(false);
+      expect(brc.verifyDumpFile(path.join(dir, 'nao-existe.dump'))).toBe(false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

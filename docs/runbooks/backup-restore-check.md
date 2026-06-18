@@ -87,3 +87,51 @@ Valida o **núcleo do app** (`public` + RLS + policies + dados críticos). **Nã
 dos objetos gerenciados do Supabase (`auth`/`storage`/`vault`/`realtime`/event triggers) nem os **arquivos
 do bucket de Storage** (o `pg_dump` guarda só o metadado `storage.objects`) — esses exigem backup à parte.
 Plano completo de DR + baseline: `.opencodex/brain/runbooks/backup-restore-plan.md`.
+
+## Modos de execução
+
+| Modo | Comando | Faz |
+|---|---|---|
+| **dump-only** (Fase 1) | `npm run backup-restore-check -- --dump-only` | Só `pg_dump` da origem (read-only). **Nunca** invoca `pg_restore`. Legibilidade verificada pelo header `PGDMP` + tamanho. Não exige `BRCHK_TARGET_DB_URL`. |
+| **full restore-check** (Fase 2) | `npm run backup-restore-check -- --target-is-disposable` | Dump + restore no descartável + validação `public`/RLS/contagens. Exige `BRCHK_TARGET_DB_URL`. |
+
+## Agendamento — Fase 1 (dump diário, Windows Task Scheduler)
+
+Host inicial: **Windows Task Scheduler local**. Roda **só o dump diário** (dump-only). O semanal é Fase 2 (ver abaixo).
+
+**1. Crie o env file FORA do repo** em `%USERPROFILE%\.mg-backup\brchk.env` (ACL restrita ao seu usuário):
+```
+BRCHK_SOURCE_DB_URL=<SUPABASE_DB_URL principal>   # ?sslmode=require — SÓ dump/leitura
+BRCHK_SOURCE_LABEL=principal
+BRCHK_BACKUP_DIR=C:\Users\Joefe\backups\daily
+BRCHK_LOG_DIR=C:\Users\Joefe\backups\logs
+BRCHK_PROTECTED_HOSTS=<host de produção>          # denylist (a origem já entra sozinha)
+# NÃO definir BRCHK_TARGET_DB_URL na Fase 1 — a task diária nunca restaura.
+```
+
+**2. Registre a task** (uma vez):
+```powershell
+powershell -ExecutionPolicy Bypass -File .\ops\backup\register-tasks.ps1          # 02:00 default
+# powershell -ExecutionPolicy Bypass -File .\ops\backup\register-tasks.ps1 -Time 03:30
+```
+
+**O que o wrapper `ops/backup/run-backup.ps1` faz a cada execução:**
+- carrega o env file (aborta se **ausente**, **incompleto** ou com **permissões inseguras**);
+- **remove** `BRCHK_TARGET_DB_URL` do ambiente (garante dump-only);
+- roda `npm run backup-restore-check -- --dump-only` (connection string via env, **nunca** em argv);
+- **retenção:** mantém **7** dumps mais recentes; apaga logs JSON com **> 30 dias**;
+- grava `last-status.json` (sem secrets) em `BRCHK_LOG_DIR`.
+
+**Critério de sucesso:** `.dump` gerado em `daily\` + header `PGDMP` válido + exit 0 → `last-status.status = OK`. Caso contrário `FAIL`.
+
+**Remover a task:** `Unregister-ScheduledTask -TaskName 'MultGestor-Backup-Daily' -Confirm:$false`.
+
+> ⚠️ Limitação Fase 1: a task roda com `LogonType Interactive` (executa quando o usuário está logado) e
+> depende da máquina ligada no horário. `-StartWhenAvailable` recupera execuções perdidas. Para execução
+> 100% desatendida, migrar para um host always-on (fora do escopo desta fase).
+
+## Fase 2 (semanal — NÃO agendada ainda)
+
+O **full restore-check** semanal no projeto descartável (que exige `BRCHK_TARGET_DB_URL` + `--target-is-disposable`)
+**não é registrado** nesta fase. Será proposto e aprovado separadamente. O `register-tasks.ps1 -IncludeWeekly`
+aborta de propósito até lá.
