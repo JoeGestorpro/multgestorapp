@@ -143,14 +143,34 @@ aprovação; Claude faz o Passo 4 (verificação read-only).
 | Task diária | registrada (`MultGestor-Backup-Daily`, 02:00, dump-only) |
 | RPO | ♾️ → **~24 h** |
 
-**O que ainda falta (Fase 2, human-gated):**
-- Restore no projeto Supabase descartável com `--target-is-disposable`
-- Verificação read-only via MCP (Passo 4 do procedimento acima)
-- Desbloqueio de E2E, Fase C e data-fix
-
 > Arquivos locais (NÃO versionados): `.mg-backup\brchk.env` · `backups\daily\*.dump` · `backups\logs\*.json`
 
-## 7. Troubleshooting — Windows PowerShell (aprendizado 2026-06-18)
+## 7. Fase 2 — restore evidenciado via MCP read-only (2026-06-18)
+
+| Item | Valor |
+|---|---|
+| Projeto descartável | `multgestor-restore-test` (us-east-2, criado 2026-06-17) |
+| Método de validação | MCP read-only `list_tables` + counts — sem novo restore executado |
+| Lacuna | log/comando original do restore não disponível; evento ocorreu em 2026-06-17 |
+| Decisão humana | evidência posterior aceita como suficiente (2026-06-18) |
+
+**Counts verificados via MCP (batem com baseline):**
+
+| Tabela | Baseline | Encontrado |
+|---|---|---|
+| `public.companies` | 8 | ✅ 8 |
+| `public.users` | 25 | ✅ 25 |
+| `public.barber_services` | 19 | ✅ 19 |
+| `public.barber_collaborators` | 12 | ✅ 12 |
+| `public.barber_working_hours` | 7 | ✅ 7 |
+| `public.barber_appointments` | 1 | ✅ 1 |
+
+**Gate encerrado.** Missões `fase-c-integracao-e-testes`, `e2e-public-booking-validation` e
+`ops/reconcile-failed-sale-created-outbox` desbloqueadas por decisão humana em 2026-06-18.
+
+> Replay limpo (truncar + pg_restore do dump de Fase 1) permanece disponível se auditoria futura exigir.
+
+## 8. Troubleshooting — Windows PowerShell (aprendizado 2026-06-18)
 
 Durante a primeira execução manual da Fase 1 dump-only, o operador encontrou erros
 de sintaxe no PowerShell causados por colagem acidental de prompts e saídas do terminal.

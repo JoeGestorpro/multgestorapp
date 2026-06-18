@@ -6,7 +6,7 @@
 
 ```yaml
 project: MultGestor v2
-state_version: 6
+state_version: 8
 phase: "estabilizacao-de-producao + endurecimento-de-seguranca"
 
 git:
@@ -40,15 +40,12 @@ prod_evidence_2026_06_15:
 
 queue:
   current_task: "idle — ciclo XSS data-sanitization (Bloco A + A v2) ARQUIVADO em queue/archive/2026-06-15-xss-data-sanitization.md"
-  next_task: "backup-restore-check (P0 — Fase 1 dump-only CONCLUÍDA 2026-06-18; Fase 2 restore PENDENTE human-gated)"
-  blocked_behind_backup: "fase-c-integracao-e-testes (Integração) · e2e-public-booking-validation · ops/reconcile-failed-sale-created-outbox"
+  next_task: "backup-restore-check CONCLUÍDO (gate passou 2026-06-18) — aguardando promoção da próxima missão"
+  unblocked_ready: "fase-c-integracao-e-testes · e2e-public-booking-validation · ops/reconcile-failed-sale-created-outbox"
   last_decision: >-
-    Fase 1 dump-only executada manualmente (2026-06-18): BACKUP OK, dump ~650 kB,
-    header PGDMP válido, baseline registrado. Capacidade de backup local validada
-    em execução manual. Rotina recorrente/RPO ~24h ainda requer confirmação
-    operacional do scheduler. Restore permanece pendente/human-gated.
-    Atrito operacional no PowerShell (copy/paste de prompts) — não afetou o backup;
-    runbook atualizado com troubleshooting §7.
+    backup-restore-check GATE PASSOU (2026-06-18). Fase 1 dump-only executada; Fase 2 restore
+    evidenciado via MCP read-only (counts batem baseline em multgestor-restore-test; lacuna de log
+    aceita por decisão humana). Missões bloqueadas desbloqueadas. Próxima missão a definir.
 
 deploy_blockers:
   - id: "OPS-1"
@@ -69,9 +66,8 @@ xss_cycle_status: >-
 open_risks:
   - "Migrations automáticas no CI desativadas (continue-on-error) — drift volta a acumular se novas migrations não forem aplicadas manualmente via MCP."
   - ".agent/ ainda fisicamente presente (rebaixado a histórico) — consolidação de namespaces é backlog separado."
-  - "Backup dump-only executado manualmente (2026-06-18). Restore real ainda NÃO executado — Fase 2 human-gated. BACKUP-RESTORE-CHECK (P0) permanece bloqueando E2E e data-fix até restore validado."
-  - "Rotina recorrente de backup/RPO ~24h ainda não comprovada por execução agendada observada; até validação do scheduler, considerar backup como procedimento manual validado."
-  - "Procedimento manual de backup no Windows suscetível a erro de copy/paste (documentado no runbook §7 Troubleshooting). Futuras execuções exigem sessão PowerShell limpa, um comando por vez."
+  - "Rotina dump-only recorrente ativa (RPO ~24 h). RPO comprovado por execução manual; confirmação por execução agendada observada ainda pendente."
+  - "Restore validado por evidência MCP (Fase 2); log original do restore não disponível — aceito por decisão humana. Replay limpo é opção futura se auditoria exigir."
 
 # RESOLVIDO nesta sessão (state v5):
 #   - stored XSS em companies.name (3 registros) → sanitizado via 3 UPDATEs (só name; updated_at não alterado); count(~'[<>]') = 0.
@@ -79,7 +75,7 @@ open_risks:
 #   - PR #7 (chore/brain-queue-cleanup) — mergeado (21317cd); deploy workflow verde.
 
 ultimas_missoes:
-  - "BACKUP Fase 1 dump-only — executado manualmente (2026-06-18); dump 650 kB; RPO ♾️→~24 h; task diária registrada; restore pendente"
+  - "BACKUP-RESTORE-CHECK gate PASSOU (2026-06-18) — dump Fase 1 OK; restore Fase 2 evidenciado via MCP; missões desbloqueadas"
   - "Drift reminder_sent_at (023) — aplicado em prod via MCP"
   - "Drift outbox_message_handlers (022) — aplicado em prod via MCP"
   - "XSS register hardening (Bloco B+C) — APPROVE, PR #6 mergeado + deployado"

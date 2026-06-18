@@ -9,15 +9,16 @@ note: >-
   (CHECK 4 do preflight passa).
 ---
 
-## 🎯 P0 atual = BACKUP-RESTORE-CHECK
-A prioridade ativa vive em [`next-task.md`](next-task.md): **backup-restore-check** (P0,
-`mode: PLAN_ONLY`, `requires_human_approval: true`). É um **portão operacional conduzido por humano** —
-não é executado pelo runner (sem ALLOWLIST/critérios executáveis, de propósito). Por isso o slot
-in-flight permanece `idle`: não há missão de código em execução, e sim um gate de backup aguardando o humano.
+## ✅ Gate backup-restore-check PASSOU (2026-06-18)
+Portão operacional encerrado com aprovação humana. Histórico completo em [`next-task.md`](next-task.md).
 
-## 🔒 Próxima na fila (BLOQUEADA)
-**Fase C — Integração de Negócio + Testes de Integração** (`fase-c-integracao-e-testes`) está
-**BLOQUEADA até o plano de backup ser aprovado**. Card completo em [`backlog.md`](backlog.md).
+## 🔓 Missões agora desbloqueadas — prontas para promoção
+Cards completos em [`backlog.md`](backlog.md):
+- **`fase-c-integracao-e-testes`** — Fase C Integração de Negócio + Testes Reais
+- **`e2e-public-booking-validation`** — Validação E2E fluxo público de agendamento
+- **`ops/reconcile-failed-sale-created-outbox`** — Data-fix outbox sale.created failed
+
+Aguardando instrução humana para promover uma delas a `next-task.md`.
 
 ## Ciclo XSS — encerrado (arquivado)
 `companies.name`, `users.name`, `public_display_name`, `business_description`, `barber_services.name`

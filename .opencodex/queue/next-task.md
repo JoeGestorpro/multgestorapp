@@ -1,19 +1,20 @@
-# 📥 PRÓXIMA MISSÃO — BACKUP-RESTORE-CHECK 🟢 P0 ATIVO (atual)
+# ✅ MISSÃO CONCLUÍDA — BACKUP-RESTORE-CHECK (GATE PASSOU 2026-06-18)
 
 > **Promovido em 2026-06-15.** Fechar gate operacional de backup/restore antes de qualquer
 > E2E, criação de dados reais, notificações reais ou data-fix.
-> **Mode: PLAN_ONLY** — leitura, diagnóstico e plano. Sem restore ainda. Sem tocar banco.
+> **Gate encerrado em 2026-06-18** com aprovação humana explícita. Missões bloqueadas desbloqueadas.
 
 ---
-status: pending
+status: completed
 task_id: backup-restore-check
 phase: governance-infra
-title: Verificar/testar restore de backup do Supabase (P0 — bloqueia E2E, data-fix e demais missões)
-mode: PLAN_ONLY
+title: Verificar/testar restore de backup do Supabase (P0 — GATE PASSOU 2026-06-18)
+mode: GATE_PASSED
 priority: P0
 requires_human_approval: true
 created_by: Claude Code
 created_at: 2026-06-15
+completed_at: 2026-06-18
 blocks:
   - e2e-public-booking-validation
   - fase-c-integracao-e-testes
@@ -21,8 +22,8 @@ blocks:
   - security-secrets-rotation
   - OPS-SUPAVISOR
 standing_alert: >-
-  Fase 1 dump-only ATIVA desde 2026-06-18 (backup diário recorrente, RPO ~24 h).
-  Restore real ainda NÃO executado — human-gated. NÃO executar Fase 2 sem nova aprovação.
+  GATE PASSOU (2026-06-18). Dump-only executado (Fase 1). Restore evidenciado via MCP read-only
+  (Fase 2 — lacuna de log aceita por decisão humana). Missões desbloqueadas. Tarefa encerrada.
 ---
 
 ## Diagnóstico inicial — histórico 2026-06-15

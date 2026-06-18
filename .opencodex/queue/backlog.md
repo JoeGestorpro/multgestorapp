@@ -171,33 +171,23 @@ diagnosis_source: docs/SECURITY-TENANT-ISOLATION.md
 
 ---
 
-## [BLOCKED por BACKUP-RESTORE-CHECK] Fase C — Integração de Negócio + Testes de Integração Reais
+## [DESBLOQUEADO 2026-06-18] Fase C — Integração de Negócio + Testes de Integração Reais
 
 ---
-status: blocked
+status: pending
 task_id: fase-c-integracao-e-testes
 title: Fase C — Integração de Negócio + Testes de Integração Reais
 created_by: Claude Code
 created_at: 2026-06-03
 depends_on: fase1-b2-outbox-handler-idempotency
-blocked_by: backup-restore-check
-block_reason: >-
-  BACKUP-RESTORE-CHECK (P0) bloqueia a Fase C — ela liga `sale.created` a múltiplos handlers e
-  cria/credita dados reais (loyalty + package). Sem backup/restore confirmado, um erro de integração
-  fica sem recuperação. Só sai do bloqueio DEPOIS DO PLANO DE BACKUP APROVADO.
-unblock_condition: >-
-  PLANO DE BACKUP APROVADO (backup verificado + restore testado + aprovação humana) E
-  `fase1-b2-outbox-handler-idempotency` APPROVE [✅ `e137217`] + aprovação final do Claude Code.
-  MOTIVO: a Fase C liga `sale.created` a múltiplos handlers (loyalty + package); sem idempotência por
-  handler (B2), um retry credita em DOBRO. NÃO depende obrigatoriamente do B1/RLS.
-  GATE (achado da auditoria B2): decidir `break` vs `continue` no `_process` do OutboxWorker
-  (um handler que falha permanentemente bloqueia os seguintes). Resolver antes de promover.
-  NOTA: wiring `sale.created` em QUARENTENA LÓGICA (comentado em `backend/src/server.js`).
+unblocked_at: 2026-06-18
+unblocked_by: backup-restore-check GATE PASSOU + fase1-b2-outbox-handler-idempotency APPROVE (e137217)
 mission_source: docs/runbooks/fase-c-integracao-e-testes.md
 status_note: >-
-  ⛔ BLOQUEADA em 2026-06-17 por BACKUP-RESTORE-CHECK (P0) — só depois do plano de backup aprovado.
-  Dependência B2 já satisfeita (desbloqueio técnico), mas a missão permanece EM ESPERA atrás do backup;
-  não promover sem decisão humana.
+  ✅ DESBLOQUEADA em 2026-06-18 — backup-restore-check gate passou (aprovação humana).
+  Dependência B2 satisfeita (e137217). Pronta para promoção a next-task.md.
+  GATE ABERTO: decidir `break` vs `continue` no OutboxWorker antes de promover.
+  wiring `sale.created` em QUARENTENA LÓGICA (comentado em backend/src/server.js).
 ---
 
 ### Como promover (somente Claude Code)
@@ -297,29 +287,23 @@ trocar branch.
 
 ---
 
-## [BLOQUEADO] OPS (NÃO é missão de código) — Reconciliar linhas `sale.created` já `failed` na outbox
+## [DESBLOQUEADO 2026-06-18] OPS (NÃO é missão de código) — Reconciliar linhas `sale.created` já `failed` na outbox
 
 ---
-status: blocked
+status: pending
 task_id: ops/reconcile-failed-sale-created-outbox
 title: Data-fix — reconciliar histórico de outbox_messages sale.created marcadas failed (efeito colateral do F6)
 type: ops-data-fix
 created_by: Claude Code
 created_at: 2026-06-06
 depends_on: eventbus-unhandled-handler-noop
-blocked_by: backup-restore-check
-block_reason: >-
-  BACKUP-RESTORE-CHECK é P0 e bloqueia qualquer data-fix que altere dados em produção
-  até backup/restore ser confirmado. Sem backup, sem restore possível em caso de incidente.
-unblock_condition: >-
-  BACKUP-RESTORE-CHECK confirmado (backup verificado + restore testado) E
-  `eventbus-unhandled-handler-noop` **APPROVE** (auditoria OpenCode + decisão final Claude Code).
-  NÃO executar antes — a missão F6 corrige o COMPORTAMENTO FUTURO (sem handler → processed/no-op);
-  este item corrige apenas o HISTÓRICO já marcado `failed` por "No handler". Itens separados de propósito.
-human_decision: APROVADO registrar como ops separado (2026-06-06). NÃO executar agora. NÃO misturar com F6.
+unblocked_at: 2026-06-18
+unblocked_by: backup-restore-check GATE PASSOU + eventbus-unhandled-handler-noop APPROVE (6c3c81a)
+human_decision: APROVADO registrar como ops separado (2026-06-06). NÃO misturar com F6.
 status_note: >-
-  ⛔ BLOQUEADO em 2026-06-15 por BACKUP-RESTORE-CHECK (P0). Data-fix só após backup/restore confirmado.
-  ✅ DEPENDÊNCIA F6 SATISFEITA em 2026-06-06 — F6 (`eventbus-unhandled-handler-noop`) APPROVE (commit 6c3c81a).
+  ✅ DESBLOQUEADO em 2026-06-18 — backup-restore-check gate passou (aprovação humana).
+  ✅ DEPENDÊNCIA F6 SATISFEITA em 2026-06-06 — F6 (eventbus-unhandled-handler-noop) APPROVE (6c3c81a).
+  Pronto para promoção a next-task.md quando conveniente.
 ---
 
 ### Por que é ops, não missão de código
@@ -355,10 +339,10 @@ o alvo é produção/staging). Por isso entra como **ops** e exige a mesma disci
 
 ---
 
-## [BLOQUEADO por BACKUP-RESTORE-CHECK] Validação E2E do fluxo público de agendamento
+## [DESBLOQUEADO 2026-06-18] Validação E2E do fluxo público de agendamento
 
 ---
-status: blocked
+status: pending
 task_id: e2e-public-booking-validation
 title: Validar o fluxo público de agendamento end-to-end (slug barbearia-joefelipe)
 mode: READ_ONLY_VALIDATION
@@ -366,11 +350,8 @@ requires_human_approval: false
 created_by: Claude Code
 created_at: 2026-06-14
 blocked_at: 2026-06-15
-blocked_by: backup-restore-check
-block_reason: >-
-  BACKUP-RESTORE-CHECK é P0 e bloqueia qualquer E2E, data-fix ou operação que crie/altere dados
-  até backup/restore ser confirmado. Sem backup, sem restore possível em caso de incidente.
-  Repromover somente após backup/restore confirmado e aprovado.
+unblocked_at: 2026-06-18
+unblocked_by: backup-restore-check GATE PASSOU (aprovação humana)
 ---
 
 ### Contexto
