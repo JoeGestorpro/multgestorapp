@@ -8,7 +8,7 @@
 
   Guards (aborta com exit 2 se falhar):
     - env file ausente
-    - env file com permissões inseguras (acessível a Everyone/Users/Authenticated Users)
+    - env file com permissões inseguras (SID-based: S-1-1-0/S-1-5-11/S-1-5-32-545, idioma-independente)
     - env file incompleto (faltam variáveis obrigatórias)
   Além disso, BRCHK_TARGET_DB_URL é REMOVIDO do ambiente — a task diária nunca restaura.
 
@@ -34,14 +34,27 @@ if (-not (Test-Path -LiteralPath $EnvFile -PathType Leaf)) {
   Abort "Env file ausente: '$EnvFile'. Crie-o (fora do repo) com BRCHK_SOURCE_DB_URL, BRCHK_BACKUP_DIR, BRCHK_LOG_DIR."
 }
 
-# ── Guard 2: permissões seguras (sem acesso a grupos amplos) ─────────────────
-$broad = @('Everyone', 'BUILTIN\Users', 'NT AUTHORITY\Authenticated Users')
+# ── Guard 2: permissões seguras (por SID, idioma-independente) ───────────────
+# Comparação por SID evita falha silenciosa em Windows pt-BR onde os nomes dos
+# grupos diferem do en-US (ex: BUILTIN\Users → BUILTIN\Usuários).
+# S-1-1-0      = Everyone
+# S-1-5-11     = Authenticated Users (NT AUTHORITY\Authenticated Users)
+# S-1-5-32-545 = Builtin\Users (BUILTIN\Users / BUILTIN\Usuários)
+$blockedSids = @(
+  [System.Security.Principal.SecurityIdentifier]'S-1-1-0',
+  [System.Security.Principal.SecurityIdentifier]'S-1-5-11',
+  [System.Security.Principal.SecurityIdentifier]'S-1-5-32-545'
+)
 $acl = Get-Acl -LiteralPath $EnvFile
 foreach ($ace in $acl.Access) {
-  if (($broad -contains $ace.IdentityReference.Value) -and
-      ($ace.AccessControlType -eq 'Allow') -and
-      ($ace.FileSystemRights.ToString() -match 'Read|Write|Modify|FullControl')) {
-    Abort "Permissões inseguras em '$EnvFile': '$($ace.IdentityReference.Value)' tem acesso. Restrinja ao seu usuário (remova Users/Everyone/Authenticated Users)."
+  if ($ace.AccessControlType -ne 'Allow') { continue }
+  if ($ace.FileSystemRights.ToString() -notmatch 'Read|Write|Modify|FullControl') { continue }
+  try {
+    $aceSid = $ace.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier])
+  } catch { continue }
+  if ($blockedSids | Where-Object { $_.Value -eq $aceSid.Value }) {
+    $aceLabel = try { $aceSid.Translate([System.Security.Principal.NTAccount]).Value } catch { $aceSid.Value }
+    Abort "Permissões inseguras em '$EnvFile': '$aceLabel' (SID $($aceSid.Value)) tem acesso. Restrinja ao seu usuário."
   }
 }
 
