@@ -1,6 +1,6 @@
 # Deploy Checklist — Produção MultGestor
 
-> Última atualização: 02/06/2026
+> Última atualização: 17/06/2026
 > Revisar antes de cada deploy para produção.
 > ⚠️ Nenhum valor real deve ser inserido neste arquivo.
 
@@ -222,6 +222,10 @@ Vercel Dashboard → seu projeto → Settings → Environment Variables
 - [ ] Backups automáticos ativados
 - [ ] Row Level Security ativado (ver `rls_tenant_tables.sql`)
 - [ ] IP allowlist configurada (se necessário)
+- [x] **Backup/restore-check validado** (2026-06-17) — schema `public`, RLS, policies e dados críticos
+  batem origem×destino em projeto Supabase descartável. Rotina: `npm run backup-restore-check`
+  (runbook: `docs/runbooks/backup-restore-check.md`). ⚠️ Clone completo dos objetos gerenciados do
+  Supabase (`auth`/`storage`/`vault`/`realtime`/event triggers) e arquivos do bucket **não** cobertos.
 
 ### Migrations (aplicar nesta ordem)
 
