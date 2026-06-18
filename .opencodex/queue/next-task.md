@@ -56,6 +56,7 @@ standing_alert: >-
 | `BRCHK_TARGET_DB_URL` definido   | ❌ não definido (correto para Fase 1)                 |
 | Validação backup/restore completa | ❌ pendente — E2E e data-fix permanecem bloqueados   |
 | Fase 2 restore                   | ⛔ human-gated · PLAN_ONLY · sem data definida        |
+| Atrito operacional documentado   | ✅ runbook §7 Troubleshooting Windows PowerShell adicionado (2026-06-18) |
 
 ## Objetivo
 1. [x] Executar `pg_dump` da produção — **Fase 1 dump-only concluída (2026-06-18). Ver resultado abaixo.**
@@ -80,6 +81,14 @@ RPO anterior:      ♾️ (infinito)
 RPO atual:         ~24 h
 ```
 
+> **Nota operacional:** durante a execução houve erros de copy/paste no PowerShell
+> (prompts `PS C:\...>` e `>>` colados como comandos). Não afetaram o backup.
+> Correção documentada no runbook §7.
+>
+> **Nota sobre RPO:** rotina recorrente de backup/RPO ~24h ainda não comprovada por
+> execução agendada observada. Até validação do scheduler, considerar backup como
+> procedimento manual validado.
+>
 > Arquivos locais — NÃO versionados: `.mg-backup\brchk.env`, `backups\daily\*.dump`, `backups\logs\*.json`.
 
 ## Restrições (PLAN_ONLY)

@@ -42,7 +42,13 @@ queue:
   current_task: "idle — ciclo XSS data-sanitization (Bloco A + A v2) ARQUIVADO em queue/archive/2026-06-15-xss-data-sanitization.md"
   next_task: "backup-restore-check (P0 — Fase 1 dump-only CONCLUÍDA 2026-06-18; Fase 2 restore PENDENTE human-gated)"
   blocked_behind_backup: "fase-c-integracao-e-testes (Integração) · e2e-public-booking-validation · ops/reconcile-failed-sale-created-outbox"
-  last_decision: "Fase 1 dump-only executada manualmente (2026-06-18): backup diário recorrente ativo, RPO ~24 h. Fase 2 restore bloqueada até projeto Supabase descartável criado e aprovado."
+  last_decision: >-
+    Fase 1 dump-only executada manualmente (2026-06-18): BACKUP OK, dump ~650 kB,
+    header PGDMP válido, baseline registrado. Capacidade de backup local validada
+    em execução manual. Rotina recorrente/RPO ~24h ainda requer confirmação
+    operacional do scheduler. Restore permanece pendente/human-gated.
+    Atrito operacional no PowerShell (copy/paste de prompts) — não afetou o backup;
+    runbook atualizado com troubleshooting §7.
 
 deploy_blockers:
   - id: "OPS-1"
@@ -63,7 +69,9 @@ xss_cycle_status: >-
 open_risks:
   - "Migrations automáticas no CI desativadas (continue-on-error) — drift volta a acumular se novas migrations não forem aplicadas manualmente via MCP."
   - ".agent/ ainda fisicamente presente (rebaixado a histórico) — consolidação de namespaces é backlog separado."
-  - "Backup dump-only ATIVO desde 2026-06-18 (RPO ~24 h). Restore real ainda NÃO executado — Fase 2 human-gated. BACKUP-RESTORE-CHECK (P0) permanece bloqueando E2E e data-fix até restore validado."
+  - "Backup dump-only executado manualmente (2026-06-18). Restore real ainda NÃO executado — Fase 2 human-gated. BACKUP-RESTORE-CHECK (P0) permanece bloqueando E2E e data-fix até restore validado."
+  - "Rotina recorrente de backup/RPO ~24h ainda não comprovada por execução agendada observada; até validação do scheduler, considerar backup como procedimento manual validado."
+  - "Procedimento manual de backup no Windows suscetível a erro de copy/paste (documentado no runbook §7 Troubleshooting). Futuras execuções exigem sessão PowerShell limpa, um comando por vez."
 
 # RESOLVIDO nesta sessão (state v5):
 #   - stored XSS em companies.name (3 registros) → sanitizado via 3 UPDATEs (só name; updated_at não alterado); count(~'[<>]') = 0.

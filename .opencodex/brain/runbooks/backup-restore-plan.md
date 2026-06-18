@@ -149,3 +149,34 @@ aprovação; Claude faz o Passo 4 (verificação read-only).
 - Desbloqueio de E2E, Fase C e data-fix
 
 > Arquivos locais (NÃO versionados): `.mg-backup\brchk.env` · `backups\daily\*.dump` · `backups\logs\*.json`
+
+## 7. Troubleshooting — Windows PowerShell (aprendizado 2026-06-18)
+
+Durante a primeira execução manual da Fase 1 dump-only, o operador encontrou erros
+de sintaxe no PowerShell causados por colagem acidental de prompts e saídas do terminal.
+
+**Problema:** trechos como `PS C:\Users\Joefe>`, `PS C:\MultGestor.v2>`, `>>` (continuação),
+`BRCHK_SOURCE_DB_URL=***OCULTO***` foram colados como comandos, gerando:
+
+- `ParserError` (string não terminada, `>>` preso)
+- `CommandNotFoundException` (`PS C:\ ...` não é um comando)
+- caminho inválido por caractere `>` no final
+
+> ⚠️ Isso **não afetou o backup final** — o dump foi gerado com sucesso. O problema foi
+> exclusivamente de operabilidade/runbook.
+
+**Orientações para evitar:**
+
+| Prática | ✅ Correto | ❌ Incorreto |
+|---|---|---|
+| Copiar comandos | Copiar **só o comando** (ex.: `cd "C:\MultGestor.v2"`) | Copiar prompt inteiro (`PS C:\...> cd ...`) |
+| Continuação `>>` | Fechar string/parênteses na mesma linha ou escapar | Colar `>>` como parte do comando |
+| Saída mascarada | Ignorar linhas `BRCHK_...=***OCULTO***` — não são comandos | Colar a saída como entrada |
+| Prompt preso em `>>` | Pressionar `Ctrl+C` para cancelar e começar de novo | Digitar `exit` ou acumular comandos |
+| Múltiplos comandos | Colar **um comando por vez** e aguardar execução | Colar vários comandos de uma vez |
+| Caminho com `>` | Usar `cd "C:\MultGestor.v2"` (aspas, sem `>` no final) | `cd C:\MultGestor.v2>` (inválido) |
+| Sessão limpa | Abrir PowerShell **novo** se o histórico estiver confuso | Continuar na mesma sessão cheia de erros |
+
+> **Aprendizado registrado:** o runbook agora documenta que a colagem de prompts e saídas
+> do terminal é a principal fonte de erro operacional. Futuras execuções devem usar um
+> "modo limpo": janela PowerShell dedicada, comando por vez, sem copiar prompts.
