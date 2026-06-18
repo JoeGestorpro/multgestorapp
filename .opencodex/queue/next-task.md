@@ -25,21 +25,37 @@ standing_alert: >-
   Restore real ainda NÃO executado — human-gated. NÃO executar Fase 2 sem nova aprovação.
 ---
 
-## Diagnóstico inicial (PLAN_ONLY — 2026-06-15)
+## Diagnóstico inicial — histórico 2026-06-15
 
-| Item                          | Estado                                  |
+> Condição no momento da abertura da missão. Preservado como registro histórico.
+
+| Item                          | Estado em 2026-06-15                    |
 | ----------------------------- | --------------------------------------- |
 | Plano Supabase                | **Free**                                |
-| Backup diário automático      | ❌ **NÃO EXISTE**                        |
-| PITR (Point-in-Time Recovery) | ❌ **NÃO DISPONÍVEL**                    |
-| pg_dump manual                | ❌ **NUNCA EXECUTADO**                   |
-| Supabase Branches             | ❌ **NENHUMA**                           |
-| Off-site backup               | ❌ **NÃO EXISTE**                        |
-| **RPO atual**                 | ♾️ Infinito (desde criação: 2026-04-20) |
+| Backup diário automático      | ❌ NÃO EXISTIA                           |
+| PITR (Point-in-Time Recovery) | ❌ NÃO DISPONÍVEL                        |
+| pg_dump manual                | ❌ NUNCA EXECUTADO                       |
+| Supabase Branches             | ❌ NENHUMA                               |
+| Off-site backup               | ❌ NÃO EXISTIA                           |
+| **RPO**                       | ♾️ Infinito (desde criação: 2026-04-20) |
 
-## Risco
-🚨 **PERDA TOTAL DE DADOS** em caso de corrupção, erro humano ou incidente.
-Sem backup, sem restore possível.
+**Risco original:** 🚨 perda total de dados em caso de corrupção, erro humano ou incidente. Sem backup, sem restore possível.
+
+## Estado atual — pós-Fase 1 dump-only (2026-06-18)
+
+| Item                             | Estado                                               |
+| -------------------------------- | ---------------------------------------------------- |
+| Backup dump-only                 | ✅ executado (2026-06-18T07:39:26Z)                   |
+| Dump gerado                      | ✅ `principal-2026-06-18T07-39-26-586Z.dump` (650 kB) |
+| Dump legível (header PGDMP)      | ✅ verificado                                         |
+| Log JSON criado                  | ✅ `last-status.json` status=OK, exit_code=0          |
+| Baseline registrado              | ✅ public_tables=55 · policies=45 · rls_on/off=37/18  |
+| Task diária registrada           | ✅ `MultGestor-Backup-Daily` 02:00 (dump-only)        |
+| **RPO**                          | **~24 h**                                            |
+| Restore executado                | ❌ não executado (Fase 2, human-gated)                |
+| `BRCHK_TARGET_DB_URL` definido   | ❌ não definido (correto para Fase 1)                 |
+| Validação backup/restore completa | ❌ pendente — E2E e data-fix permanecem bloqueados   |
+| Fase 2 restore                   | ⛔ human-gated · PLAN_ONLY · sem data definida        |
 
 ## Objetivo
 1. [x] Executar `pg_dump` da produção — **Fase 1 dump-only concluída (2026-06-18). Ver resultado abaixo.**
