@@ -75,6 +75,11 @@ foreach ($raw in (Get-Content -LiteralPath $EnvFile)) {
 
 # ── Guard 3: variáveis obrigatórias presentes ────────────────────────────────
 $required = @('BRCHK_SOURCE_DB_URL', 'BRCHK_BACKUP_DIR', 'BRCHK_LOG_DIR')
+# Cópia externa é opt-in: só exige as vars B2 quando a flag está LIGADA.
+# Flag ausente ou '0' → lista de obrigatórias idêntica ao comportamento atual.
+if ($env:BRCHK_EXTERNAL_ENABLED -eq '1') {
+  $required += @('BRCHK_B2_KEY_ID', 'BRCHK_B2_APP_KEY', 'BRCHK_B2_BUCKET', 'BRCHK_B2_BUCKET_ID')
+}
 $missing = $required | Where-Object { -not (Test-Path "env:$_") -or -not (Get-Item "env:$_").Value }
 if ($missing) {
   Abort "Env file incompleto: faltam $($missing -join ', ')."
@@ -112,15 +117,42 @@ Get-ChildItem -LiteralPath $logDir -Filter '*.json' -File -ErrorAction SilentlyC
   Where-Object { $_.Name -ne 'last-status.json' -and $_.LastWriteTime -lt $cutoff } |
   ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue }
 
+# ── Cópia externa (feature-flagged: BRCHK_EXTERNAL_ENABLED=1) ─────────────────
+# Flag OFF/ausente → SKIPPED e comportamento idêntico ao atual (o dump local manda).
+# Falha de upload NÃO apaga/invalida o dump local nem altera o exit code do dump.
+$externalUpload = [ordered]@{
+  enabled = ($env:BRCHK_EXTERNAL_ENABLED -eq '1')
+  status  = 'SKIPPED'
+}
+if (($env:BRCHK_EXTERNAL_ENABLED -eq '1') -and ($code -eq 0)) {
+  $newestDump = Get-ChildItem -LiteralPath $backupDir -Filter '*.dump' -File -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  if ($newestDump) {
+    try {
+      $uploader = Join-Path $PSScriptRoot 'upload-external.ps1'
+      $externalUpload = & $uploader -DumpPath $newestDump.FullName
+    } catch {
+      $externalUpload = [ordered]@{
+        enabled = $true; provider = 'backblaze-b2'; status = 'FAIL'; error = $_.Exception.Message
+      }
+    }
+  } else {
+    $externalUpload = [ordered]@{
+      enabled = $true; provider = 'backblaze-b2'; status = 'FAIL'; error = 'nenhum .dump encontrado para upload'
+    }
+  }
+}
+
 # ── last-status.json (sem secrets) ───────────────────────────────────────────
 $status = [ordered]@{
-  tool        = 'backup-restore-check'
-  mode        = 'dump-only'
-  finished_at = (Get-Date).ToString('o')
-  exit_code   = $code
-  status      = if ($code -eq 0) { 'OK' } else { 'FAIL' }
+  tool            = 'backup-restore-check'
+  mode            = 'dump-only'
+  finished_at     = (Get-Date).ToString('o')
+  exit_code       = $code
+  status          = if ($code -eq 0) { 'OK' } else { 'FAIL' }
+  external_upload = $externalUpload
 }
-$status | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $logDir 'last-status.json') -Encoding utf8
+$status | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $logDir 'last-status.json') -Encoding utf8
 
 if ($code -eq 0) { Write-Host '[backup-daily] OK.' } else { Write-Warning "[backup-daily] FALHOU (exit $code)." }
 exit $code

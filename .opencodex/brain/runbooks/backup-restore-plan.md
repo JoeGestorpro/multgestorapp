@@ -274,8 +274,10 @@ Missão `ops/register-daily-backup-scheduler` **CONCLUÍDA**. RPO ~24h verificad
 > **Provedor escolhido: Backblaze B2** (decisão humana 2026-06-18). 10GB grátis cobrem 635KB/dia × 7;
 > application keys S3-compatíveis dispensam OAuth (ideal p/ Task Scheduler não-assistido).
 >
-> ⚠️ **Esta seção é documentação inerte.** Nenhum bucket/key criado, nenhum secret escrito, nenhum
-> script alterado, nenhum upload executado. Tudo abaixo aguarda gates humanos (§10.7).
+> **Atualização 2026-06-19:** bucket B2 + application key criados pelo humano; `brchk.env` preenchido
+> localmente (ACL owner-only, flag `BRCHK_EXTERNAL_ENABLED=0`). Scripts feature-flagged **escritos**
+> (`upload-external.ps1` criado; `run-backup.ps1` integrado) — ver §10.5. **Nenhum upload/API call
+> executado, nenhum secret no repo, flag permanece 0.** Restam os gates humanos 6 e 7 (§10.7).
 
 ### 10.1 Checklist humano — criar o bucket B2 (console web; o humano faz)
 - [ ] Criar/entrar na conta em **backblaze.com** e habilitar **B2 Cloud Storage**
@@ -312,17 +314,19 @@ BRCHK_B2_BUCKET_ID=<COLE_O_bucketId_AQUI>
 ```
 > Após editar o env file, reaplicar ACL restritiva ao seu usuário (o guard SID do script bloqueia perms inseguras).
 
-### 10.5 Plano de integração futura (feature-flagged — aplicar só quando autorizado)
-**a) Novo `ops/backup/upload-external.ps1`** (a criar na fase autorizada — NÃO existe ainda):
+### 10.5 Integração feature-flagged — ESCRITA (2026-06-19, flag OFF)
+**a) `ops/backup/upload-external.ps1`** ✅ CRIADO (inerte até flag=1):
 `Get-FileHash -Algorithm SHA1` do dump → B2 nativo via `Invoke-RestMethod`
-(`b2_authorize_account` → `b2_get_upload_url` → upload com header `X-Bz-Content-Sha1`, que o B2 verifica
-server-side) → compara SHA1 retornado vs local. Nunca ecoa secret.
+(`b2_authorize_account` v3 → `b2_get_upload_url` → upload com header `X-Bz-Content-Sha1`, que o B2 verifica
+server-side) → compara SHA1 retornado vs local → retorna objeto sem secrets. TLS 1.2 forçado.
+Nunca ecoa `BRCHK_B2_APP_KEY`/`BRCHK_B2_KEY_ID`/`BRCHK_SOURCE_DB_URL`. Em qualquer falha → status FAIL,
+dump local intocado.
 
-**b) `run-backup.ps1` — 2 enxertos feature-flagged** (a aplicar só com autorização; hoje intacto):
-- **Guard 3 (~linha 77):** se `BRCHK_EXTERNAL_ENABLED='1'`, exigir também `BRCHK_B2_KEY_ID/APP_KEY/BUCKET/BUCKET_ID`. Flag `0`/ausente → comportamento atual inalterado.
-- **Após dump OK + retenção (entre linhas 113–116):** se flag `1` e `$code -eq 0`, chamar `upload-external.ps1` para o `.dump` mais recente e capturar resultado.
+**b) `run-backup.ps1` — 2 enxertos feature-flagged** ✅ APLICADOS:
+- **Guard 3:** se `BRCHK_EXTERNAL_ENABLED='1'`, exige também `BRCHK_B2_KEY_ID/APP_KEY/BUCKET/BUCKET_ID`. Flag `0`/ausente → lista de obrigatórias idêntica ao comportamento atual.
+- **Após dump OK + retenção:** se flag `1` e `$code -eq 0`, chama `upload-external.ps1` para o `.dump` mais recente e captura o resultado em `external_upload`. Flag OFF → `SKIPPED`.
 
-Falha de upload **não** invalida o dump local: `exit $code` segue refletindo o dump; o upload entra como status separado (visível p/ futuro alerta — cruza com A-018).
+Falha de upload **não** invalida o dump local: `exit $code` segue refletindo só o dump; o upload entra como status separado (visível p/ futuro alerta — cruza com A-018). Reversão = `BRCHK_EXTERNAL_ENABLED=0`.
 
 ### 10.6 Schema proposto `external_upload` no `last-status.json`
 A ser acrescentado ao hashtable do status (linha ~116 do `run-backup.ps1`):
@@ -346,10 +350,10 @@ external_upload = [ordered]@{
 | 1 | Criar conta + bucket B2 | gera recurso na conta do humano |
 | 2 | Criar app key + capturar keyID/appKey | secret, aparece uma vez |
 | 3 | Editar `brchk.env` (5 vars) + reaplicar ACL | mexe em secret/`.env` off-repo |
-| 4 | Decidir nome final do bucket (uniqueness global) | só o humano vê se está tomado |
-| 5 | Autorizar escrita de `upload-external.ps1` + enxertos | hoje proibido sem ok |
-| 6 | Autorizar teste de upload real | primeira gravação no B2 |
-| 7 | Virar `BRCHK_EXTERNAL_ENABLED=1` | liga a cópia externa de fato |
+| 4 | ✅ Decidir nome final do bucket (uniqueness global) | FEITO 2026-06-19 |
+| 5 | ✅ Autorizar escrita de `upload-external.ps1` + enxertos | FEITO 2026-06-19 (scripts escritos, flag OFF) |
+| 6 | ⏳ Autorizar teste de upload real | primeira gravação no B2 — PENDENTE |
+| 7 | ⏳ Virar `BRCHK_EXTERNAL_ENABLED=1` | liga a cópia externa de fato — PENDENTE |
 
 ### 10.8 Impacto RPO/RTO (após cópia externa ativa)
 RPO segue ~24h (frequência inalterada) mas **sobrevive à perda do HD local**. RTO = download do B2
