@@ -1,12 +1,12 @@
 # 📌 ESTADO DO PROJETO — Estado Atual Real
 
-> **Atualizado:** 2026-06-18 · **state_version:** 11
+> **Atualizado:** 2026-06-18 · **state_version:** 12
 > **REGRA:** este arquivo é atualizado a cada missão APPROVE (Loop de Fechamento). Se estiver desatualizado, o CHECK 0 deve bloquear/reduzir o Context Confidence.
 > **Origem:** substitui `.opencodex/state/project-state.md` (V2, congelado 06-04) e `.agent/memory/current-state.md`.
 
 ```yaml
 project: MultGestor v2
-state_version: 11
+state_version: 12
 phase: "estabilizacao-de-producao + endurecimento-de-seguranca"
 
 git:
@@ -39,13 +39,14 @@ prod_evidence_2026_06_15:
   - "POST /api/auth/register com <script> → 400 (portão XSS ativo)"
 
 queue:
-  current_task: "idle — e2e-public-booking-validation CONCLUÍDO (2026-06-18)"
-  next_task: "ops/reconcile-failed-sale-created-outbox (data-fix) — data-fix outbox sale.created failed"
+  current_task: "idle — auditoria-completa-2026-06-18 CONCLUÍDA"
+  next_task: "ops/reconcile-orphaned-outbox-messages (data-fix) — descartar 4 cash_session.* orphaned (renomeado: sale.created era nome errado)"
   unblocked_ready: "fase-c-integracao-e-testes (aguarda decisão break vs continue no OutboxWorker)"
   last_decision: >-
-    e2e-public-booking-validation APROVADO (2026-06-18): GET booking-info 200 ✅, GET slots 200 ✅,
-    nenhum 500 ✅. POST não testado (human-gated). Task card tinha contagens e nomes de chave
-    desatualizados (documentados em next-task.md §Achados). Ordem restante: ops/reconcile → fase-c.
+    Auditoria completa 2026-06-18: 24 seções, 25 achados, veredito APROVADO COM BLOQUEIOS P1.
+    Principais: backup só local (A-002), cash_session.* orphaned em outbox (A-003), Redis ausente (A-004),
+    RLS companies/users sem policy (A-001). task card ops/reconcile renomeado (sale.created era errado —
+    eventos reais são cash_session.*). Relatório em .opencodex/audits/auditoria-completa-2026-06-18.md.
 
 deploy_blockers:
   - id: "OPS-1"
@@ -75,6 +76,7 @@ open_risks:
 #   - PR #7 (chore/brain-queue-cleanup) — mergeado (21317cd); deploy workflow verde.
 
 ultimas_missoes:
+  - "auditoria-completa-2026-06-18 — 24 seções, veredito APROVADO C/ BLOQUEIOS P1 (backup local, outbox orphaned, Redis, RLS lacunas). Relatório em .opencodex/audits/"
   - "e2e-public-booking-validation CONCLUÍDO (2026-06-18) — GET booking-info ✅ GET slots ✅ no 500s ✅; achados: chave settings (não bookingSettings), 1 colaborador bookable (não 7), serviceId obrigatório p/ slots"
   - "ops/register-daily-backup-scheduler CONCLUÍDO (2026-06-18) — scheduler ativo State=Ready, NextRunTime=2026-06-19 02:00, RPO ~24h verificado"
   - "BACKUP-RESTORE-CHECK gate PASSOU (2026-06-18) — dump Fase 1 OK; restore Fase 2 evidenciado via MCP; missões desbloqueadas"

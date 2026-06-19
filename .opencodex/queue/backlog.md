@@ -367,15 +367,16 @@ trocar branch.
 
 ---
 
-## [DESBLOQUEADO 2026-06-18] OPS (NÃO é missão de código) — Reconciliar linhas `sale.created` já `failed` na outbox
+## [DESBLOQUEADO 2026-06-18] OPS — Reconciliar outbox_messages orphaned (sem handler)
 
 ---
 status: pending
-task_id: ops/reconcile-failed-sale-created-outbox
-title: Data-fix — reconciliar histórico de outbox_messages sale.created marcadas failed (efeito colateral do F6)
+task_id: ops/reconcile-orphaned-outbox-messages
+title: Data-fix — descartar outbox_messages com status=failed por falta de handler (sem falha real)
 type: ops-data-fix
 created_by: Claude Code
 created_at: 2026-06-06
+audited_at: 2026-06-18
 depends_on: eventbus-unhandled-handler-noop
 unblocked_at: 2026-06-18
 unblocked_by: backup-restore-check GATE PASSOU + eventbus-unhandled-handler-noop APPROVE (6c3c81a)
@@ -384,6 +385,12 @@ status_note: >-
   ✅ DESBLOQUEADO em 2026-06-18 — backup-restore-check gate passou (aprovação humana).
   ✅ DEPENDÊNCIA F6 SATISFEITA em 2026-06-06 — F6 (eventbus-unhandled-handler-noop) APPROVE (6c3c81a).
   Pronto para promoção a next-task.md quando conveniente.
+
+  ⚠️ CORREÇÃO (auditoria 2026-06-18): o nome original 'reconcile-failed-sale-created-outbox' estava
+  ERRADO. Auditoria MCP confirmou que em produção NÃO há mensagens sale.created failed.
+  Os 4 eventos failed reais são cash_session.opened (3x) e cash_session.closed (1x), todos de
+  2026-05-19, erro: "No handler registered for type: cash_session.opened/closed".
+  Renomeado para 'reconcile-orphaned-outbox-messages' para refletir o escopo real.
 ---
 
 ### Por que é ops, não missão de código
@@ -391,31 +398,43 @@ Não há mudança de código aqui — é um **data-fix pontual** num banco real 
 o alvo é produção/staging). Por isso entra como **ops** e exige a mesma disciplina de mudança de dados
 (janela, backup verificado, dry-run com `SELECT` antes do `UPDATE`).
 
-### Escopo
-- Reconciliar mensagens que foram marcadas `failed` **apenas** por falta de handler (não falhas reais):
-  ```sql
-  -- DRY-RUN primeiro (conferir contagem e amostra):
-  SELECT count(*) FROM outbox_messages
-   WHERE type = 'sale.created' AND status = 'failed' AND last_error LIKE 'No handler%';
+### Estado real em produção (verificado via MCP 2026-06-18)
 
-  -- Aplicação (após F6 APPROVE + janela + backup):
-  UPDATE outbox_messages
-     SET status = 'processed', processed_at = NOW()
-   WHERE type = 'sale.created' AND status = 'failed' AND last_error LIKE 'No handler%';
-  ```
-- **Filtro estrito por `last_error LIKE 'No handler%'`** para NÃO tocar falhas legítimas de outros motivos.
+| type | status | count | last_error | created_at |
+| --- | --- | --- | --- | --- |
+| cash_session.opened | failed | 3 | No handler registered for type: cash_session.opened | 2026-05-19 |
+| cash_session.closed | failed | 1 | No handler registered for type: cash_session.closed | 2026-05-19 |
+| sale.created | failed | **0** | — | — |
+
+### Escopo
+Marcar as 4 mensagens `cash_session.*` como `processed` (descarte intencional — não há handler
+registrado nem plano de registrar um para esse tipo via outbox):
+
+```sql
+-- DRY-RUN (conferir antes):
+SELECT id, type, status, last_error, created_at
+FROM outbox_messages
+WHERE status = 'failed' AND last_error LIKE 'No handler%';
+-- Esperado: 4 linhas (3x cash_session.opened + 1x cash_session.closed)
+
+-- Aplicação após dry-run confirmado + backup verificado:
+UPDATE outbox_messages
+   SET status = 'processed', processed_at = NOW()
+ WHERE status = 'failed' AND last_error LIKE 'No handler%';
+-- Esperado: 4 rows affected
+```
 
 ### Restrições
-- ❌ NÃO executar antes do `eventbus-unhandled-handler-noop` estar APPROVE.
-- ❌ NÃO misturar com a missão F6 (código) — propósitos distintos (futuro vs histórico).
-- ❌ NÃO `UPDATE` sem o `SELECT` de dry-run e sem backup verificado.
-- ❌ Sem deploy, sem push, sem merge — é operação de dados, executada por humano/ops.
+- ❌ NÃO executar sem dry-run primeiro.
+- ❌ NÃO `UPDATE` sem backup diário verificado (last-status.json = OK).
+- ❌ NÃO tocar mensagens com `last_error` diferente de `No handler%`.
+- ❌ Sem deploy, sem push, sem merge — operação de dados executada via MCP Supabase.
 
-### Critérios de aceite (quando executar)
-- [ ] Dry-run mostra apenas linhas `sale.created` + `failed` + `No handler%`.
-- [ ] Backup verificado antes do `UPDATE`.
-- [ ] Pós-fix: `0` linhas `sale.created`/`failed`/`No handler%` remanescentes.
-- [ ] Nenhuma falha legítima de outro `type`/motivo foi alterada.
+### Critérios de aceite
+- [ ] Dry-run: exatamente 4 linhas (cash_session.opened × 3, cash_session.closed × 1).
+- [ ] Backup diário verificado (last-status.json exit_code=0) antes do UPDATE.
+- [ ] Pós-fix: `SELECT count(*) FROM outbox_messages WHERE status='failed'` → 0.
+- [ ] Nenhuma mensagem de outro tipo/motivo alterada.
 
 ---
 
