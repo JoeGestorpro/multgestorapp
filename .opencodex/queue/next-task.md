@@ -1,126 +1,111 @@
-# 📥 PRÓXIMA MISSÃO — E2E-PUBLIC-BOOKING-VALIDATION 🟢 ATIVA (READ_ONLY_VALIDATION)
+# 📥 PRÓXIMA MISSÃO — OPS/RECONCILE-ORPHANED-OUTBOX-MESSAGES ✅ CONCLUÍDA
 
-> **Promovido em 2026-06-18.** Validar o fluxo público de agendamento end-to-end
-> no tenant `barbearia-joefelipe` — sem alterar código nem dados.
-> **Mode: READ_ONLY_VALIDATION** — apenas requisições GET. POST só com aprovação humana explícita.
+> **Promovido em 2026-06-18. Concluído em 2026-06-18.**
+> Data-fix executado via MCP Supabase — 4 eventos `cash_session.*` marcados como `processed`.
+> `outbox_messages WHERE status='failed'` → **0 linhas** em produção.
 
 ---
 status: completed
 completed_at: 2026-06-18
-task_id: e2e-public-booking-validation
-title: Validar o fluxo público de agendamento end-to-end (slug barbearia-joefelipe)
-mode: READ_ONLY_VALIDATION
-requires_human_approval: false
+task_id: ops/reconcile-orphaned-outbox-messages
+title: Data-fix — descartar outbox_messages com status=failed por falta de handler
+type: ops-data-fix
+mode: EXECUTE
 created_by: Claude Code
-created_at: 2026-06-14
+created_at: 2026-06-06
+audited_at: 2026-06-18
 promoted_at: 2026-06-18
-unblocked_by: backup-restore-check GATE PASSOU (aprovação humana)
-standing_alert: >-
-  Apenas GET contra produção. Não alterar código, dados, secrets ou config.
-  POST de agendamento só com aprovação humana explícita (cria dado real).
+promoted_by: Claude Code (aprovação humana — "proxima missao")
+depends_on: eventbus-unhandled-handler-noop (APPROVE 6c3c81a ✅)
+unblocked_by: backup-restore-check GATE PASSOU + eventbus-unhandled-handler-noop APPROVE
+requires_human_approval: false
+requires_mcp_write: true
 ---
 
-## Endpoints a validar
+## Contexto
 
-| Endpoint | Método | Cria dado? | Auth? | Arquivo:linha |
+O OutboxWorker em produção tenta processar qualquer mensagem com `status='pending'` ou `status='failed'`
+com `retry_count < max_retries`. Para os eventos `cash_session.opened` e `cash_session.closed`, não existe
+handler registrado em `server.js`. O worker os marca como `failed` imediatamente com:
+
+> `"No handler registered for type: cash_session.opened"`
+
+Os 4 eventos datam de **2026-05-19** e têm `retry_count=0` — nunca foram reprocessados, pois o worker
+os rejeita instantaneamente. Não há plano de registrar handler para esses tipos via outbox no curto prazo.
+
+**Decisão:** descartar (marcar como `processed`) via UPDATE direto no banco de produção. Sem falha real —
+são artefatos de um evento de negócio sem consumidor registrado.
+
+## Estado real em produção (verificado via MCP 2026-06-18)
+
+| type | status | count | last_error | created_at |
 |---|---|---|---|---|
-| `/api/public/booking/:slug` | GET | ❌ | ❌ Público | `public-booking.routes.js:15` |
-| `/api/barber/public/:slug/available-slots` | GET | ❌ | ❌ Público | `barber.routes.js:47` |
-| `/api/public/booking/:slug/appointments` | POST | ✅ Cria agendamento real | ❌ Público | `public-booking.routes.js:16` |
+| `cash_session.opened` | failed | 3 | "No handler registered for type: cash_session.opened" | 2026-05-19 |
+| `cash_session.closed` | failed | 1 | "No handler registered for type: cash_session.closed" | 2026-05-19 |
+| `sale.created` | failed | **0** | — | — |
 
-> Ambos os roteamentos (`/api/public/` e `/api/barber/public/`) são funcionais e equivalentes.
-> Não há rate limiting aplicado a essas rotas (só em `/register` e `/login`).
+## Gates obrigatórios antes do UPDATE
 
-## Dados de teste — tenant `barbearia-joefelipe`
+- [ ] **DRY-RUN:** SELECT confirma exatamente 4 linhas (`cash_session.*` + `No handler%`)
+- [ ] **BACKUP:** `last-status.json` exit_code=0 OU dump diário do dia confirmado
+- [ ] **CONTAGEM:** nenhuma outra mensagem com `last_error LIKE 'No handler%'`
 
-| Item | Qtde | Tabela |
-|---|---|---|
-| Serviços ativos | 16 | `barber_services` |
-| Colaboradores bookable | 7 | `barber_collaborators` |
-| Working hours configurados | 7 | `barber_working_hours` |
+## Dry-run (SELECT — sem efeito)
 
-> `barbearia-teste` tem 0 working_hours → slots vazios (não usar).
-
-## Fluxo de validação (read-only)
-
-### Passo 1 — Booking Info
-```http
-GET /api/public/booking/barbearia-joefelipe
+```sql
+SELECT id, type, status, last_error, retry_count, created_at
+FROM outbox_messages
+WHERE status = 'failed' AND last_error LIKE 'No handler%'
+ORDER BY created_at;
+-- Esperado: 4 linhas (3x cash_session.opened + 1x cash_session.closed)
 ```
-Esperado: `200` com `{ company, services, collaborators, workingHours, bookingSettings, landing }`
 
-### Passo 2 — Available Slots
-```http
-GET /api/barber/public/barbearia-joefelipe/available-slots?date=<YYYY-MM-DD>
+## Aplicação (UPDATE — somente após gates ✅)
+
+```sql
+UPDATE outbox_messages
+   SET status = 'processed', processed_at = NOW()
+ WHERE status = 'failed' AND last_error LIKE 'No handler%';
+-- Esperado: UPDATE 4
 ```
-Esperado: `200` com lista não vazia de slots disponíveis.
 
-### Passo 3 (opcional, human-gated) — Criar agendamento de teste
-```http
-POST /api/public/booking/barbearia-joefelipe/appointments
-Content-Type: application/json
+## Verificação pós-fix
 
-{
-  "service_id": "<uuid>",
-  "collaborator_id": "<uuid>",
-  "start_time": "<ISO>",
-  "customer_name": "Teste Auditoria",
-  "customer_phone": "+5511999999999",
-  "customer_email": "teste@auditoria.com"
-}
+```sql
+SELECT count(*) FROM outbox_messages WHERE status = 'failed';
+-- Esperado: 0
 ```
-> ⚠️ **Só com aprovação humana explícita.** Cria agendamento real + dispara outbox.
 
-## Observações arquiteturais (da exploração de código)
+## Restrições
 
-- **Sem tenant context nas queries públicas** — `getPublicBookingInfo`, `getSchedulingAvailability` e
-  `createPublicAppointment` usam `pool.query()` direto (sem `withTenantContext`). RLS não isola essas
-  queries porque `app.current_company_id` não é definido. Na prática, o runtime atual (`postgres`)
-  tem `BYPASSRLS`, então RLS não é gate atual — mas isso **não é um bug destes endpoints**, é uma
-  característica de toda a base (documentada no runbook `runtime-role-least-privilege`).
-- **Sem testes** — não há testes unitários ou de integração para `getPublicBooking`,
-  `getPublicAvailableSlots` ou `createPublicAppointment`. Esta validação manual é a primeira cobertura.
-
-## Proibições
-- ❌ Alterar código/backend/frontend · ❌ SQL de escrita · ❌ deploy
-- ❌ POST de agendamento sem aprovação humana explícita
-- ❌ Alterar secrets, config, migrations
-
-## Próximas na fila (ordem aprovada)
-1. ✅ **`e2e-public-booking-validation`** (atual)
-2. ⏳ **`ops/reconcile-failed-sale-created-outbox`** — data-fix outbox `sale.created` failed
-3. ⏳ **`fase-c-integracao-e-testes`** — requer decisão `break` vs `continue` no OutboxWorker antes
+- ❌ NÃO executar UPDATE sem dry-run confirmado.
+- ❌ NÃO executar UPDATE sem backup diário verificado.
+- ❌ NÃO tocar mensagens com `last_error` diferente de `'No handler%'`.
+- ❌ Sem deploy, sem push, sem merge, sem migration — só MCP Supabase.
+- ❌ NÃO alterar `retry_count`, `payload` ou qualquer outro campo além de `status` e `processed_at`.
 
 ## Critérios de aceite
-- [x] `GET /api/public/booking/barbearia-joefelipe` → 200 com tenant info completa
-- [x] `GET /api/barber/public/barbearia-joefelipe/available-slots?date=<futura>` → 200 com slots
-- [-] POST de agendamento (se aprovado) → SKIPPED (human-gated — não solicitado)
-- [x] Nenhum erro 500 — qualquer erro deve ser de dados/config, não de código
+
+- [x] Dry-run: exatamente 4 linhas (cash_session.opened × 3, cash_session.closed × 1)
+- [x] Backup diário verificado (exit_code=0, `last-status.json` OK, dump 635KB 2026-06-18T03:39)
+- [x] UPDATE afeta exatamente 4 linhas
+- [x] Pós-fix: `SELECT count(*) WHERE status='failed'` → 0
+- [x] Nenhuma mensagem de outro tipo/motivo alterada
 
 ## Resultado: ✅ APROVADO (2026-06-18)
 
-Critérios 1, 2 e 4 confirmados contra produção. Critério 3 (POST) não testado por decisão
-de governança (standing_alert — requer aprovação humana explícita).
+| Verificação | Resultado |
+|---|---|
+| Dry-run SELECT | 4 linhas — ids confirmados |
+| Backup gate | exit_code=0, dump 635KB 2026-06-18T03:39 |
+| UPDATE | 4 rows affected |
+| Pós-fix `status='failed'` | 0 linhas |
+| `status='processed'` total | 4 linhas |
+| Outro tipo alterado? | Não — só `cash_session.*` + `No handler%` |
 
-## Achados documentados
+## Próximas na fila (ordem aprovada 2026-06-18)
 
-### Estrutura real da API vs task card
-| Campo esperado | Real | Nota |
-|---|---|---|
-| `bookingSettings` | `settings` | Chave renomeada na implementação |
-| `workingHours` (top-level) | não existe | Working hours p/ slots ficam em `barber_working_hours`, consultadas em `getSchedulingAvailability` separadamente |
-| `landing` (top-level) | não existe | Dados de landing embutidos em `company.*` |
-
-### Contagens reais vs task card
-| Item | Task card | Real prod | Explicação |
-|---|---|---|---|
-| Serviços ativos | 16 | 15 | 1 serviço desativado/deletado desde criação do card |
-| Colaboradores bookable | 7 | 1 (JoeFelipe) | `listBookableCollaborators` filtra `is_active=true AND available_for_booking=true AND NOT is_deleted` — só JoeFelipe qualifica |
-| Working hours | 7 | n/a (não retornado) | `barber_working_hours` não exposto em booking-info; slots computados OK em rota separada |
-
-### Comportamentos confirmados
-- `serviceId` **obrigatório** para `/available-slots` → 400 sem ele (validação correta, não bug)
-- Slots 12:00–13:30 bloqueados em 2026-06-19 e 2026-06-20 — agendamentos reais existentes
-- Timezone `America/Cuiaba` ✅ retornado em `settings.timezone`
-- `any_collaborator: true` sem collaboratorId; `false` com collaboratorId — correto
-- Sem erros 500 em nenhum endpoint testado
+1. ✅ `e2e-public-booking-validation` (concluído)
+2. 🔄 **`ops/reconcile-orphaned-outbox-messages`** (atual)
+3. ⏳ `ops/backup-external-copy` — cópia cloud do dump diário
+4. ⏳ `security/rls-companies-users-policy` — policies para companies + users

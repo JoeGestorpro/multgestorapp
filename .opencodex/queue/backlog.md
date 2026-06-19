@@ -367,10 +367,11 @@ trocar branch.
 
 ---
 
-## [DESBLOQUEADO 2026-06-18] OPS — Reconciliar outbox_messages orphaned (sem handler)
+## [CONCLUÍDO 2026-06-18] OPS — Reconciliar outbox_messages orphaned (sem handler)
 
 ---
-status: pending
+status: completed
+completed_at: 2026-06-18
 task_id: ops/reconcile-orphaned-outbox-messages
 title: Data-fix — descartar outbox_messages com status=failed por falta de handler (sem falha real)
 type: ops-data-fix
@@ -391,6 +392,9 @@ status_note: >-
   Os 4 eventos failed reais são cash_session.opened (3x) e cash_session.closed (1x), todos de
   2026-05-19, erro: "No handler registered for type: cash_session.opened/closed".
   Renomeado para 'reconcile-orphaned-outbox-messages' para refletir o escopo real.
+
+  ✅ CONCLUÍDO (2026-06-18): UPDATE executado via MCP Supabase. 4 rows → status='processed'.
+  outbox_messages WHERE status='failed' = 0. Achado A-003 RESOLVIDO.
 ---
 
 ### Por que é ops, não missão de código

@@ -1,6 +1,6 @@
 # 📌 ESTADO DO PROJETO — Estado Atual Real
 
-> **Atualizado:** 2026-06-18 · **state_version:** 12
+> **Atualizado:** 2026-06-18 · **state_version:** 13
 > **REGRA:** este arquivo é atualizado a cada missão APPROVE (Loop de Fechamento). Se estiver desatualizado, o CHECK 0 deve bloquear/reduzir o Context Confidence.
 > **Origem:** substitui `.opencodex/state/project-state.md` (V2, congelado 06-04) e `.agent/memory/current-state.md`.
 
@@ -39,14 +39,13 @@ prod_evidence_2026_06_15:
   - "POST /api/auth/register com <script> → 400 (portão XSS ativo)"
 
 queue:
-  current_task: "idle — auditoria-completa-2026-06-18 CONCLUÍDA"
-  next_task: "ops/reconcile-orphaned-outbox-messages (data-fix) — descartar 4 cash_session.* orphaned (renomeado: sale.created era nome errado)"
+  current_task: "idle — ops/reconcile-orphaned-outbox-messages CONCLUÍDA (2026-06-18)"
+  next_task: "ops/backup-external-copy — configurar cópia cloud do dump diário (A-002)"
   unblocked_ready: "fase-c-integracao-e-testes (aguarda decisão break vs continue no OutboxWorker)"
   last_decision: >-
-    Auditoria completa 2026-06-18: 24 seções, 25 achados, veredito APROVADO COM BLOQUEIOS P1.
-    Principais: backup só local (A-002), cash_session.* orphaned em outbox (A-003), Redis ausente (A-004),
-    RLS companies/users sem policy (A-001). task card ops/reconcile renomeado (sale.created era errado —
-    eventos reais são cash_session.*). Relatório em .opencodex/audits/auditoria-completa-2026-06-18.md.
+    ops/reconcile-orphaned-outbox-messages CONCLUÍDA (2026-06-18): 4 eventos cash_session.*
+    orphaned marcados como processed via MCP Supabase. outbox_messages.failed = 0 em produção.
+    Achado A-003 RESOLVIDO. Próxima fila: backup externo (A-002) → RLS companies/users (A-001).
 
 deploy_blockers:
   - id: "OPS-1"
@@ -76,6 +75,7 @@ open_risks:
 #   - PR #7 (chore/brain-queue-cleanup) — mergeado (21317cd); deploy workflow verde.
 
 ultimas_missoes:
+  - "ops/reconcile-orphaned-outbox-messages CONCLUÍDA (2026-06-18) — 4 cash_session.* orphaned → processed. outbox_messages.failed=0. Achado A-003 RESOLVIDO."
   - "auditoria-completa-2026-06-18 — 24 seções, veredito APROVADO C/ BLOQUEIOS P1 (backup local, outbox orphaned, Redis, RLS lacunas). Relatório em .opencodex/audits/"
   - "e2e-public-booking-validation CONCLUÍDO (2026-06-18) — GET booking-info ✅ GET slots ✅ no 500s ✅; achados: chave settings (não bookingSettings), 1 colaborador bookable (não 7), serviceId obrigatório p/ slots"
   - "ops/register-daily-backup-scheduler CONCLUÍDO (2026-06-18) — scheduler ativo State=Ready, NextRunTime=2026-06-19 02:00, RPO ~24h verificado"
