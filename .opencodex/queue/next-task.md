@@ -1,107 +1,126 @@
-# ✅ MISSÃO CONCLUÍDA — BACKUP-RESTORE-CHECK (GATE PASSOU 2026-06-18)
+# 📥 PRÓXIMA MISSÃO — E2E-PUBLIC-BOOKING-VALIDATION 🟢 ATIVA (READ_ONLY_VALIDATION)
 
-> **Promovido em 2026-06-15.** Fechar gate operacional de backup/restore antes de qualquer
-> E2E, criação de dados reais, notificações reais ou data-fix.
-> **Gate encerrado em 2026-06-18** com aprovação humana explícita. Missões bloqueadas desbloqueadas.
+> **Promovido em 2026-06-18.** Validar o fluxo público de agendamento end-to-end
+> no tenant `barbearia-joefelipe` — sem alterar código nem dados.
+> **Mode: READ_ONLY_VALIDATION** — apenas requisições GET. POST só com aprovação humana explícita.
 
 ---
 status: completed
-task_id: backup-restore-check
-phase: governance-infra
-title: Verificar/testar restore de backup do Supabase (P0 — GATE PASSOU 2026-06-18)
-mode: GATE_PASSED
-priority: P0
-requires_human_approval: true
-created_by: Claude Code
-created_at: 2026-06-15
 completed_at: 2026-06-18
-blocks:
-  - e2e-public-booking-validation
-  - fase-c-integracao-e-testes
-  - ops/reconcile-failed-sale-created-outbox
-  - security-secrets-rotation
-  - OPS-SUPAVISOR
+task_id: e2e-public-booking-validation
+title: Validar o fluxo público de agendamento end-to-end (slug barbearia-joefelipe)
+mode: READ_ONLY_VALIDATION
+requires_human_approval: false
+created_by: Claude Code
+created_at: 2026-06-14
+promoted_at: 2026-06-18
+unblocked_by: backup-restore-check GATE PASSOU (aprovação humana)
 standing_alert: >-
-  GATE PASSOU (2026-06-18). Dump-only executado (Fase 1). Restore evidenciado via MCP read-only
-  (Fase 2 — lacuna de log aceita por decisão humana). Missões desbloqueadas. Tarefa encerrada.
+  Apenas GET contra produção. Não alterar código, dados, secrets ou config.
+  POST de agendamento só com aprovação humana explícita (cria dado real).
 ---
 
-## Diagnóstico inicial — histórico 2026-06-15
+## Endpoints a validar
 
-> Condição no momento da abertura da missão. Preservado como registro histórico.
+| Endpoint | Método | Cria dado? | Auth? | Arquivo:linha |
+|---|---|---|---|---|
+| `/api/public/booking/:slug` | GET | ❌ | ❌ Público | `public-booking.routes.js:15` |
+| `/api/barber/public/:slug/available-slots` | GET | ❌ | ❌ Público | `barber.routes.js:47` |
+| `/api/public/booking/:slug/appointments` | POST | ✅ Cria agendamento real | ❌ Público | `public-booking.routes.js:16` |
 
-| Item                          | Estado em 2026-06-15                    |
-| ----------------------------- | --------------------------------------- |
-| Plano Supabase                | **Free**                                |
-| Backup diário automático      | ❌ NÃO EXISTIA                           |
-| PITR (Point-in-Time Recovery) | ❌ NÃO DISPONÍVEL                        |
-| pg_dump manual                | ❌ NUNCA EXECUTADO                       |
-| Supabase Branches             | ❌ NENHUMA                               |
-| Off-site backup               | ❌ NÃO EXISTIA                           |
-| **RPO**                       | ♾️ Infinito (desde criação: 2026-04-20) |
+> Ambos os roteamentos (`/api/public/` e `/api/barber/public/`) são funcionais e equivalentes.
+> Não há rate limiting aplicado a essas rotas (só em `/register` e `/login`).
 
-**Risco original:** 🚨 perda total de dados em caso de corrupção, erro humano ou incidente. Sem backup, sem restore possível.
+## Dados de teste — tenant `barbearia-joefelipe`
 
-## Estado atual — pós-Fase 1 dump-only (2026-06-18)
+| Item | Qtde | Tabela |
+|---|---|---|
+| Serviços ativos | 16 | `barber_services` |
+| Colaboradores bookable | 7 | `barber_collaborators` |
+| Working hours configurados | 7 | `barber_working_hours` |
 
-| Item                              | Estado                                                                  |
-| --------------------------------- | ----------------------------------------------------------------------- |
-| Backup dump-only                  | ✅ executado (2026-06-18T07:39:26Z)                                      |
-| Dump gerado                       | ✅ `principal-2026-06-18T07-39-26-586Z.dump` (650 kB)                    |
-| Dump legível (header PGDMP)       | ✅ verificado                                                            |
-| Log JSON criado                   | ✅ `last-status.json` status=OK, exit_code=0                             |
-| Baseline registrado               | ✅ public_tables=55 · policies=45 · rls_on/off=37/18                     |
-| Task diária agendada              | ✅ registrada e verificada (2026-06-18) — `State: Ready` · `NextRunTime: 2026-06-19 02:00` |
-| **RPO**                           | **~24 h (automação verificada via `Get-ScheduledTask`)** |
-| Restore executado                 | ✅ evidenciado via MCP read-only (2026-06-18) — counts batem baseline 6/6 em `multgestor-restore-test` |
-| `BRCHK_TARGET_DB_URL` definido    | ❌ não definido (correto — dump-only)                                    |
-| Validação backup/restore completa | ✅ aceita por decisão humana (2026-06-18) — gate encerrado                |
-| Fase 2 restore                    | ✅ evidenciado e aceito (2026-06-18) — gate encerrado por decisão humana  |
-| Atrito operacional documentado    | ✅ runbook §7 Troubleshooting Windows PowerShell adicionado (2026-06-18) |
+> `barbearia-teste` tem 0 working_hours → slots vazios (não usar).
 
-## Objetivo
-1. [x] Executar `pg_dump` da produção — **Fase 1 dump-only concluída (2026-06-18). Ver resultado abaixo.**
-2. [x] Restore em projeto Supabase Free descartável (validar dump) — **evidenciado via MCP read-only (2026-06-18); lacuna de log aceita por decisão humana.**
-3. [x] Documentar RPO/RTO real e plano de backup recorrente — [`../brain/runbooks/backup-restore-plan.md`](../brain/runbooks/backup-restore-plan.md)
-4. [x] Só então desbloquear E2E, data-fix e demais missões — **desbloqueadas em 2026-06-18.**
+## Fluxo de validação (read-only)
 
-## Fase 1 — resultado da execução manual (2026-06-18)
-
+### Passo 1 — Booking Info
+```http
+GET /api/public/booking/barbearia-joefelipe
 ```
-Executor:          humano (Windows, run-backup.ps1 manual)
-Modo:              dump-only (sem restore, sem BRCHK_TARGET_DB_URL)
-Data/hora:         2026-06-18T07:39:26.586Z
-Dump:              principal-2026-06-18T07-39-26-586Z.dump (650 645 bytes)
-Log:               backup-restore-check-2026-06-18T07-39-26-586Z.json
-last-status.json:  status=OK, exit_code=0
-Baseline:          public_tables=55  policies=45  rls_on/off=37/18
-Restore:           NÃO executado
-Target DB:         não definido
-Task diária:       registrada (MultGestor-Backup-Daily, 02:00, dump-only)
-RPO anterior:      ♾️ (infinito)
-RPO atual:         ~24 h
+Esperado: `200` com `{ company, services, collaborators, workingHours, bookingSettings, landing }`
+
+### Passo 2 — Available Slots
+```http
+GET /api/barber/public/barbearia-joefelipe/available-slots?date=<YYYY-MM-DD>
 ```
+Esperado: `200` com lista não vazia de slots disponíveis.
 
-> **Nota operacional:** durante a execução houve erros de copy/paste no PowerShell
-> (prompts `PS C:\...>` e `>>` colados como comandos). Não afetaram o backup.
-> Correção documentada no runbook §7.
->
-> **Nota sobre RPO:** rotina recorrente de backup/RPO ~24h ainda não comprovada por
-> execução agendada observada. Até validação do scheduler, considerar backup como
-> procedimento manual validado.
->
-> Arquivos locais — NÃO versionados: `.mg-backup\brchk.env`, `backups\daily\*.dump`, `backups\logs\*.json`.
+### Passo 3 (opcional, human-gated) — Criar agendamento de teste
+```http
+POST /api/public/booking/barbearia-joefelipe/appointments
+Content-Type: application/json
 
-## Restrições (PLAN_ONLY)
-- ❌ Sem restore ainda · ❌ sem tocar banco de produção
-- ❌ Sem alterar secrets · ❌ sem deploy · ❌ sem push · ❌ sem merge
-- ❌ Sem tocar backend · ❌ sem tocar frontend · ❌ sem migrations
-- ❌ Sem SQL de escrita · ❌ sem alterar código
+{
+  "service_id": "<uuid>",
+  "collaborator_id": "<uuid>",
+  "start_time": "<ISO>",
+  "customer_name": "Teste Auditoria",
+  "customer_phone": "+5511999999999",
+  "customer_email": "teste@auditoria.com"
+}
+```
+> ⚠️ **Só com aprovação humana explícita.** Cria agendamento real + dispara outbox.
 
----
+## Observações arquiteturais (da exploração de código)
 
-## 🔓 Missões desbloqueadas pelo gate (2026-06-18)
-- **`ops/register-daily-backup-scheduler`** — ⚠️ **P0 OPS URGENTE** · Task Scheduler inexistente; backup não automatizado. Card em [`backlog.md`](backlog.md).
-- **`fase-c-integracao-e-testes`** — Fase C Integração de Negócio + Testes Reais. Card em [`backlog.md`](backlog.md).
-- **`e2e-public-booking-validation`** — Validação E2E fluxo público. Card em [`backlog.md`](backlog.md).
-- **`ops/reconcile-failed-sale-created-outbox`** — Data-fix outbox sale.created. Card em [`backlog.md`](backlog.md).
+- **Sem tenant context nas queries públicas** — `getPublicBookingInfo`, `getSchedulingAvailability` e
+  `createPublicAppointment` usam `pool.query()` direto (sem `withTenantContext`). RLS não isola essas
+  queries porque `app.current_company_id` não é definido. Na prática, o runtime atual (`postgres`)
+  tem `BYPASSRLS`, então RLS não é gate atual — mas isso **não é um bug destes endpoints**, é uma
+  característica de toda a base (documentada no runbook `runtime-role-least-privilege`).
+- **Sem testes** — não há testes unitários ou de integração para `getPublicBooking`,
+  `getPublicAvailableSlots` ou `createPublicAppointment`. Esta validação manual é a primeira cobertura.
+
+## Proibições
+- ❌ Alterar código/backend/frontend · ❌ SQL de escrita · ❌ deploy
+- ❌ POST de agendamento sem aprovação humana explícita
+- ❌ Alterar secrets, config, migrations
+
+## Próximas na fila (ordem aprovada)
+1. ✅ **`e2e-public-booking-validation`** (atual)
+2. ⏳ **`ops/reconcile-failed-sale-created-outbox`** — data-fix outbox `sale.created` failed
+3. ⏳ **`fase-c-integracao-e-testes`** — requer decisão `break` vs `continue` no OutboxWorker antes
+
+## Critérios de aceite
+- [x] `GET /api/public/booking/barbearia-joefelipe` → 200 com tenant info completa
+- [x] `GET /api/barber/public/barbearia-joefelipe/available-slots?date=<futura>` → 200 com slots
+- [-] POST de agendamento (se aprovado) → SKIPPED (human-gated — não solicitado)
+- [x] Nenhum erro 500 — qualquer erro deve ser de dados/config, não de código
+
+## Resultado: ✅ APROVADO (2026-06-18)
+
+Critérios 1, 2 e 4 confirmados contra produção. Critério 3 (POST) não testado por decisão
+de governança (standing_alert — requer aprovação humana explícita).
+
+## Achados documentados
+
+### Estrutura real da API vs task card
+| Campo esperado | Real | Nota |
+|---|---|---|
+| `bookingSettings` | `settings` | Chave renomeada na implementação |
+| `workingHours` (top-level) | não existe | Working hours p/ slots ficam em `barber_working_hours`, consultadas em `getSchedulingAvailability` separadamente |
+| `landing` (top-level) | não existe | Dados de landing embutidos em `company.*` |
+
+### Contagens reais vs task card
+| Item | Task card | Real prod | Explicação |
+|---|---|---|---|
+| Serviços ativos | 16 | 15 | 1 serviço desativado/deletado desde criação do card |
+| Colaboradores bookable | 7 | 1 (JoeFelipe) | `listBookableCollaborators` filtra `is_active=true AND available_for_booking=true AND NOT is_deleted` — só JoeFelipe qualifica |
+| Working hours | 7 | n/a (não retornado) | `barber_working_hours` não exposto em booking-info; slots computados OK em rota separada |
+
+### Comportamentos confirmados
+- `serviceId` **obrigatório** para `/available-slots` → 400 sem ele (validação correta, não bug)
+- Slots 12:00–13:30 bloqueados em 2026-06-19 e 2026-06-20 — agendamentos reais existentes
+- Timezone `America/Cuiaba` ✅ retornado em `settings.timezone`
+- `any_collaborator: true` sem collaboratorId; `false` com collaboratorId — correto
+- Sem erros 500 em nenhum endpoint testado

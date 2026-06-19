@@ -419,16 +419,18 @@ o alvo é produção/staging). Por isso entra como **ops** e exige a mesma disci
 
 ---
 
-## [DESBLOQUEADO 2026-06-18] Validação E2E do fluxo público de agendamento
+## [PROMOVIDO 2026-06-18] Validação E2E do fluxo público de agendamento
 
 ---
-status: pending
+status: promoted
 task_id: e2e-public-booking-validation
 title: Validar o fluxo público de agendamento end-to-end (slug barbearia-joefelipe)
 mode: READ_ONLY_VALIDATION
 requires_human_approval: false
 created_by: Claude Code
 created_at: 2026-06-14
+promoted_at: 2026-06-18
+promoted_to: next-task.md
 blocked_at: 2026-06-15
 unblocked_at: 2026-06-18
 unblocked_by: backup-restore-check GATE PASSOU (aprovação humana)

@@ -1,12 +1,12 @@
 # 📌 ESTADO DO PROJETO — Estado Atual Real
 
-> **Atualizado:** 2026-06-18 · **state_version:** 7
+> **Atualizado:** 2026-06-18 · **state_version:** 11
 > **REGRA:** este arquivo é atualizado a cada missão APPROVE (Loop de Fechamento). Se estiver desatualizado, o CHECK 0 deve bloquear/reduzir o Context Confidence.
 > **Origem:** substitui `.opencodex/state/project-state.md` (V2, congelado 06-04) e `.agent/memory/current-state.md`.
 
 ```yaml
 project: MultGestor v2
-state_version: 10
+state_version: 11
 phase: "estabilizacao-de-producao + endurecimento-de-seguranca"
 
 git:
@@ -39,14 +39,13 @@ prod_evidence_2026_06_15:
   - "POST /api/auth/register com <script> → 400 (portão XSS ativo)"
 
 queue:
-  current_task: "idle — ciclo XSS data-sanitization (Bloco A + A v2) ARQUIVADO em queue/archive/2026-06-15-xss-data-sanitization.md"
-  next_task: "ops/register-daily-backup-scheduler CONCLUÍDO (2026-06-18) — scheduler ativo, State=Ready, NextRunTime=2026-06-19 02:00"
-  unblocked_ready: "fase-c-integracao-e-testes · e2e-public-booking-validation · ops/reconcile-failed-sale-created-outbox"
+  current_task: "idle — e2e-public-booking-validation CONCLUÍDO (2026-06-18)"
+  next_task: "ops/reconcile-failed-sale-created-outbox (data-fix) — data-fix outbox sale.created failed"
+  unblocked_ready: "fase-c-integracao-e-testes (aguarda decisão break vs continue no OutboxWorker)"
   last_decision: >-
-    Auditoria read-only 2026-06-18: identificou scheduler INEXISTENTE + corrigiu governança.
-    Missão ops/register-daily-backup-scheduler aberta e CONCLUÍDA no mesmo dia — humano registrou
-    MultGestor-Backup-Daily via Register-ScheduledTask; Get-ScheduledTask confirmou State=Ready,
-    NextRunTime=2026-06-19 02:00. RPO ~24h agora verificado. backup-restore-check permanece CONCLUÍDO.
+    e2e-public-booking-validation APROVADO (2026-06-18): GET booking-info 200 ✅, GET slots 200 ✅,
+    nenhum 500 ✅. POST não testado (human-gated). Task card tinha contagens e nomes de chave
+    desatualizados (documentados em next-task.md §Achados). Ordem restante: ops/reconcile → fase-c.
 
 deploy_blockers:
   - id: "OPS-1"
@@ -76,6 +75,7 @@ open_risks:
 #   - PR #7 (chore/brain-queue-cleanup) — mergeado (21317cd); deploy workflow verde.
 
 ultimas_missoes:
+  - "e2e-public-booking-validation CONCLUÍDO (2026-06-18) — GET booking-info ✅ GET slots ✅ no 500s ✅; achados: chave settings (não bookingSettings), 1 colaborador bookable (não 7), serviceId obrigatório p/ slots"
   - "ops/register-daily-backup-scheduler CONCLUÍDO (2026-06-18) — scheduler ativo State=Ready, NextRunTime=2026-06-19 02:00, RPO ~24h verificado"
   - "BACKUP-RESTORE-CHECK gate PASSOU (2026-06-18) — dump Fase 1 OK; restore Fase 2 evidenciado via MCP; missões desbloqueadas"
   - "Drift reminder_sent_at (023) — aplicado em prod via MCP"
@@ -86,9 +86,10 @@ ultimas_missoes:
   - "PR #7 chore/brain-queue-cleanup — mergeado (21317cd); deploy verde"
 
 next_recommended_action: >-
-  Promover próxima missão a next-task.md (instrução humana): fase-c-integracao-e-testes,
-  e2e-public-booking-validation ou ops/reconcile-failed-sale-created-outbox. Scheduler ativo,
-  backup confirmado, restore confirmado — sem bloqueadores operacionais pendentes.
+  Promover ops/reconcile-failed-sale-created-outbox: data-fix nos outbox_messages com
+  event_type=sale.created em status failed. Verificar contagem, causa e aplicar correção
+  via MCP Supabase (sem migrations, sem código). Depois, decisão break vs continue no
+  OutboxWorker para desbloquear fase-c.
 ```
 
 ## Módulos
