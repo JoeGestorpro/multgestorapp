@@ -21,6 +21,7 @@ Este diretório é a **fonte única da verdade operacional** do MultGestor. Toda
 ## Pastas
 | Pasta | Conteúdo |
 |---|---|
+| [`living-os/`](living-os/) | **Living Operating System** — máquina de decisão executiva: mapa vivo, painel, produção, vendável, scorecards, gates, riscos, decisões |
 | [`rules/`](rules/) | Índice das regras executáveis vinculantes ao brain (canônico continua em `.opencodex/rules/`) |
 | [`runbooks/`](runbooks/) | Índice de runbooks operacionais — inclui [`auditoria-completa-padrao.md`](runbooks/auditoria-completa-padrao.md) (padrão canônico) |
 | [`roadmaps/`](roadmaps/) | Roadmaps estratégicos — inclui [`ROADMAP-MESTRE-MULTGESTOR-2026.md`](roadmaps/ROADMAP-MESTRE-MULTGESTOR-2026.md) (mapa-mãe: produto, segurança, receita, multi-nicho) |

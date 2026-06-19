@@ -4,6 +4,30 @@
 
 Este arquivo é apenas um mapa de navegação para o Segundo Cérebro. Consulte os arquivos canônicos linkados abaixo para o conteúdo fonte.
 
+## Living Operating System (executivo)
+- [[living-os/README|Living OS — Portal]]
+- [[living-os/00-multgestor-living-operating-system|Manifesto]]
+- [[living-os/01-mapa-vivo|Mapa Vivo]]
+- [[living-os/02-painel-executivo|Painel Executivo]]
+- [[living-os/03-producao|Produção Segura]]
+- [[living-os/04-vendavel|Vendável]]
+- [[living-os/05-proxima-melhor-acao|Próxima Melhor Ação]]
+
+## Scorecards
+- [[living-os/scorecards/producao-scorecard|Scorecard Produção]]
+- [[living-os/scorecards/vendavel-scorecard|Scorecard Vendável]]
+- [[living-os/scorecards/risco-scorecard|Scorecard Risco]]
+- [[living-os/scorecards/prioridade-scorecard|Scorecard Prioridade]]
+
+## Gates
+- [[living-os/gates/gate-producao|Gate Produção]]
+- [[living-os/gates/gate-vendavel|Gate Vendável]]
+- [[living-os/gates/gate-seguranca|Gate Segurança]]
+
+## Inventários
+- [[living-os/riscos/riscos-ativos|Riscos Ativos]]
+- [[living-os/decisoes/decisoes-executivas|Decisões Executivas]]
+
 ## Fundamentos
 - [[README]]
 - [[source-of-truth]]
