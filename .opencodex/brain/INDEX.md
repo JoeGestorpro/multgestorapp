@@ -14,6 +14,9 @@ Este arquivo é apenas um mapa de navegação para o Segundo Cérebro. Consulte 
 - [[capabilities-map]]
 - [[architecture-decisions]]
 
+## Mapas vivos (Obsidian Graph View)
+- [[maps/multgestor-core/MAPA-MULTGESTOR-CORE|Mapa Vivo MultGestor Core]]
+
 ## Execução e governança
 - [[context-confidence-engine]]
 - [[implementation-log]]
