@@ -45,7 +45,7 @@ Fase 1 do mapa criada (estrutura navegável). Valores de status refletem a audit
 [[agenda]] · [[clientes]] · [[colaboradores]] · [[servicos]] · [[financeiro]] · [[estoque]] · [[notificacoes]] · [[relatorios]] · [[ia-operacional]]
 
 ## Nichos
-[[barbergestor]] · [[agrogestor]] · [[autogestor]] · [[petgestor]] · [[barber-store]]
+[[barbergestor]] · [[climagestor]] · [[agrogestor]] · [[autogestor]] · [[petgestor]] · [[barber-store]]
 
 ## Fluxos
 [[fluxo-agendamento-publico]] · [[fluxo-login-cadastro]] · [[fluxo-pagamento]] · [[fluxo-whatsapp]] · [[fluxo-backup-restore]] · [[fluxo-onboarding-cliente]]

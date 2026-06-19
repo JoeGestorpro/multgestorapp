@@ -36,6 +36,7 @@ Tabela-resumo de status de cada nó do mapa. Volta para [[MAPA-MULTGESTOR-CORE]]
 | Capability | [[notificacoes]] | parcial | 50 |
 | Capability | [[ia-operacional]] | planejado | 5 |
 | Nicho | [[barbergestor]] | pronto | 85 |
+| Nicho | [[climagestor]] | parcial | 50 |
 | Nicho | [[agrogestor]] / [[autogestor]] / [[petgestor]] / [[barber-store]] | planejado | 0 |
 
 ## O que falta

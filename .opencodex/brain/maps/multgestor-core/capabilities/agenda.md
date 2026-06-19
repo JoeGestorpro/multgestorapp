@@ -15,7 +15,7 @@ ultima_revisao: 2026-06-19
 Booking Engine reutilizável (`shared/capabilities/booking-engine/`) — slots, disponibilidade, agendamento.
 
 ## Estado atual
-Funcional; GET de booking-info e available-slots validados em produção. Usado por [[barbergestor]] e ClimaGestor.
+Funcional; GET de booking-info e available-slots validados em produção. Usado por [[barbergestor]] e [[climagestor]].
 
 ## O que já existe
 19 funções puras de scheduling; slots por colaborador; timezone por tenant.
@@ -34,7 +34,7 @@ Sem E2E, regressão silenciosa. Ver [[RISCOS-MULTGESTOR]].
 ### Usa
 [[servicos]] · [[colaboradores]]
 ### É usado por
-[[barbergestor]]
+[[barbergestor]] · [[climagestor]]
 
 ## Próximas ações
 Cobrir [[fluxo-agendamento-publico]] com testes; endurecer cancelamento/no-show.
