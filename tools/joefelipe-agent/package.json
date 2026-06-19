@@ -1,0 +1,19 @@
+{
+  "name": "joefelipe-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts dev",
+    "status": "tsx src/index.ts status",
+    "morning": "tsx src/index.ts morning",
+    "close": "tsx src/index.ts close",
+    "build": "tsc --noEmit",
+    "start": "tsx src/index.ts dev"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

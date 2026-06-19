@@ -1,0 +1,10 @@
+{
+  "name": "multgestor",
+  "private": true,
+  "scripts": {
+    "joefelipe:dev": "npm --prefix tools/joefelipe-agent run dev",
+    "joefelipe:status": "npm --prefix tools/joefelipe-agent run status",
+    "joefelipe:morning": "npm --prefix tools/joefelipe-agent run morning",
+    "joefelipe:close": "npm --prefix tools/joefelipe-agent run close"
+  }
+}
