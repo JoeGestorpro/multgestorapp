@@ -22,7 +22,7 @@ Este diretório é a **fonte única da verdade operacional** do MultGestor. Toda
 | Pasta | Conteúdo |
 |---|---|
 | [`rules/`](rules/) | Índice das regras executáveis vinculantes ao brain (canônico continua em `.opencodex/rules/`) |
-| [`runbooks/`](runbooks/) | Índice de runbooks operacionais (canônico em `docs/runbooks/`) |
+| [`runbooks/`](runbooks/) | Índice de runbooks operacionais — inclui [`auditoria-completa-padrao.md`](runbooks/auditoria-completa-padrao.md) (padrão canônico) |
 | [`audits/`](audits/) | Auditorias estratégicas do brain (drift, maturidade) |
 | [`archive-index/`](archive-index/) | Ponte rastreável para o histórico `.agent/` (preservado, não apagado) |
 
