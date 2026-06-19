@@ -478,3 +478,56 @@ Provar, via requisições reais (sem tocar código), que o fluxo público funcio
 ### Critérios de aceite
 - [ ] booking-info 200 · available-slots 200 com lista não vazia.
 - [ ] Separar erro de dados/config de erro de código (se houver).
+
+---
+
+## [PROPOSED 2026-06-19] INFRA — MultGestor Autopilot Runner (governança executável)
+
+---
+status: proposed
+task_id: infra/multgestor-autopilot-runner
+title: Camada de automação segura para execução governada da fila .opencodex
+type: infra-governanca
+priority: P3
+camada: 7 — Escala comercial e governança (Roadmap Mestre)
+mode: PLAN_ONLY
+automation_level: PLAN_ONLY
+created_by: Claude Code
+created_at: 2026-06-19
+requires_human_approval: true
+requires_security_review: true
+depends_on: null
+origem_evidencia: preflight-check.md + auto-queue-runner.md + auditor-flow.md (loop hoje manual)
+design_source: .opencodex/automation/autopilot-policy.md + command-allowlist.md
+standing_alert: >-
+  Construir o Autopilot NÃO autoriza o Autopilot a executar missões reais. Cada fase sobe um
+  degrau de automação SOMENTE com aprovação humana explícita. O Autopilot NUNCA promove fila,
+  NUNCA cria/troca branch, NUNCA cruza prod/secrets/cloud/push/merge. Fail-closed em toda dúvida.
+---
+
+### Objetivo
+Mecanizar os passos **determinísticos** do loop de governança (preflight, gates, testes, evidência,
+veredito) preservando os freios humanos. Transforma `preflight-check.md` + `auto-queue-runner.md` de
+documento-que-o-humano-segue em código-que-se-auto-verifica.
+
+### Fase 0 — CONCLUÍDA (2026-06-19, docs inertes)
+- ✅ `.opencodex/automation/autopilot-policy.md` (níveis, gates, vereditos, fluxo)
+- ✅ `.opencodex/automation/command-allowlist.md` (allowlist por nível)
+- ✅ `.opencodex/runs/` protegido no `.gitignore`
+- Commit local: `docs(governance): add autopilot runner phase0 policy`
+
+### Fases seguintes (gated — NÃO promover sem aprovação)
+| Fase | Entrega | Nível | Pré-condição |
+|---|---|---|---|
+| 1 | `safety-gates.ps1` + `validate-task.ps1` read-only (dry-run) | AUTO_SAFE (sobre si) | bater 1:1 com preflight manual |
+| 2 | `run-task.ps1` + `start-autopilot.ps1 --execute` p/ tarefas AUTO_SAFE | AUTO_SAFE | 5 execuções verdes auditadas |
+| 3 | AUTO_WITH_REVIEW: executa código em branch, para antes do commit | AUTO_WITH_REVIEW | revisão de segurança + decisão humana |
+| 4 | Observabilidade do runner (alertas, histórico de runs) | — | — |
+
+### Como promover (somente Claude Code, após decisão humana)
+1. Escolher a fase a executar (1 por vez) e confirmar aprovação humana + revisão de segurança.
+2. Copiar o card da fase para `next-task.md` (`status: pending`) com ALLOWLIST + critérios de aceite.
+3. Marcar esta entrada como `promoted`.
+
+### Vereditos do runner
+`PASS` · `FAIL` · `HUMAN_GATE` · `BLOCKED` · `SCOPE_VIOLATION` — definidos em `autopilot-policy.md §4`.

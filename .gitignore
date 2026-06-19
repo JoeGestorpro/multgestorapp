@@ -84,6 +84,10 @@ backend/backend.err
 # Referência de design externa (repo clonado, não faz parte do projeto)
 awesome-design-md/
 
+# Autopilot Runner — evidências de execução (podem conter dados sensíveis; NUNCA commitar)
+# Apenas verdict.md curado pode ser promovido manualmente a .opencodex/audits/
+.opencodex/runs/
+
 # Agent runtime e cache (gerado automaticamente)
 .agent/runtime/
 .agent/skills/create-capability/
