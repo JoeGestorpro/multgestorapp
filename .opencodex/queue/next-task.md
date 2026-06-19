@@ -18,6 +18,10 @@ promoted_at: 2026-06-18
 promoted_by: Claude Code (aprovação humana — "promoção limpa da fila")
 requires_human_approval: true
 requires_human_action: true
+provider: backblaze-b2
+provider_decision: RESOLVED (2026-06-18) — Backblaze B2 escolhido (10GB grátis, S3-compat sem OAuth)
+plan_source: .opencodex/brain/runbooks/backup-restore-plan.md §10 (checklists, env vars, integração, schema)
+execution_state: NÃO EXECUTADA — nenhum bucket/key/secret/upload criado; aguarda gates humanos
 origem_evidencia: A-002 (auditoria-completa-2026-06-18 §10) + Roadmap Mestre §19
 standing_alert: >-
   Card de planejamento. NÃO criar cloud storage, NÃO mexer em secrets, NÃO alterar
@@ -65,8 +69,12 @@ Credenciais **somente** em env file off-repo (padrão `brchk.env`, fora do repos
 ## Gate de entrada
 
 - [x] Backup diário local OK (`last-status.json` exit_code=0) — já satisfeito
-- [ ] **Decisão humana do provedor cloud** (Google Drive / S3 / Backblaze) — DECISÃO #2-correlata, ver Roadmap §18
+- [x] **Decisão humana do provedor cloud** — ✅ RESOLVIDO 2026-06-18: **Backblaze B2**
+- [ ] Gates humanos pendentes (ver runbook §10.7): criar bucket → criar app key → popular `brchk.env` → autorizar escrita de scripts → autorizar upload real → virar `BRCHK_EXTERNAL_ENABLED=1`
 - [ ] Autorização humana explícita para iniciar execução (este card é PLAN_ONLY)
+
+> 📄 Plano completo (checklists de bucket/key, env vars com placeholders, plano de integração feature-flagged,
+> schema `external_upload`) persistido em [`../brain/runbooks/backup-restore-plan.md`](../brain/runbooks/backup-restore-plan.md) §10.
 
 ## Critério de aceite
 

@@ -1,12 +1,12 @@
 # 📌 ESTADO DO PROJETO — Estado Atual Real
 
-> **Atualizado:** 2026-06-18 · **state_version:** 13
+> **Atualizado:** 2026-06-19 · **state_version:** 13
 > **REGRA:** este arquivo é atualizado a cada missão APPROVE (Loop de Fechamento). Se estiver desatualizado, o CHECK 0 deve bloquear/reduzir o Context Confidence.
 > **Origem:** substitui `.opencodex/state/project-state.md` (V2, congelado 06-04) e `.agent/memory/current-state.md`.
 
 ```yaml
 project: MultGestor v2
-state_version: 12
+state_version: 13
 phase: "estabilizacao-de-producao + endurecimento-de-seguranca"
 
 git:
@@ -40,7 +40,7 @@ prod_evidence_2026_06_15:
 
 queue:
   current_task: "idle — ops/reconcile-orphaned-outbox-messages CONCLUÍDA (2026-06-18)"
-  next_task: "ops/backup-external-copy — configurar cópia cloud do dump diário (A-002)"
+  next_task: "ops/backup-external-copy — cópia cloud do dump diário (A-002). PROVEDOR: Backblaze B2 (decisão resolvida 2026-06-18). PENDING — plano inerte em runbooks/backup-restore-plan.md §10; nenhuma execução operacional feita (bucket/key/secret/upload não criados); aguarda gates humanos."
   unblocked_ready: "fase-c-integracao-e-testes (aguarda decisão break vs continue no OutboxWorker)"
   last_decision: >-
     ops/reconcile-orphaned-outbox-messages CONCLUÍDA (2026-06-18): 4 eventos cash_session.*
@@ -88,10 +88,11 @@ ultimas_missoes:
   - "PR #7 chore/brain-queue-cleanup — mergeado (21317cd); deploy verde"
 
 next_recommended_action: >-
-  Promover ops/reconcile-failed-sale-created-outbox: data-fix nos outbox_messages com
-  event_type=sale.created em status failed. Verificar contagem, causa e aplicar correção
-  via MCP Supabase (sem migrations, sem código). Depois, decisão break vs continue no
-  OutboxWorker para desbloquear fase-c.
+  ops/backup-external-copy: provedor Backblaze B2 escolhido (2026-06-18). Plano inerte documentado em
+  runbooks/backup-restore-plan.md §10 (checklists bucket/key, env vars com placeholders, feature flag
+  BRCHK_EXTERNAL_ENABLED=0, integração feature-flagged, schema external_upload, gates humanos).
+  Nenhuma execução operacional feita. Próximo passo = gates humanos (criar bucket/key, popular brchk.env)
+  e então autorizar escrita dos scripts. Sem push/merge/secrets/upload até autorização explícita.
 ```
 
 ## Módulos

@@ -266,3 +266,91 @@ Get-ScheduledTask -TaskName 'MultGestor-Backup-Daily' | Select-Object TaskName, 
 | `LastTaskResult` | `267011` (SCHED_S_TASK_HAS_NOT_RUN — ainda não executou — esperado) |
 
 Missão `ops/register-daily-backup-scheduler` **CONCLUÍDA**. RPO ~24h verificado.
+
+## 10. Cópia externa/cloud — plano Backblaze B2 (PLAN_ONLY · documentação inerte 2026-06-19)
+
+> **Achado A-002** (auditoria 2026-06-18 §10): backup diário funcional, mas **apenas local** —
+> single point of failure no HD. Missão `ops/backup-external-copy` (`pending` em `next-task.md`).
+> **Provedor escolhido: Backblaze B2** (decisão humana 2026-06-18). 10GB grátis cobrem 635KB/dia × 7;
+> application keys S3-compatíveis dispensam OAuth (ideal p/ Task Scheduler não-assistido).
+>
+> ⚠️ **Esta seção é documentação inerte.** Nenhum bucket/key criado, nenhum secret escrito, nenhum
+> script alterado, nenhum upload executado. Tudo abaixo aguarda gates humanos (§10.7).
+
+### 10.1 Checklist humano — criar o bucket B2 (console web; o humano faz)
+- [ ] Criar/entrar na conta em **backblaze.com** e habilitar **B2 Cloud Storage**
+- [ ] **Buckets → Create a Bucket**
+- [ ] **Bucket Unique Name:** globalmente único (6–50 chars, minúsculas/dígitos/hífen, não pode começar com `b2-`)
+- [ ] **Files in Bucket:** `Private` ⚠️ (contém dump com PII — nunca Public)
+- [ ] **Default Encryption:** `Enable` (SSE-B2)
+- [ ] **Object Lock:** `Disable` (opcional avançado; imutabilidade anti-ransomware no futuro)
+- [ ] Anotar **Bucket Name** + **Bucket ID**
+
+### 10.2 Checklist humano — criar a application key
+- [ ] **App Keys → Add a New Application Key**
+- [ ] **Name of Key:** rótulo legível
+- [ ] **Allow access to Bucket(s):** ⚠️ restringir ao bucket específico (não "All") — menor privilégio
+- [ ] **Type of Access:** `Read and Write` (inclui `deleteFiles` p/ retenção remota)
+- [ ] **Create** → capturar **na hora** (aparece uma única vez): `keyID`, `applicationKey`, e o `bucketId`
+
+### 10.3 Nomes recomendados (sugestão — não criar nada)
+| Recurso | Nome sugerido | Nota |
+|---|---|---|
+| Bucket | `multgestor-v2-db-backups` | nome global no B2; se tomado, usar sufixo (`-prod`/token) |
+| App key (rótulo) | `mg-v2-backup-writer` | rótulo livre, escopo = só o bucket, Read+Write |
+| Prefixo interno | `daily/` | organiza os dumps no bucket |
+
+### 10.4 Variáveis de ambiente (placeholders — NÃO inserir secrets reais aqui)
+Vão no env file off-repo que `run-backup.ps1` já carrega: `%USERPROFILE%\.mg-backup\brchk.env`.
+```ini
+# --- Cópia externa (flag começa em 0: backup segue só-local até alguém virar 1 E autorizar) ---
+BRCHK_EXTERNAL_ENABLED=0
+BRCHK_B2_KEY_ID=<COLE_O_keyID_AQUI>
+BRCHK_B2_APP_KEY=<COLE_O_applicationKey_AQUI>
+BRCHK_B2_BUCKET=multgestor-v2-db-backups
+BRCHK_B2_BUCKET_ID=<COLE_O_bucketId_AQUI>
+```
+> Após editar o env file, reaplicar ACL restritiva ao seu usuário (o guard SID do script bloqueia perms inseguras).
+
+### 10.5 Plano de integração futura (feature-flagged — aplicar só quando autorizado)
+**a) Novo `ops/backup/upload-external.ps1`** (a criar na fase autorizada — NÃO existe ainda):
+`Get-FileHash -Algorithm SHA1` do dump → B2 nativo via `Invoke-RestMethod`
+(`b2_authorize_account` → `b2_get_upload_url` → upload com header `X-Bz-Content-Sha1`, que o B2 verifica
+server-side) → compara SHA1 retornado vs local. Nunca ecoa secret.
+
+**b) `run-backup.ps1` — 2 enxertos feature-flagged** (a aplicar só com autorização; hoje intacto):
+- **Guard 3 (~linha 77):** se `BRCHK_EXTERNAL_ENABLED='1'`, exigir também `BRCHK_B2_KEY_ID/APP_KEY/BUCKET/BUCKET_ID`. Flag `0`/ausente → comportamento atual inalterado.
+- **Após dump OK + retenção (entre linhas 113–116):** se flag `1` e `$code -eq 0`, chamar `upload-external.ps1` para o `.dump` mais recente e capturar resultado.
+
+Falha de upload **não** invalida o dump local: `exit $code` segue refletindo o dump; o upload entra como status separado (visível p/ futuro alerta — cruza com A-018).
+
+### 10.6 Schema proposto `external_upload` no `last-status.json`
+A ser acrescentado ao hashtable do status (linha ~116 do `run-backup.ps1`):
+```powershell
+external_upload = [ordered]@{
+  enabled     = $true
+  provider    = 'backblaze-b2'
+  bucket      = $env:BRCHK_B2_BUCKET
+  file        = <nome-do-dump>
+  sha1_local  = <hash>
+  sha1_remote = <hash>          # retornado pelo B2; deve bater com sha1_local
+  verified    = $true           # sha1_local -eq sha1_remote
+  uploaded_at = <iso8601>
+  status      = 'OK'            # OK | FAIL | SKIPPED (flag=0)
+}
+```
+
+### 10.7 Gates humanos pendentes
+| # | Intervenção humana | Por quê |
+|---|---|---|
+| 1 | Criar conta + bucket B2 | gera recurso na conta do humano |
+| 2 | Criar app key + capturar keyID/appKey | secret, aparece uma vez |
+| 3 | Editar `brchk.env` (5 vars) + reaplicar ACL | mexe em secret/`.env` off-repo |
+| 4 | Decidir nome final do bucket (uniqueness global) | só o humano vê se está tomado |
+| 5 | Autorizar escrita de `upload-external.ps1` + enxertos | hoje proibido sem ok |
+| 6 | Autorizar teste de upload real | primeira gravação no B2 |
+| 7 | Virar `BRCHK_EXTERNAL_ENABLED=1` | liga a cópia externa de fato |
+
+### 10.8 Impacto RPO/RTO (após cópia externa ativa)
+RPO segue ~24h (frequência inalterada) mas **sobrevive à perda do HD local**. RTO = download do B2
+(minutos, arquivo pequeno) + restore (~30–120min, como hoje). Rollback = `BRCHK_EXTERNAL_ENABLED=0`.
