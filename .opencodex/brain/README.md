@@ -26,6 +26,8 @@ Este diretório é a **fonte única da verdade operacional** do MultGestor. Toda
 | [`runbooks/`](runbooks/) | Índice de runbooks operacionais — inclui [`auditoria-completa-padrao.md`](runbooks/auditoria-completa-padrao.md) (padrão canônico) |
 | [`roadmaps/`](roadmaps/) | Roadmaps estratégicos — inclui [`ROADMAP-MESTRE-MULTGESTOR-2026.md`](roadmaps/ROADMAP-MESTRE-MULTGESTOR-2026.md) (mapa-mãe: produto, segurança, receita, multi-nicho) |
 | [`maps/`](maps/) | Mapas vivos navegáveis no Obsidian — inclui [[maps/multgestor-core/MAPA-MULTGESTOR-CORE\|Mapa Vivo MultGestor Core]] (Graph View: Core ↔ infra, segurança, produto, capabilities, nichos, riscos, próxima ação) |
+| [`agents/`](agents/) | Agentes de governança do brain — inclui [[agents/global-vision-architect\|Global Vision Architect]] (visão futura: nichos, mercados, internacionalização, compliance; DOCS_ONLY, não promove fila) |
+| [`strategy/`](strategy/) | Entregáveis estratégicos do Global Vision Architect — [[strategy/core-power-map\|core-power-map]], [[strategy/niche-radar\|niche-radar]], [[strategy/global-market-radar\|market-radar]], [[strategy/country-readiness-matrix\|country-readiness]], [[strategy/internationalization-requirements\|i18n]], [[strategy/compliance-intelligence\|compliance]], [[strategy/product-futurist-engine\|futurist-engine]], [[strategy/global-benchmark-memory\|benchmark-memory]], [[strategy/strategic-decision-log\|decision-log]] |
 | [`audits/`](audits/) | Auditorias estratégicas do brain (drift, maturidade) |
 | [`archive-index/`](archive-index/) | Ponte rastreável para o histórico `.agent/` (preservado, não apagado) |
 
