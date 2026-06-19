@@ -1,111 +1,103 @@
-# 📥 PRÓXIMA MISSÃO — OPS/RECONCILE-ORPHANED-OUTBOX-MESSAGES ✅ CONCLUÍDA
+# 📥 PRÓXIMA MISSÃO — OPS/BACKUP-EXTERNAL-COPY 🔵 PENDENTE
 
-> **Promovido em 2026-06-18. Concluído em 2026-06-18.**
-> Data-fix executado via MCP Supabase — 4 eventos `cash_session.*` marcados como `processed`.
-> `outbox_messages WHERE status='failed'` → **0 linhas** em produção.
+> **Promovido em 2026-06-18** (aprovação humana — promoção limpa da fila, escopo governança/documentação).
+> Adicionar cópia automática do dump diário para destino externo (cloud), eliminando o
+> single point of failure local. **NÃO INICIAR EXECUÇÃO** sem autorização humana explícita.
 
 ---
-status: completed
-completed_at: 2026-06-18
-task_id: ops/reconcile-orphaned-outbox-messages
-title: Data-fix — descartar outbox_messages com status=failed por falta de handler
-type: ops-data-fix
-mode: EXECUTE
+status: pending
+task_id: ops/backup-external-copy
+title: Cópia externa/cloud automática do dump diário (eliminar single point of failure local)
+type: ops-infra
+priority: P1
+camada: 1 — Fundação segura
+mode: PLAN_ONLY
 created_by: Claude Code
-created_at: 2026-06-06
-audited_at: 2026-06-18
+created_at: 2026-06-18
 promoted_at: 2026-06-18
-promoted_by: Claude Code (aprovação humana — "proxima missao")
-depends_on: eventbus-unhandled-handler-noop (APPROVE 6c3c81a ✅)
-unblocked_by: backup-restore-check GATE PASSOU + eventbus-unhandled-handler-noop APPROVE
-requires_human_approval: false
-requires_mcp_write: true
+promoted_by: Claude Code (aprovação humana — "promoção limpa da fila")
+requires_human_approval: true
+requires_human_action: true
+origem_evidencia: A-002 (auditoria-completa-2026-06-18 §10) + Roadmap Mestre §19
+standing_alert: >-
+  Card de planejamento. NÃO criar cloud storage, NÃO mexer em secrets, NÃO alterar
+  scripts de backup, NÃO rodar comandos operacionais, NÃO fazer push até autorização
+  humana explícita de execução. Esta promoção é apenas sincronização de fila.
 ---
 
 ## Contexto
 
-O OutboxWorker em produção tenta processar qualquer mensagem com `status='pending'` ou `status='failed'`
-com `retry_count < max_retries`. Para os eventos `cash_session.opened` e `cash_session.closed`, não existe
-handler registrado em `server.js`. O worker os marca como `failed` imediatamente com:
+A auditoria 2026-06-18 (§10, achado A-002) confirmou: backup diário **funcional** mas
+**apenas local** em `C:\MultGestor.v2\ops\backup\` (na verdade `C:\Users\Joefe\backups\` —
+ver env file off-repo). Todos os 7 dumps de retenção ficam no mesmo HD. Risco P1:
+perda do HD/computador = perda de **todos** os backups.
 
-> `"No handler registered for type: cash_session.opened"`
+Estado verificado da base de backup (já funcionando):
+- Scheduler `MultGestor-Backup-Daily` — `State=Ready`, `NextRunTime=2026-06-19 02:00`
+- `last-status.json`: `exit_code=0`, `status=OK`, dump 635KB (2026-06-18T03:39)
+- Retenção: 7 dumps; guard dump-only ativo (`BRCHK_TARGET_DB_URL` removido)
 
-Os 4 eventos datam de **2026-05-19** e têm `retry_count=0` — nunca foram reprocessados, pois o worker
-os rejeita instantaneamente. Não há plano de registrar handler para esses tipos via outbox no curto prazo.
+## Objetivo
 
-**Decisão:** descartar (marcar como `processed`) via UPDATE direto no banco de produção. Sem falha real —
-são artefatos de um evento de negócio sem consumidor registrado.
+Adicionar um passo de **upload externo** ao fluxo de backup já existente, de forma que
+cada dump diário também seja copiado para um destino off-site (cloud), com verificação
+de integridade. Sem alterar a lógica de dump/restore atual.
 
-## Estado real em produção (verificado via MCP 2026-06-18)
+## Por que vem agora (Roadmap Mestre §19, Camada 1)
 
-| type | status | count | last_error | created_at |
-|---|---|---|---|---|
-| `cash_session.opened` | failed | 3 | "No handler registered for type: cash_session.opened" | 2026-05-19 |
-| `cash_session.closed` | failed | 1 | "No handler registered for type: cash_session.closed" | 2026-05-19 |
-| `sale.created` | failed | **0** | — | — |
+Maior redução de risco catastrófico com menor blast radius. O backup local já funciona —
+falta apenas redundância off-site. É a primeira missão da Fundação Segura porque protege
+o ativo mais crítico (dados) antes de qualquer investimento em produto/receita.
 
-## Gates obrigatórios antes do UPDATE
+## Arquivos permitidos (quando autorizado a executar)
 
-- [ ] **DRY-RUN:** SELECT confirma exatamente 4 linhas (`cash_session.*` + `No handler%`)
-- [ ] **BACKUP:** `last-status.json` exit_code=0 OU dump diário do dia confirmado
-- [ ] **CONTAGEM:** nenhuma outra mensagem com `last_error LIKE 'No handler%'`
+- `ops/backup/run-backup.ps1` (adicionar chamada ao passo de upload)
+- `ops/backup/upload-external.ps1` (novo — script de upload)
+- `.opencodex/brain/runbooks/backup-restore-plan.md` (documentar cópia externa + RPO/RTO)
 
-## Dry-run (SELECT — sem efeito)
+> ❌ Nenhum arquivo de código de aplicação (backend/frontend/migrations).
 
-```sql
-SELECT id, type, status, last_error, retry_count, created_at
-FROM outbox_messages
-WHERE status = 'failed' AND last_error LIKE 'No handler%'
-ORDER BY created_at;
--- Esperado: 4 linhas (3x cash_session.opened + 1x cash_session.closed)
-```
+## Ambiente
 
-## Aplicação (UPDATE — somente após gates ✅)
+Local Windows + provedor cloud a definir (Google Drive API / S3 / Backblaze).
+Credenciais **somente** em env file off-repo (padrão `brchk.env`, fora do repositório).
 
-```sql
-UPDATE outbox_messages
-   SET status = 'processed', processed_at = NOW()
- WHERE status = 'failed' AND last_error LIKE 'No handler%';
--- Esperado: UPDATE 4
-```
+## Gate de entrada
 
-## Verificação pós-fix
+- [x] Backup diário local OK (`last-status.json` exit_code=0) — já satisfeito
+- [ ] **Decisão humana do provedor cloud** (Google Drive / S3 / Backblaze) — DECISÃO #2-correlata, ver Roadmap §18
+- [ ] Autorização humana explícita para iniciar execução (este card é PLAN_ONLY)
 
-```sql
-SELECT count(*) FROM outbox_messages WHERE status = 'failed';
--- Esperado: 0
-```
+## Critério de aceite
 
-## Restrições
+- [ ] Dump diário copiado automaticamente para destino externo após cada execução
+- [ ] Verificação de integridade pós-upload (checksum local == remoto)
+- [ ] `last-status.json` registra status do upload externo (sucesso/falha)
+- [ ] Nenhum secret exposto em log ou no repositório
 
-- ❌ NÃO executar UPDATE sem dry-run confirmado.
-- ❌ NÃO executar UPDATE sem backup diário verificado.
-- ❌ NÃO tocar mensagens com `last_error` diferente de `'No handler%'`.
-- ❌ Sem deploy, sem push, sem merge, sem migration — só MCP Supabase.
-- ❌ NÃO alterar `retry_count`, `payload` ou qualquer outro campo além de `status` e `processed_at`.
+## Critério de rollback
 
-## Critérios de aceite
+Desabilitar o passo de upload no `run-backup.ps1` → backup local permanece intacto
+(operação não-destrutiva por design; o estado atual já é "só local").
 
-- [x] Dry-run: exatamente 4 linhas (cash_session.opened × 3, cash_session.closed × 1)
-- [x] Backup diário verificado (exit_code=0, `last-status.json` OK, dump 635KB 2026-06-18T03:39)
-- [x] UPDATE afeta exatamente 4 linhas
-- [x] Pós-fix: `SELECT count(*) WHERE status='failed'` → 0
-- [x] Nenhuma mensagem de outro tipo/motivo alterada
+## Evidências obrigatórias (no fechamento)
 
-## Resultado: ✅ APROVADO (2026-06-18)
+- Log de upload bem-sucedido
+- Listagem do arquivo no destino externo
+- Checksum local == remoto
+- `last-status.json` com campo de status externo
 
-| Verificação | Resultado |
-|---|---|
-| Dry-run SELECT | 4 linhas — ids confirmados |
-| Backup gate | exit_code=0, dump 635KB 2026-06-18T03:39 |
-| UPDATE | 4 rows affected |
-| Pós-fix `status='failed'` | 0 linhas |
-| `status='processed'` total | 4 linhas |
-| Outro tipo alterado? | Não — só `cash_session.*` + `No handler%` |
+## Restrições invioláveis (fase atual = planejamento)
 
-## Próximas na fila (ordem aprovada 2026-06-18)
+- ❌ NÃO criar cloud storage agora
+- ❌ NÃO mexer em secrets / env file
+- ❌ NÃO alterar scripts de backup agora
+- ❌ NÃO rodar comandos operacionais
+- ❌ NÃO push, merge, deploy
 
-1. ✅ `e2e-public-booking-validation` (concluído)
-2. 🔄 **`ops/reconcile-orphaned-outbox-messages`** (atual)
-3. ⏳ `ops/backup-external-copy` — cópia cloud do dump diário
-4. ⏳ `security/rls-companies-users-policy` — policies para companies + users
+## Próximas na fila (ordem aprovada — Roadmap Mestre §20)
+
+1. 🔵 **`ops/backup-external-copy`** (atual — pending, aguarda autorização de execução)
+2. ⏳ `security/rls-companies-users-policy` — policies companies + users (A-001)
+3. ⏳ `infra/redis-production-config` — Redis em produção (A-004)
+4. ⏳ `cicd/migrations-fail-fast` — 🔴 BLOQUEADO por OPS-SUPAVISOR (A-005)

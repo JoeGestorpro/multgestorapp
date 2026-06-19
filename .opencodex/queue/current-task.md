@@ -2,29 +2,28 @@
 
 ---
 status: idle
-updated_at: 2026-06-17
+updated_at: 2026-06-18
 note: >-
-  Slot in-flight vazio. O último ciclo (XSS data-sanitization, Bloco A + A v2) foi CONCLUÍDO e
-  ARQUIVADO em `archive/2026-06-15-xss-data-sanitization.md`. Nada está running/claimed agora
-  (CHECK 4 do preflight passa).
+  Slot in-flight vazio (CHECK 4 do preflight passa). Nenhuma missão running/claimed.
+  Última missão executada: ops/reconcile-orphaned-outbox-messages (CONCLUÍDA 2026-06-18,
+  commit 642343a). Próxima missão operacional sincronizada em next-task.md:
+  ops/backup-external-copy (status: pending, aguarda execução autorizada).
 ---
 
-## ✅ Gate backup-restore-check PASSOU (2026-06-18)
-Portão operacional encerrado com aprovação humana. Histórico completo em [`next-task.md`](next-task.md).
+## ✅ Últimas missões concluídas (2026-06-18)
+- **`ops/reconcile-orphaned-outbox-messages`** — data-fix outbox: 4 eventos `cash_session.*` → `processed`. `outbox_messages.failed = 0`. Achado A-003 RESOLVIDO. Commit `642343a`. Registro em [`next-task.md`](next-task.md).
+- **`auditoria-completa-2026-06-18`** — 24 seções, veredito APROVADO C/ BLOQUEIOS P1. Relatório em [`../audits/auditoria-completa-2026-06-18.md`](../audits/auditoria-completa-2026-06-18.md).
+- **`e2e-public-booking-validation`** — fluxo público GET validado (read-only). Concluída.
+- **Gate `backup-restore-check`** + **`ops/register-daily-backup-scheduler`** — encerrados (scheduler `State=Ready`, RPO ~24h).
 
-## ✅ OPS scheduler registrado e verificado (2026-06-18)
-`MultGestor-Backup-Daily` — `State: Ready` · `NextRunTime: 2026-06-19 02:00`. RPO ~24h verificado.
-Missão `ops/register-daily-backup-scheduler` CONCLUÍDA.
+## 🗺️ Planejamento estratégico
+Mapa-mãe oficial: [`../brain/roadmaps/ROADMAP-MESTRE-MULTGESTOR-2026.md`](../brain/roadmaps/ROADMAP-MESTRE-MULTGESTOR-2026.md). Princípio: fundação P1 antes de receita.
 
-## 🔓 Missões prontas para promoção
+## 🔜 Próxima missão (em next-task.md)
+**`ops/backup-external-copy`** (P1, Camada 1 — Fundação segura) — `status: pending`.
+Aguardando autorização humana para iniciar execução. Card completo em [`next-task.md`](next-task.md).
+
+## 🔓 Demais missões prontas para promoção (backlog)
 Cards completos em [`backlog.md`](backlog.md):
-- **`fase-c-integracao-e-testes`** — Fase C Integração de Negócio + Testes Reais
-- **`e2e-public-booking-validation`** — Validação E2E fluxo público de agendamento
-- **`ops/reconcile-failed-sale-created-outbox`** — Data-fix outbox sale.created failed
-
-Aguardando instrução humana para promover uma delas a `next-task.md`.
-
-## Ciclo XSS — encerrado (arquivado)
-`companies.name`, `users.name`, `public_display_name`, `business_description`, `barber_services.name`
-todos com `~ '[<>]'` = 0; portão `/register` com `<script>` → 400. Detalhe completo em
-[`archive/2026-06-15-xss-data-sanitization.md`](archive/2026-06-15-xss-data-sanitization.md).
+- **`security/rls-companies-users-policy`** — policies para `companies` + `users` (A-001)
+- **`fase-c-integracao-e-testes`** — aguarda decisão `break` vs `continue` no OutboxWorker
