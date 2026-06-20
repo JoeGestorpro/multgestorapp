@@ -15,17 +15,22 @@ import {
 } from "./readers.ts";
 import { getGitInfo } from "./git.ts";
 import { buildRecommendedPrompt } from "./prompt-builder.ts";
+import { LlmEngine } from "./llm/LlmEngine.ts";
+import { loadLlmConfig } from "./llm/llm-config.ts";
 import type { AgentMeta, AgentState, WatchEvent } from "./types.ts";
 
 export const AGENT_META: AgentMeta = {
   name: "Agente JoeFelipe",
   technicalName: "joefelipe-personal-operating-agent",
-  version: "1.0.0 (V1, read-only)",
+  version: "2.0.0 (V2, LLM Core mock)",
   mode: "READ_ONLY",
 };
 
 const LIVING_OS = ".opencodex/brain/living-os";
 const ROOT_LIVING_OS = "living-os";
+
+const llmConfig = loadLlmConfig();
+const llmEngine = new LlmEngine(llmConfig);
 
 export function buildState(root: string = findRepoRoot()): AgentState {
   const sources = collectSources(root);
@@ -98,6 +103,8 @@ export function buildState(root: string = findRepoRoot()): AgentState {
     );
   }
 
+  const llmInfo = llmEngine.getProviderInfo();
+
   const state: AgentState = {
     agent: AGENT_META,
     generatedAt: new Date().toISOString(),
@@ -125,6 +132,7 @@ export function buildState(root: string = findRepoRoot()): AgentState {
     decisions: { pending, source: dec?.path ?? null },
     humanActions,
     git,
+    llm: llmInfo,
     recommendedPrompt: "",
     warnings,
   };

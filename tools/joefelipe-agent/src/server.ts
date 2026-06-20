@@ -98,6 +98,14 @@ function renderHTML(s: any): string {
   ${s.git.recentCommits.length ? `<p class="label" style="margin-top:.5rem">Últimos commits:</p><ul>${s.git.recentCommits.map((c: string) => `<li class="code" style="padding:.15rem .5rem;margin:.1rem 0">${c}</li>`).join("")}</ul>` : ""}
 </div>
 
+<h2>LLM Core</h2>
+<div class="card">
+  <p><span class="label">Provider:</span><span class="value">${s.llm.provider}</span></p>
+  <p><span class="label">Model:</span><span class="value">${s.llm.model}</span></p>
+  <p><span class="label">Chamadas externas:</span><span class="value badge ${s.llm.externalCallsEnabled ? 'badge-warn' : 'badge-ok'}">${s.llm.externalCallsEnabled ? "ligadas" : "desligadas"}</span></p>
+  <p class="meta">LLM propõe, não executa. Modo seguro: nenhuma ação perigosa é executada diretamente.</p>
+</div>
+
 <h2>Ações Humanas Pendentes</h2>
 <div class="card">
   ${s.humanActions.length ? `<ul>${s.humanActions.map((a: string) => `<li>→ ${a}</li>`).join("")}</ul>` : `<p class="meta">Nenhuma ação humana pendente</p>`}
@@ -111,7 +119,7 @@ function renderHTML(s: any): string {
 ${s.warnings.length ? `<h2>Avisos</h2><div class="card warning"><ul>${s.warnings.map((w: string) => `<li>⚠ ${w}</li>`).join("")}</ul></div>` : ""}
 
 <div class="footer">
-  Agente JoeFelipe V1 · READ-ONLY · ${s.agent.technicalName}<br>
+  Agente JoeFelipe V2 · READ-ONLY · LLM Core mock · ${s.agent.technicalName}<br>
   <a href="/api/state">GET /api/state (JSON)</a>
 </div>
 

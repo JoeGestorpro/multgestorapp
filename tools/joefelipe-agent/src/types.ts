@@ -43,6 +43,12 @@ export interface AgentMeta {
   mode: string;
 }
 
+export interface LlmInfo {
+  provider: string;
+  model: string;
+  externalCallsEnabled: boolean;
+}
+
 export interface AgentState {
   agent: AgentMeta;
   generatedAt: string;
@@ -78,6 +84,7 @@ export interface AgentState {
   git: GitInfo;
   recommendedPrompt: string;
   warnings: string[];
+  llm: LlmInfo;
 }
 
 export interface WatchEvent {

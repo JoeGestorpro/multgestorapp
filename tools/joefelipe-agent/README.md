@@ -1,15 +1,16 @@
-# Agente JoeFelipe Vivo Local (V1)
+# Agente JoeFelipe Vivo Local (V2)
 
 > **Nome humano:** Agente JoeFelipe
 > **Nome técnico:** `joefelipe-personal-operating-agent`
 > **Modo:** READ-ONLY
+> **LLM Core:** MockProvider (V2)
 > **Identidade canônica:** `.opencodex/brain/agents/joefelipe-personal-operating-agent.md`
 
 ## O que é
 
 Um agente local, residente e READ-ONLY que conecta o **Primeiro Cérebro do JoeFelipe** (fundador) ao **Segundo Cérebro do MultGestor** (memória oficial) e ao **Living OS** (autoridade executiva).
 
-Ele lê, consolida e apresenta o estado real do projeto em um painel local. **Nunca escreve no Segundo Cérebro, nunca edita a fila, nunca executa.**
+Ele lê, consolida e apresenta o estado real do projeto em um painel local. Desde a V2, possui um **LLM Core plugável** com provider mock, que simula respostas de IA sem chamar API externa. **Nunca escreve no Segundo Cérebro, nunca edita a fila, nunca executa.**
 
 ## Como rodar
 
@@ -45,7 +46,31 @@ npm run joefelipe:close
 | `.opencodex/brain/agents/` | Agentes de governança |
 | Git | Branch, status, log (read-only) |
 
-## O que ele NÃO faz (V1)
+## LLM Core (V2)
+
+O Agente JoeFelipe V2 possui um **LLM Core plugável** em `src/llm/`.
+
+| Camada | Arquivo | Função |
+|---|---|---|
+| Interface | `src/llm/LlmProvider.ts` | Contratos `LlmProvider`, `LlmRequest`, `LlmResponse` |
+| Engine | `src/llm/LlmEngine.ts` | Central: carrega config, instancia provider, fallback mock |
+| Config | `src/llm/llm-config.ts` | Leitura segura por env `JOEFELIPE_LLM_PROVIDER` |
+| Provider | `src/llm/providers/MockProvider.ts` | LLM simulada, sem API externa, sem secrets |
+
+**Regras do LLM Core:**
+- LLM propõe, não executa.
+- `canExecute` é sempre `false` na V2.
+- Ações sensíveis (push, deploy, secret, migration, etc.) são bloqueadas com `requiresHumanApproval: true`.
+- Fallback seguro para mock se config inválida.
+- Nenhuma chamada externa, nenhum secret lido.
+
+**Configuração:**
+```bash
+JOEFELIPE_LLM_PROVIDER=mock   # único funcional na V2
+JOEFELIPE_LLM_MODEL=mock-safe-v1
+```
+
+## O que ele NÃO faz (V2)
 
 - ❌ `git commit`, `git push`, deploy
 - ❌ Rodar migrations, mexer em banco
@@ -98,14 +123,17 @@ npm run joefelipe:morning
 npm run joefelipe:close
 ```
 
-## Limitações (V1)
+## Limitações (V2)
 
 1. Watcher no Windows com `recursive: true` não detecta pastas criadas após a inicialização.
-2. Painel HTML inline, sem React — serve para V1.
+2. Painel HTML inline, sem React — serve para V1/V2.
 3. Logs runtime são best-effort (nunca derrubam o agente).
 4. Estado não persiste entre reinicializações (apenas snapshot JSON local).
+5. LLM Core V2: apenas MockProvider funcional. Providers reais (OpenAI, OpenRouter, Anthropic) serão adicionados em versões futuras.
+6. LLM Core V2: sem endpoint de prompt livre. A LLM só é consumida internamente pelo agente.
 
 ## Próximos passos futuros
 
-- Fase 4: Painel rico (React)
-- Fase 5: Modo `SUPERVISED_EXECUTION` (gated, exige nova autorização)
+- V3: Mission Builder (gerador de prompts para Claude Code/OpenCode)
+- V4: Governance Guard (validação de escopo, detecção de drift)
+- V5: Provider real com gates de segurança
