@@ -22,7 +22,7 @@ import type { AgentMeta, AgentState, WatchEvent } from "./types.ts";
 export const AGENT_META: AgentMeta = {
   name: "Agente JoeFelipe",
   technicalName: "joefelipe-personal-operating-agent",
-  version: "2.0.0 (V2, LLM Core mock)",
+  version: "3.0.0 (V3, Mission Builder)",
   mode: "READ_ONLY",
 };
 
