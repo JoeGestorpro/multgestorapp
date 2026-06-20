@@ -1,9 +1,10 @@
-# Agente JoeFelipe Vivo Local (V2)
+# Agente JoeFelipe Vivo Local (V3)
 
 > **Nome humano:** Agente JoeFelipe
 > **Nome técnico:** `joefelipe-personal-operating-agent`
 > **Modo:** READ-ONLY
 > **LLM Core:** MockProvider (V2)
+> **Mission Builder:** V3 (gerador de missões operacionais seguras)
 > **Identidade canônica:** `.opencodex/brain/agents/joefelipe-personal-operating-agent.md`
 
 ## O que é
@@ -70,7 +71,41 @@ JOEFELIPE_LLM_PROVIDER=mock   # único funcional na V2
 JOEFELIPE_LLM_MODEL=mock-safe-v1
 ```
 
-## O que ele NÃO faz (V2)
+## Mission Builder (V3)
+
+O Mission Builder transforma o estado do projeto + uma intenção em uma **missão
+operacional segura** para Claude Code / OpenCode. READ-ONLY: LLM propõe, não executa;
+`canExecute` continua sempre `false`.
+
+```bash
+# missão de exemplo (demonstra elevação para DANGEROUS por banco/RLS/migration)
+npm --prefix tools/joefelipe-agent run mission
+
+# missão sob medida
+npm --prefix tools/joefelipe-agent run mission -- "<title>" "<intent>"
+```
+
+Cada missão gera: `id`, `title`, `classification`, `executor`, `llmMode`,
+`requiresHumanApproval`, escopo permitido/proibido, `operationalPrompt`,
+`validationChecklist`, `rollbackPlan`, `commitPrompt`, `safety`, `provenance`, `warnings`.
+
+A saída vai para o stdout **e** para `runtime/mission.md` (git-ignored — nunca entra em commit).
+
+| Camada | Arquivo | Função |
+|---|---|---|
+| Termos sensíveis | `src/llm/sensitive.ts` | Fonte única (usada por MockProvider + classify) |
+| Tipos | `src/mission/mission-types.ts` | `Mission`, `MissionInput`, `MissionClassification` |
+| Classificação | `src/mission/classify.ts` | READ_ONLY → DANGEROUS (precedência + safety) |
+| Escopo | `src/mission/scope.ts` | Permitido/proibido + blocklist de governança |
+| Render | `src/mission/render.ts` | Prompt, checklist, rollback, commit, markdown |
+| Orquestrador | `src/mission/MissionBuilder.ts` | Estado → LLM Core → `Mission` |
+
+Documentação completa: [`living-os/ai/joefelipe-mission-builder.md`](../../living-os/ai/joefelipe-mission-builder.md).
+
+**Classificação → LlmMode:** READ_ONLY→`READ_ONLY` · PLAN_ONLY→`PLAN_ONLY` ·
+SAFE_WRITE→`SAFE_WRITE` · HUMAN_GATED→`HUMAN_APPROVAL_REQUIRED` · DANGEROUS→`LOCKED`.
+
+## O que ele NÃO faz (V3)
 
 - ❌ `git commit`, `git push`, deploy
 - ❌ Rodar migrations, mexer em banco
@@ -78,6 +113,7 @@ JOEFELIPE_LLM_MODEL=mock-safe-v1
 - ❌ Chamar APIs externas
 - ❌ Criar fontes paralelas de verdade
 - ❌ Editar a fila (`.opencodex/queue/`)
+- ❌ Promover missões automaticamente para a fila (continua humano)
 - ❌ Qualquer comando destrutivo
 
 ## Comandos disponíveis
@@ -88,6 +124,7 @@ JOEFELIPE_LLM_MODEL=mock-safe-v1
 | `npm run joefelipe:status` | `npm run status` | Imprime estado no terminal |
 | `npm run joefelipe:morning` | `npm run morning` | Bom dia operacional |
 | `npm run joefelipe:close` | `npm run close` | Encerramento de sessão |
+| — | `npm run mission` | Gera missão operacional (V3) → stdout + `runtime/mission.md` |
 
 ## Filosofia
 
@@ -134,6 +171,6 @@ npm run joefelipe:close
 
 ## Próximos passos futuros
 
-- V3: Mission Builder (gerador de prompts para Claude Code/OpenCode)
+- ✅ V3: Mission Builder (gerador de missões para Claude Code/OpenCode) — entregue
 - V4: Governance Guard (validação de escopo, detecção de drift)
 - V5: Provider real com gates de segurança

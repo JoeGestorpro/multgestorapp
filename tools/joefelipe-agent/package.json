@@ -8,6 +8,7 @@
     "status": "tsx src/index.ts status",
     "morning": "tsx src/index.ts morning",
     "close": "tsx src/index.ts close",
+    "mission": "tsx src/index.ts mission",
     "build": "tsc --noEmit",
     "start": "tsx src/index.ts dev"
   },

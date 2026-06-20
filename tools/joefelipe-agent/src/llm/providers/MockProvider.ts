@@ -3,34 +3,7 @@
 // Fallback seguro quando não há provedor real configurado.
 
 import type { LlmProvider, LlmRequest, LlmResponse, LlmProviderName, LlmSafety } from "../LlmProvider.ts";
-
-const SENSITIVE_PATTERNS: readonly RegExp[] = [
-  /\bpush\b/i,
-  /\bdeploy\b/i,
-  /\bsecret\b/i,
-  /\bbanco\b/i,
-  /\bmigration\b/i,
-  /\bRLS\b/i,
-  /\bRedis\b/i,
-  /\bWhatsApp real\b/i,
-  /\bB2 upload\b/i,
-  /\bprodução\b/i,
-  /\bdelete\b/i,
-  /\brm\b/i,
-  /\bdrop\b/i,
-  /\btruncate\b/i,
-  /\bmerge\b/i,
-  /\bcommit\b/i,
-];
-
-function detectSensitive(task: string): string[] {
-  const found: string[] = [];
-  for (const re of SENSITIVE_PATTERNS) {
-    const m = task.match(re);
-    if (m) found.push(m[0].toLowerCase());
-  }
-  return found;
-}
+import { detectSensitive } from "../sensitive.ts";
 
 function buildSafety(task: string): LlmSafety {
   const sensitive = detectSensitive(task);
