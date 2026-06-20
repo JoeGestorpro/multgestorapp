@@ -1,0 +1,7 @@
+# Logs locais do Agente JoeFelipe — não versionar
+# Esta pasta contém snapshots de runtime, eventos de watcher e resumos de sessão.
+# Nenhum dado sensível é gravado aqui, mas estes logs são locais e efêmeros.
+
+*
+!.gitignore
+!.gitkeep
