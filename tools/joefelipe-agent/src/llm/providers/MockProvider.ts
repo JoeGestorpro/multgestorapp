@@ -8,7 +8,7 @@ const SENSITIVE_PATTERNS: readonly RegExp[] = [
   /\bpush\b/i,
   /\bdeploy\b/i,
   /\bsecret\b/i,
-  /\bbench\b/i,
+  /\bbanco\b/i,
   /\bmigration\b/i,
   /\bRLS\b/i,
   /\bRedis\b/i,
