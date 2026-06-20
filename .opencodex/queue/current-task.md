@@ -2,12 +2,13 @@
 
 ---
 status: idle
-updated_at: 2026-06-18
+updated_at: 2026-06-19
 note: >-
   Slot in-flight vazio (CHECK 4 do preflight passa). Nenhuma missão running/claimed.
   Última missão executada: ops/reconcile-orphaned-outbox-messages (CONCLUÍDA 2026-06-18,
   commit 642343a). Próxima missão operacional sincronizada em next-task.md:
-  ops/backup-external-copy (status: pending, aguarda execução autorizada).
+  ops/backup-external-copy (status: pending — implementação entregue commit 66ee852,
+  feature-flagged OFF; validação externa pendente: upload real de teste + ativar BRCHK_EXTERNAL_ENABLED=1).
 ---
 
 ## ✅ Últimas missões concluídas (2026-06-18)
@@ -20,8 +21,8 @@ note: >-
 Mapa-mãe oficial: [`../brain/roadmaps/ROADMAP-MESTRE-MULTGESTOR-2026.md`](../brain/roadmaps/ROADMAP-MESTRE-MULTGESTOR-2026.md). Princípio: fundação P1 antes de receita.
 
 ## 🔜 Próxima missão (em next-task.md)
-**`ops/backup-external-copy`** (P1, Camada 1 — Fundação segura) — `status: pending`.
-Aguardando autorização humana para iniciar execução. Card completo em [`next-task.md`](next-task.md).
+**`ops/backup-external-copy`** (P1, Camada 1 — Fundação segura) — `status: pending` (implementação entregue; validação externa pendente).
+Scripts feature-flagged commitados (`66ee852`, `BRCHK_EXTERNAL_ENABLED=0`). Pendente: upload real de teste (gate 6) + ativar flag (gate 7). Card completo em [`next-task.md`](next-task.md).
 
 ## 🔓 Demais missões prontas para promoção (backlog)
 Cards completos em [`backlog.md`](backlog.md):

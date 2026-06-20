@@ -1,4 +1,4 @@
-# 📥 PRÓXIMA MISSÃO — OPS/BACKUP-EXTERNAL-COPY 🔵 PENDENTE
+# 📥 PRÓXIMA MISSÃO — OPS/BACKUP-EXTERNAL-COPY 🟡 IMPLEMENTAÇÃO ENTREGUE · VALIDAÇÃO EXTERNA PENDENTE
 
 > **Promovido em 2026-06-18** (aprovação humana — promoção limpa da fila, escopo governança/documentação).
 > Adicionar cópia automática do dump diário para destino externo (cloud), eliminando o
@@ -21,12 +21,17 @@ requires_human_action: true
 provider: backblaze-b2
 provider_decision: RESOLVED (2026-06-18) — Backblaze B2 escolhido (10GB grátis, S3-compat sem OAuth)
 plan_source: .opencodex/brain/runbooks/backup-restore-plan.md §10 (checklists, env vars, integração, schema)
-execution_state: NÃO EXECUTADA — nenhum bucket/key/secret/upload criado; aguarda gates humanos
+execution_state: >-
+  Implementação entregue; validação externa pendente. Scripts feature-flagged commitados
+  (66ee852): upload-external.ps1 criado + run-backup.ps1 integrado; BRCHK_EXTERNAL_ENABLED=0
+  (OFF) por padrão. Bucket B2 + application key criados pelo humano; brchk.env preenchido
+  off-repo (flag OFF). Nenhum upload/API call/secret no repositório. PENDENTE: upload real de
+  teste (gate 6) e ativação de BRCHK_EXTERNAL_ENABLED=1 (gate 7). status=pending até gates 6/7.
 origem_evidencia: A-002 (auditoria-completa-2026-06-18 §10) + Roadmap Mestre §19
 standing_alert: >-
-  Card de planejamento. NÃO criar cloud storage, NÃO mexer em secrets, NÃO alterar
-  scripts de backup, NÃO rodar comandos operacionais, NÃO fazer push até autorização
-  humana explícita de execução. Esta promoção é apenas sincronização de fila.
+  Código/scripts entregues (feature-flagged, flag OFF). Restrições ainda válidas:
+  NÃO fazer upload real, NÃO virar BRCHK_EXTERNAL_ENABLED=1, NÃO mexer em secrets/brchk.env,
+  NÃO criar/alterar bucket, NÃO fazer push/deploy sem autorização humana explícita.
 ---
 
 ## Contexto
@@ -70,8 +75,11 @@ Credenciais **somente** em env file off-repo (padrão `brchk.env`, fora do repos
 
 - [x] Backup diário local OK (`last-status.json` exit_code=0) — já satisfeito
 - [x] **Decisão humana do provedor cloud** — ✅ RESOLVIDO 2026-06-18: **Backblaze B2**
-- [ ] Gates humanos pendentes (ver runbook §10.7): criar bucket → criar app key → popular `brchk.env` → autorizar escrita de scripts → autorizar upload real → virar `BRCHK_EXTERNAL_ENABLED=1`
-- [ ] Autorização humana explícita para iniciar execução (este card é PLAN_ONLY)
+- [x] Criar bucket B2 + application key (humano) — ✅ FEITO 2026-06-19 (runbook §10.7)
+- [x] Popular `brchk.env` off-repo com vars B2 (`BRCHK_EXTERNAL_ENABLED=0`) — ✅ FEITO 2026-06-19
+- [x] Autorizar escrita dos scripts feature-flagged — ✅ FEITO (commit 66ee852)
+- [ ] Autorizar upload real de teste (gate 6) — ⏳ PENDENTE
+- [ ] Virar `BRCHK_EXTERNAL_ENABLED=1` (gate 7) — ⏳ PENDENTE
 
 > 📄 Plano completo (checklists de bucket/key, env vars com placeholders, plano de integração feature-flagged,
 > schema `external_upload`) persistido em [`../brain/runbooks/backup-restore-plan.md`](../brain/runbooks/backup-restore-plan.md) §10.
@@ -95,17 +103,16 @@ Desabilitar o passo de upload no `run-backup.ps1` → backup local permanece int
 - Checksum local == remoto
 - `last-status.json` com campo de status externo
 
-## Restrições invioláveis (fase atual = planejamento)
+## Restrições invioláveis (fase atual = validação externa pendente)
 
-- ❌ NÃO criar cloud storage agora
-- ❌ NÃO mexer em secrets / env file
-- ❌ NÃO alterar scripts de backup agora
-- ❌ NÃO rodar comandos operacionais
+- ❌ NÃO fazer upload real sem autorização humana (gate 6)
+- ❌ NÃO virar `BRCHK_EXTERNAL_ENABLED=1` sem autorização humana (gate 7)
+- ❌ NÃO mexer em secrets / `brchk.env` / bucket / application key
 - ❌ NÃO push, merge, deploy
 
 ## Próximas na fila (ordem aprovada — Roadmap Mestre §20)
 
-1. 🔵 **`ops/backup-external-copy`** (atual — pending, aguarda autorização de execução)
+1. 🟡 **`ops/backup-external-copy`** (atual — `status: pending`; implementação entregue, validação externa pendente: upload real de teste + ativar flag)
 2. ⏳ `security/rls-companies-users-policy` — policies companies + users (A-001)
 3. ⏳ `infra/redis-production-config` — Redis em produção (A-004)
 4. ⏳ `cicd/migrations-fail-fast` — 🔴 BLOQUEADO por OPS-SUPAVISOR (A-005)
