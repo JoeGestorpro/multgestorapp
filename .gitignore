@@ -85,3 +85,9 @@ awesome-design-md/
 .agent/skills/create-vertical/
 .agent/skills/event-driven-patterns/
 .agent/skills/multi-tenant-patterns/
+
+# Local/private generated files
+docs/private/
+body-login.json
+.claude/settings.local.json
+.claude/skills/
