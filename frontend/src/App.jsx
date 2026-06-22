@@ -23,6 +23,7 @@ const BookingSuccess   = lazy(() => import('./pages/booking/BookingSuccess'))
 const BookingPage      = lazy(() => import('./pages/barber/BookingPage'))
 const BarberDashboard  = lazy(() => import('./pages/barber/BarberDashboard'))
 const BarberLogin      = lazy(() => import('./pages/barber/BarberLogin'))
+const MasterDashboard  = lazy(() => import('./pages/MasterDashboard'))
 const FinanceDashboard = lazy(() => import('./pages/master/FinanceDashboard'))
 const MasterLogin      = lazy(() => import('./pages/master/MasterLogin'))
 const LandingPage      = lazy(() => import('./pages/public/LandingPage'))
@@ -35,6 +36,14 @@ const ResetPassword    = lazy(() => import('./pages/ResetPassword'))
 const Settings         = lazy(() => import('./pages/Settings'))
 const Subscriptions    = lazy(() => import('./pages/Subscriptions'))
 const Terra            = lazy(() => import('./pages/Terra'))
+
+const Crm           = lazy(() => import('./pages/master/Crm'))
+const Niches        = lazy(() => import('./pages/master/Niches'))
+const Support       = lazy(() => import('./pages/master/Support'))
+const Governance    = lazy(() => import('./pages/master/Governance'))
+const HealthStatus  = lazy(() => import('./pages/master/HealthStatus'))
+const JoeFelipe     = lazy(() => import('./pages/master/JoeFelipe'))
+const Integrations  = lazy(() => import('./pages/master/Integrations'))
 
 function App() {
   return (
@@ -129,6 +138,14 @@ function App() {
         path="/master/dashboard"
         element={
           <MasterPrivateRoute>
+            <MasterDashboard />
+          </MasterPrivateRoute>
+        }
+      />
+      <Route
+        path="/master/financeiro"
+        element={
+          <MasterPrivateRoute>
             <FinanceDashboard />
           </MasterPrivateRoute>
         }
@@ -170,6 +187,62 @@ function App() {
         element={
           <MasterPrivateRoute>
             <Settings />
+          </MasterPrivateRoute>
+        }
+      />
+      <Route
+        path="/master/crm"
+        element={
+          <MasterPrivateRoute>
+            <Crm />
+          </MasterPrivateRoute>
+        }
+      />
+      <Route
+        path="/master/niches"
+        element={
+          <MasterPrivateRoute>
+            <Niches />
+          </MasterPrivateRoute>
+        }
+      />
+      <Route
+        path="/master/support"
+        element={
+          <MasterPrivateRoute>
+            <Support />
+          </MasterPrivateRoute>
+        }
+      />
+      <Route
+        path="/master/governance"
+        element={
+          <MasterPrivateRoute>
+            <Governance />
+          </MasterPrivateRoute>
+        }
+      />
+      <Route
+        path="/master/health"
+        element={
+          <MasterPrivateRoute>
+            <HealthStatus />
+          </MasterPrivateRoute>
+        }
+      />
+      <Route
+        path="/master/joe-felipe"
+        element={
+          <MasterPrivateRoute>
+            <JoeFelipe />
+          </MasterPrivateRoute>
+        }
+      />
+      <Route
+        path="/master/integrations"
+        element={
+          <MasterPrivateRoute>
+            <Integrations />
           </MasterPrivateRoute>
         }
       />

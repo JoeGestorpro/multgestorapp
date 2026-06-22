@@ -1,43 +1,53 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/useAuth'
+import {
+  LayoutDashboard, Users, BarChart3, CreditCard, DollarSign, Zap,
+  Grid3x3, Puzzle, Headphones, Shield, Activity, Brain, Link, Settings,
+  Search, LogOut
+} from 'lucide-react'
+import ToastContainer from './Toast'
 
 const menuGroups = [
   {
-    title: 'Gestao',
+    title: 'Gestão',
     items: [
-      { label: 'Dashboard', path: '/master/dashboard', icon: 'dashboard' },
-      { label: 'Modulos', path: '/master/modules', icon: 'modules' },
-      { label: 'Clientes', path: '/master/clients', icon: 'clients' },
-      { label: 'Assinaturas', path: '/master/subscriptions', icon: 'subscriptions' },
-      { label: 'Ativacoes', path: '/master/activations', icon: 'activations' }
+      { label: 'Dashboard', path: '/master/dashboard', icon: LayoutDashboard },
+      { label: 'Clientes', path: '/master/clients', icon: Users },
+      { label: 'CRM / Vendas', path: '/master/crm', icon: BarChart3 },
+      { label: 'Planos / Ass.', path: '/master/subscriptions', icon: CreditCard },
+      { label: 'Financeiro', path: '/master/financeiro', icon: DollarSign },
+      { label: 'Ativações', path: '/master/activations', icon: Zap }
+    ]
+  },
+  {
+    title: 'Produto',
+    items: [
+      { label: 'Nichos', path: '/master/niches', icon: Grid3x3 },
+      { label: 'Módulos', path: '/master/modules', icon: Puzzle }
+    ]
+  },
+  {
+    title: 'Operação',
+    items: [
+      { label: 'Suporte', path: '/master/support', icon: Headphones },
+      { label: 'Governança', path: '/master/governance', icon: Shield },
+      { label: 'Saúde / Status', path: '/master/health', icon: Activity }
+    ]
+  },
+  {
+    title: 'Inteligência',
+    items: [
+      { label: 'JoeFelipe', path: '/master/joe-felipe', icon: Brain }
     ]
   },
   {
     title: 'Sistema',
     items: [
-      { label: 'Configuracoes', path: '/master/settings', icon: 'settings' }
+      { label: 'Integrações', path: '/master/integrations', icon: Link },
+      { label: 'Configurações', path: '/master/settings', icon: Settings }
     ]
   }
 ]
-
-function MasterIcon({ name }) {
-  const icons = {
-    dashboard: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
-    modules: 'M12 3l9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 16l9 5 9-5',
-    clients: 'M8 11a4 4 0 100-8 4 4 0 000 8zM2 20a6 6 0 0112 0M17 11a3 3 0 100-6M15 20a5 5 0 017-4',
-    subscriptions: 'M3 6h18v12H3zM3 10h18',
-    activations: 'M13 2L4 14h7l-1 8 9-12h-7z',
-    settings: 'M12 8a4 4 0 100 8 4 4 0 000-8zM4 12H2m20 0h-2M12 4V2m0 20v-2M5.6 5.6L4.2 4.2m15.6 15.6l-1.4-1.4M18.4 5.6l1.4-1.4M4.2 19.8l1.4-1.4',
-    search: 'M10 18a8 8 0 100-16 8 8 0 000 16zM21 21l-5-5',
-    logout: 'M10 17l5-5-5-5M15 12H3M21 3v18'
-  }
-
-  return (
-    <svg aria-hidden="true" className="master-icon" viewBox="0 0 24 24">
-      <path d={icons[name]} />
-    </svg>
-  )
-}
 
 function MasterSidebar() {
   const location = useLocation()
@@ -57,17 +67,20 @@ function MasterSidebar() {
         {menuGroups.map((group) => (
           <section key={group.title}>
             <p>{group.title}</p>
-            {group.items.map((item) => (
-              <button
-                className={location.pathname === item.path ? 'active' : ''}
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                type="button"
-              >
-                <MasterIcon name={item.icon} />
-                <span>{item.label}</span>
-              </button>
-            ))}
+            {group.items.map((item) => {
+              const Icon = item.icon
+              return (
+                <button
+                  className={location.pathname === item.path ? 'active' : ''}
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  type="button"
+                >
+                  <Icon size={18} strokeWidth={1.8} />
+                  <span>{item.label}</span>
+                </button>
+              )
+            })}
           </section>
         ))}
       </nav>
@@ -87,7 +100,7 @@ function MasterTopbar({ title }) {
   return (
     <header className="master-premium-topbar">
       <div className="master-premium-search">
-        <MasterIcon name="search" />
+        <Search size={18} strokeWidth={1.8} />
         <input aria-label="Buscar" placeholder="Buscar no painel master" />
       </div>
 
@@ -98,7 +111,7 @@ function MasterTopbar({ title }) {
           <small>{title}</small>
         </div>
         <button type="button" onClick={handleLogout}>
-          <MasterIcon name="logout" />
+          <LogOut size={18} strokeWidth={1.8} />
           <span>Sair</span>
         </button>
       </div>
@@ -114,6 +127,7 @@ function MasterLayout({ title, children }) {
         <MasterTopbar title={title} />
         {children}
       </section>
+      <ToastContainer />
     </main>
   )
 }
