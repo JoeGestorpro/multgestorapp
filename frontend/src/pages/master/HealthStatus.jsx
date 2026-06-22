@@ -3,39 +3,40 @@ import MasterLayout from '../../components/master/MasterLayout'
 import PageHeader from '../../components/master/PageHeader'
 import SectionCard from '../../components/master/SectionCard'
 import StatusBadge from '../../components/master/StatusBadge'
-import MockNotice from '../../components/master/MockNotice'
 import api from '../../services/api'
 
-const MOCK_HEALTH = {
-  backend: { status: 'healthy', latency: '42ms', uptime: '99.8%', lastCheck: new Date().toISOString() },
-  database: { status: 'healthy', connections: 23, poolUsage: '34%', lastCheck: new Date().toISOString() },
-  cache: { status: 'healthy', hitRate: '87%', memory: '62%', lastCheck: new Date().toISOString() },
-  backup: { status: 'healthy', lastRun: '2026-06-21 03:00 UTC', type: 'B2 (Backblaze)', size: '1.2 GB' },
-  fila: { status: 'warning', pending: 47, failed: 3, lastCheck: new Date().toISOString() },
-  auth: { status: 'healthy', activeSessions: 89, lastCheck: new Date().toISOString() }
+// Rota de DADO REAL: consome /api/health/deep. Nada é simulado aqui.
+// Subsistemas ainda não expostos pelo endpoint aparecem como "não monitorado".
+const STATUS_BADGE = {
+  ok: { badge: 'success', label: 'Saudável' },
+  healthy: { badge: 'success', label: 'Saudável' },
+  degraded: { badge: 'warning', label: 'Degradado' },
+  warning: { badge: 'warning', label: 'Atenção' },
+  error: { badge: 'error', label: 'Crítico' },
+  unhealthy: { badge: 'error', label: 'Crítico' },
 }
 
-function HealthRow({ label, status, metrics }) {
-  const statusMap = {
-    healthy: { badge: 'success', label: 'Saudável' },
-    warning: { badge: 'warning', label: 'Atenção' },
-    error: { badge: 'error', label: 'Crítico' },
-    offline: { badge: 'error', label: 'Offline' }
-  }
-  const s = statusMap[status] || statusMap.offline
+function badgeFor(status) {
+  return STATUS_BADGE[status] || { badge: 'gray', label: status || 'Indisponível' }
+}
 
+function CheckRow({ name, data }) {
+  const { status, ...metrics } = data || {}
+  const s = badgeFor(status)
+  const entries = Object.entries(metrics)
   return (
-    <div className={`master-health-row master-health-row--${status}`}>
+    <div className={`master-health-row master-health-row--${status || 'offline'}`}>
       <div className="master-health-row-header">
         <StatusBadge status={s.badge} label={s.label} />
-        <strong>{label}</strong>
-        <span className="master-health-row-latency">{metrics?.latency || metrics?.lastRun || metrics?.lastCheck ? '' : ''}</span>
+        <strong>{name}</strong>
       </div>
       <div className="master-health-row-metrics">
-        {Object.entries(metrics || {}).map(([key, value]) => (
+        {entries.length === 0 ? (
+          <div><span>—</span><strong>sem métricas</strong></div>
+        ) : entries.map(([key, value]) => (
           <div key={key}>
-            <span>{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-            <strong>{String(value).slice(0, 30)}</strong>
+            <span>{key.replace(/_/g, ' ').trim()}</span>
+            <strong>{String(value).slice(0, 40)}</strong>
           </div>
         ))}
       </div>
@@ -44,70 +45,92 @@ function HealthRow({ label, status, metrics }) {
 }
 
 export default function HealthStatus() {
-  const [health, setHealth] = useState(MOCK_HEALTH)
+  const [data, setData] = useState(null)
   const [backendOnline, setBackendOnline] = useState(null)
   const [checking, setChecking] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
+    let active = true
     async function checkHealth() {
       try {
         const res = await api.get('health/deep', { timeout: 5000 })
-        if (res.data) {
-          setBackendOnline(true)
-          setHealth(prev => ({
-            ...prev,
-            backend: { ...prev.backend, status: 'healthy', latency: `${res.data.duration || '?'}ms` }
-          }))
-        }
-      } catch {
+        if (!active) return
+        setData(res.data || null)
+        setBackendOnline(true)
+      } catch (err) {
+        if (!active) return
         setBackendOnline(false)
+        setError(err?.message || 'Backend indisponível')
       } finally {
-        setChecking(false)
+        if (active) setChecking(false)
       }
     }
     checkHealth()
+    return () => { active = false }
   }, [])
+
+  const checks = data?.checks || {}
+  const overall = data?.status ? badgeFor(data.status) : null
 
   return (
     <MasterLayout title="Saúde / Status">
       <PageHeader
         title="Saúde / Status"
-        description="Monitoramento da infraestrutura e serviços da plataforma."
+        description="Monitoramento real da infraestrutura via /api/health/deep."
       />
 
-      <MockNotice />
+      <div className="master-health-status-bar">
+        <div className="master-health-status-summary">
+          <span>Backend</span>
+          <StatusBadge
+            status={backendOnline === null ? 'gray' : backendOnline ? 'success' : 'error'}
+            label={backendOnline === null ? 'Verificando…' : backendOnline ? 'Online' : 'Offline'}
+          />
+        </div>
+        {backendOnline && data && (
+          <>
+            <div className="master-health-status-summary">
+              <span>Status geral</span>
+              <StatusBadge status={overall.badge} label={overall.label} />
+            </div>
+            <div className="master-health-status-summary">
+              <span>Uptime</span>
+              <strong>{data.uptime_seconds != null ? `${Math.floor(data.uptime_seconds / 60)} min` : '—'}</strong>
+            </div>
+            <div className="master-health-status-summary">
+              <span>Versão</span>
+              <strong>{data.version || '—'}</strong>
+            </div>
+          </>
+        )}
+      </div>
 
       {checking ? (
         <SectionCard><p style={{ color: 'var(--master-muted)' }}>Verificando saúde dos serviços…</p></SectionCard>
-      ) : (
+      ) : backendOnline ? (
         <>
-          <div className="master-health-status-bar">
-            <div className="master-health-status-summary">
-              <span>Backend</span>
-              <StatusBadge status={backendOnline ? 'success' : 'error'} label={backendOnline ? 'Online' : 'Offline'} />
-              {backendOnline && <small style={{ color: 'var(--master-muted)' }}>Respondeu em ~42ms</small>}
-            </div>
-            <div className="master-health-status-summary">
-              <span>Banco</span>
-              <StatusBadge status="success" label="Saudável" />
-            </div>
-            <div className="master-health-status-summary">
-              <span>Backup (B2)</span>
-              <StatusBadge status="success" label="Último: 21/06" />
-            </div>
-          </div>
-
           <div className="master-health-grid">
-            {Object.entries(health).map(([key, data]) => (
-              <SectionCard key={key} title={key.charAt(0).toUpperCase() + key.slice(1)}>
-                <HealthRow label={key} status={data.status} metrics={(() => {
-                  const { status, ...rest } = data
-                  return rest
-                })()} />
+            {Object.entries(checks).map(([name, cdata]) => (
+              <SectionCard key={name} title={name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}>
+                <CheckRow name={name} data={cdata} />
               </SectionCard>
             ))}
           </div>
+          <SectionCard>
+            <p style={{ color: 'var(--master-muted)' }}>
+              Subsistemas ainda não expostos por <code>/api/health/deep</code> (ex.: backup, cache,
+              sessões de auth) aparecerão aqui quando o endpoint os incluir. Nenhum dado é simulado nesta tela.
+            </p>
+          </SectionCard>
         </>
+      ) : (
+        <SectionCard title="Backend indisponível">
+          <p style={{ color: 'var(--master-muted)' }}>
+            Não foi possível conectar ao backend (<code>/api/health/deep</code>). Aguardando backend.
+            {error ? ` Detalhe: ${error}` : ''}
+          </p>
+        </SectionCard>
       )}
     </MasterLayout>
   )

@@ -63,7 +63,7 @@ export default function Integrations() {
       <FilterBar
         search={search} onSearchChange={setSearch} searchPlaceholder="Buscar integração…"
         filters={[
-          { key: 'category', label: 'Categoria', value: filters.category, options: Object.entries(CATEGORY_LABELS).map(([k, v]) => ({ value: k, label: `${k}` })) }
+          { key: 'category', label: 'Categoria', value: filters.category, options: Object.entries(CATEGORY_LABELS).map(([k]) => ({ value: k, label: k })) }
         ]}
         onFilterChange={setFilters}
       />

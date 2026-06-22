@@ -46,10 +46,10 @@ function formatDate(value) {
 export default function Crm() {
   const [leads, setLeads] = useState(MOCK_LEADS)
   const [search, setSearch] = useState('')
-  const [filters, setFilters] = useState({})
+  const [, setFilters] = useState({})
   const [drawerLead, setDrawerLead] = useState(null)
   const [showNewModal, setShowNewModal] = useState(false)
-  const [activeStage, setActiveStage] = useState(null)
+  const [activeStage] = useState(null)
 
   const filteredLeads = leads.filter(l => {
     if (search && !l.name.toLowerCase().includes(search.toLowerCase()) && !l.company.toLowerCase().includes(search.toLowerCase())) return false

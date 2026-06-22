@@ -5,7 +5,6 @@ import SectionCard from '../../components/master/SectionCard'
 import StatusBadge from '../../components/master/StatusBadge'
 import ActionButton from '../../components/master/ActionButton'
 import MockNotice from '../../components/master/MockNotice'
-import { showToast } from '../../components/master/Toast'
 
 const STAGES_INFO = [
   { stage: 'V1', label: 'Painel Read-only', status: 'done', description: 'Painel HTML local exibe estado do agente via API /api/state.' },
@@ -41,7 +40,7 @@ export default function JoeFelipe() {
 
     setTimeout(() => {
       const found = MOCK_RESPONSES.find(r => r.prompt.toLowerCase().includes(prompt.toLowerCase()))
-      const reply = found?.response || `🤖 **JoeFelipe V2 (LLM Core Mock):**\n\nEntendi sua pergunta: "${promtr}"\n\nEsta é uma resposta mockada. No V3+, o agente utilizará o Mission Builder para classificar e responder com dados reais do sistema.\n\n*Funcionalidade preparada para backend futuro.*`
+      const reply = found?.response || `🤖 **JoeFelipe V2 (LLM Core Mock):**\n\nEntendi sua pergunta: "${prompt}"\n\nEsta é uma resposta mockada. No V3+, o agente utilizará o Mission Builder para classificar e responder com dados reais do sistema.\n\n*Funcionalidade preparada para backend futuro.*`
       const fixed = reply.replace('${prompt}', prompt)
       setChat(prev => [...prev, { role: 'assistant', text: fixed }])
       setLoading(false)

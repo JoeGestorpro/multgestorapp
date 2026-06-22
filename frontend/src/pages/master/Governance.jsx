@@ -38,7 +38,7 @@ const READINESS_ITEMS = [
 ]
 
 export default function Governance() {
-  const [showArch, setShowArch] = useState(false)
+  const [, setShowArch] = useState(false)
 
   function handleArchive(riskId) {
     showToast(`[Mock] Risco ${riskId} arquivado. Ação preparada para backend futuro.`, 'info')
