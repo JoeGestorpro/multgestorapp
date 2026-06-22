@@ -10,6 +10,7 @@
     "close": "tsx src/index.ts close",
     "mission": "tsx src/index.ts mission",
     "build": "tsc --noEmit",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "start": "tsx src/index.ts dev"
   },
   "devDependencies": {
