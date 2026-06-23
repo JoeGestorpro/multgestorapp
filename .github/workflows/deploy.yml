@@ -6,6 +6,9 @@ on:
       - main
     paths-ignore:
       - '.opencodex/**'
+      - 'CLAUDE.md'
+      - 'AGENTS.md'
+      - '.github/PULL_REQUEST_TEMPLATE.md'
 
 jobs:
   # ─── Roda CI completo antes de qualquer deploy ───────────────────────────
