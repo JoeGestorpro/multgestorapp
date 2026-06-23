@@ -110,8 +110,14 @@ async function applyMigration(version, file, applied) {
 
   console.log('\n[migrate] todas as migrations aplicadas com sucesso.\n');
   await pool.end();
+  if (typeof pool.poolTenant?.end === 'function') {
+    await pool.poolTenant.end();
+  }
 })().catch(async (err) => {
   console.error('[migrate] ERRO:', err.message);
-  await pool.end();
+  await pool.end().catch(() => {});
+  if (typeof pool.poolTenant?.end === 'function') {
+    await pool.poolTenant.end().catch(() => {});
+  }
   process.exit(1);
 });
