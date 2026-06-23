@@ -474,6 +474,24 @@ const server = app.listen(PORT, () => {
     appLogger.warn({ err: error }, '[config] Falha ao resolver APP_BASE_URL');
   }
   appLogger.info({ port: PORT }, 'Servidor rodando');
+
+  // Assert não bloqueante: verifica se poolTenant conecta com role sem BYPASSRLS.
+  // Sem esta garantia, policies RLS em produção ficam inertes silenciosamente.
+  (async () => {
+    try {
+      const r = await pool.poolTenant.query(
+        'SELECT current_user AS rolname, rolbypassrls FROM pg_roles WHERE rolname = current_user'
+      );
+      const role = r.rows[0];
+      if (role?.rolbypassrls === true) {
+        appLogger.error('[database] ALERTA SEGURANÇA: poolTenant conectado com role BYPASSRLS — RLS inerte em produção');
+      } else {
+        appLogger.info({ rolname: role?.rolname }, '[database] poolTenant OK — role sem BYPASSRLS');
+      }
+    } catch (err) {
+      appLogger.warn({ err: err.message }, '[database] assert poolTenant não executado');
+    }
+  })();
 });
 
 function gracefulShutdown(signal) {

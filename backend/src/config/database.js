@@ -40,9 +40,21 @@ function getDatabaseTargetSummary() {
 
 const databaseTarget = getDatabaseTargetSummary();
 
+const sslConfig = process.env.NODE_ENV === 'test' ? false : { rejectUnauthorized: false };
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'test' ? false : { rejectUnauthorized: false },
+  ssl: sslConfig,
+});
+
+// poolTenant: usa APP_RUNTIME_URL (role app_runtime, NOBYPASSRLS) em prod/CI.
+// Sem APP_RUNTIME_URL configurada, cai em DATABASE_URL e RLS permanece inerte.
+if (!process.env.APP_RUNTIME_URL) {
+  appLogger.warn('[database] APP_RUNTIME_URL não configurada — poolTenant usando DATABASE_URL; RLS pode permanecer inerte');
+}
+const poolTenant = new Pool({
+  connectionString: process.env.APP_RUNTIME_URL || process.env.DATABASE_URL,
+  ssl: sslConfig,
 });
 
 let hasLoggedDatabaseTarget = false;
@@ -128,6 +140,7 @@ pool.connect = function tenantAwareConnect(cb) {
 };
 
 module.exports = pool;
+module.exports.poolTenant = poolTenant;
 module.exports.tenantStore = tenantStore;
 module.exports.runWithTenantClient = runWithTenantClient;
 module.exports._originalQuery = _originalQuery;
