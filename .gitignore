@@ -76,6 +76,10 @@ coverage/
 backend/backend.err
 *.err
 
+# Artefatos de backup (dumps e status do backup-restore-check) — NUNCA commitar
+*.dump
+last-status.json
+
 # Referência de design externa (repo clonado, não faz parte do projeto)
 awesome-design-md/
 
