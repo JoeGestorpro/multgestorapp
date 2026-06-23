@@ -10,17 +10,19 @@
 | Indicador | Estado |
 |---|---|
 | **Fase** | Estabilização de produção + Endurecimento de segurança |
-| **state_version** | 16 |
+| **state_version** | 18 |
 | **Produção** | 🟢 Online (barbergestor.com.br), health 200, DB conectado |
 | **Backup** | 🟢 Diário local + **cópia externa B2 validada** (`verified=true`, 2026-06-22) |
 | **Outbox** | 🟢 `failed=0` (data-fix concluído A-003) |
 | **Missão atual** | ⏸️ idle |
-| **Próxima missão** | 🔵 **Revisão publicação .opencodex** (Fase C, PLAN_ONLY — revisar e recomendar) |
+| **Fase C** | 🟢 **FECHADA (2026-06-23)** — PRs #15/#16 mergeados, `origin/main`=`af04618` |
+| **Próxima missão** | 🔵 **`cleanup/fase-c-branches-worktrees`** (HUMAN_APPROVAL_REQUIRED — depois `agent/joefelipe-consolidation`) |
 
 ---
 
 ## O que mudou (últimas missões)
 
+- **2026-06-23:** **FASE C FECHADA** — PR #16 (`bd13f69`) MERGED, deploy disparou e terminou **success**; PR #15 (`af04618`) MERGED, **não** disparou deploy (`paths-ignore` funcionou). `origin/main` head = `af04618`. state_version 17→18. Próxima: `cleanup/fase-c-branches-worktrees` → `agent/joefelipe-consolidation`.
 - **2026-06-23:** **`fase-c/redacao-opencodex` concluída** — 9 arquivos redigidos,
   20 substituições aplicadas. Valores reais sensíveis removidos. Domínios frontend
   públicos preservados. Nenhuma publicação, commit, push, branch, cleanup, deploy
@@ -47,10 +49,8 @@
 
 | Bloqueio | Severidade | Responsável |
 |---|---|---|
-| `fase-c/revisao-publicacao-opencodex` | P2 | 🔵 PLAN_ONLY — revisar, classificar, recomendar |
-| `.opencodex` — publicação | — | 🔄 Continua travado até revisão, aprovação humana e autorização explícita de publicação |
-| `cleanup branch/worktree` | — | 🚫 Travado até final da Fase C |
-| `agent/joefelipe-consolidation` | — | 💤 Shelvado até Fase C terminar |
+| `cleanup/fase-c-branches-worktrees` | P2 | 🔵 HUMAN_APPROVAL_REQUIRED — inventário + deleção com lista explícita |
+| `agent/joefelipe-consolidation` | — | ⏳ Próxima após o cleanup (Fase C FECHADA) |
 | `security/rls-companies-users-policy` | P1 | Aguarda decisão humana |
 | `infra/redis-production-config` | P1 | Aguarda decisão humana (custo vs risco) |
 | `cicd/migrations-fail-fast` | P1 | 🔴 OPS-SUPAVISOR + secrets rotation pausada |

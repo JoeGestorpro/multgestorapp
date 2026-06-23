@@ -1,93 +1,67 @@
-﻿# 📥 PRÓXIMA MISSÃO — FASE-C/REVISAO-PUBLICACAO-OPENCODEX (PLAN_ONLY)
+# 📥 PRÓXIMA MISSÃO — CLEANUP/FASE-C-BRANCHES-WORKTREES (HUMAN_APPROVAL_REQUIRED)
 
-> Promovida em 2026-06-23, após conclusão de `fase-c/redacao-opencodex`.
-> Executar **somente PLAN_ONLY**: revisar o `.opencodex` redigido, classificar
-> arquivos como publicáveis, privados ou com ressalvas, e gerar recomendação
-> final ao humano.
-> **NÃO** publicar ainda. **NÃO** commit, push, branch, cleanup, deploy ou migration.
+> Fase C **oficialmente FECHADA** em 2026-06-23 (PRs #15/#16 mergeados). Próximo passo:
+> higiene dos branches e worktrees acumulados na Fase C. Operação sensível (deleção de
+> branch/worktree) — **HUMAN_APPROVAL_REQUIRED**, por fatia, com lista explícita antes de apagar.
+> **NÃO** deletar nada sem nova autorização humana e listagem/diff revisados.
 
 ---
 status: pending
-task_id: fase-c/revisao-publicacao-opencodex
-title: Fase C — Revisão e recomendação de publicação .opencodex (PLAN_ONLY)
-type: phase-c-plan-only
+task_id: cleanup/fase-c-branches-worktrees
+title: Cleanup — higiene de branches e worktrees pós-Fase C
+type: governanca/cleanup
 priority: P2
 camada: governanca/fase-c
-mode: PLAN_ONLY
-created_by: OpenCode
+mode: HUMAN_APPROVAL_REQUIRED
+created_by: Claude Code
 created_at: 2026-06-23
-promoted_at: 2026-06-23
-promoted_by: decisão humana
 requires_human_approval: true
 ---
 
-## Contexto
+## Contexto — Fase C FECHADA (2026-06-23)
 
-`fase-c/redacao-opencodex` foi **concluída** em 2026-06-23:
-- 9 arquivos redigidos
-- 20 substituições aplicadas
-- Valores reais sensíveis removidos
-- Domínios frontend públicos preservados
-- Nenhuma publicação, commit, push, branch, cleanup, deploy ou migration executada
+Fase C encerrada oficialmente. Entregas finais:
+- **PR #16 MERGED (`bd13f69`)** — deploy disparou e terminou **success**.
+- **PR #15 MERGED (`af04618`)** — **não** disparou deploy (`paths-ignore` funcionou como esperado).
+- **`origin/main` head = `af04618`**. `state_version` 17 → 18.
+- PR #13 (`863d811`, testes do agente) e PR #14 (backup/B2) já tratados nas missões anteriores.
 
-O `.opencodex` redigido está pronto para revisão.
+## Objetivo
 
-## Objetivo (PLAN_ONLY)
+Inventariar e higienizar os branches locais (33+) e worktrees acumulados durante a Fase C,
+preservando backups e o que ainda não foi mergeado. Deleção apenas após lista explícita aprovada.
 
-- Revisar o `.opencodex` redigido
-- Classificar arquivos como publicáveis, privados ou com ressalvas
-- Gerar recomendação final ao humano
-- Não publicar ainda
+## ALLOWLIST (escopo)
 
-## Escopo permitido
-
-- ✅ Leitura dos arquivos redigidos em `.opencodex/`
-- ✅ Classificação e documentação do status de cada arquivo
-- ✅ Geração de recomendação final
+- Inventário read-only de branches/worktrees (`git branch -vv`, `git worktree list`).
+- Proposta de deleção com lista explícita (quais já estão em `main`, quais são obsoletos, quais preservar).
+- Deleção/limpeza **somente** após aprovação humana, item a item.
 
 ## Escopo proibido
 
-- ❌ Publicar `.opencodex`
-- ❌ Commit, push, branch nova
-- ❌ Cleanup, deploy, migration
-- ❌ Alterar código de produto
-- ❌ Alterar `.obsidian/*`
-- ❌ Alterar `.opencodex/archive/`
-- ❌ Alterar `vendas/`
-- ❌ Iniciar JoeFelipe Agent v0.2
+- ❌ Deletar branch/worktree sem lista explícita aprovada.
+- ❌ Tocar branches `backup/*` sem confirmação.
+- ❌ push / merge / rebase / deploy / migration.
+- ❌ Alterar código de produto, `.obsidian`, `vendas/`, `.opencodex/archive/`.
 
-## Critério de aceite
+## Critérios de aceite
 
-- [ ] Revisão completa do `.opencodex` redigido
-- [ ] Classificação de cada arquivo (publicável, privado, ressalvas)
-- [ ] Recomendação final gerada para decisão humana
-- [ ] Nenhuma publicação executada
+- [ ] Inventário completo de branches/worktrees apresentado.
+- [ ] Lista de deleção explícita aprovada por humano antes de qualquer remoção.
+- [ ] Nenhum branch `backup/*` removido sem confirmação.
+- [ ] Nenhuma deleção sem autorização item a item.
 
-## Histórico recente da fila
+## Fila pós-cleanup
 
-- ✅ **2026-06-23 `fase-c/redacao-opencodex` — CONCLUÍDO**. 9 arquivos redigidos,
-  20 substituições aplicadas. Valores reais sensíveis removidos, domínios frontend
-  públicos preservados. Nenhuma publicação, commit, push, branch, cleanup, deploy
-  ou migration executada. Veredito: pronto para revisão.
-- ✅ **2026-06-23 `fase-c/decisao-opencodex` — CONCLUÍDO**. Varredura PLAN_ONLY
-  do `.opencodex/` concluída. Nenhum secret real encontrado. Decisão D-014:
-  publicar com ressalvas/redação. ~70% classificado como potencialmente publicável;
-  nenhuma publicação autorizada nesta missão.
-- ✅ **2026-06-23 PR-2 (backup/B2 checklist) — CONCLUÍDO** (veredito OK).
-  Backup local, scheduler, B2 externo, hash, agente/fila validados conforme inspeção
-  READ_ONLY. PR-2 **não** resolveu R-002 (RLS/multi-tenant) — escopo exclusivo backup/B2.
-- ✅ **2026-06-23 PR-1 (PR #13) — CONCLUÍDO** (`863d811` em `origin/main`).
-  JoeFelipe Agent safety tests: 23/23 verdes, 4 arquivos de teste + 1 linha package.json.
-  PR mergeado por decisão humana, Fase C continua como resgate cirúrgico.
-- ✅ **2026-06-22** `ops/backup-external-copy` — CONCLUÍDA e validada.
-  Backblaze B2, `verified=true`, `BRCHK_EXTERNAL_ENABLED=1`, conexão direta.
+1. 🔵 **`cleanup/fase-c-branches-worktrees`** (atual — HUMAN_APPROVAL_REQUIRED)
+2. ⏳ **`agent/joefelipe-consolidation`** — próxima missão **após o cleanup** (retomar consolidação do agente)
+3. ⏳ `security/rls-companies-users-policy` — P1 fundação segura
+4. ⏳ `infra/redis-production-config` — P1 (backbone técnico do R-003)
+5. ⏳ `cicd/migrations-fail-fast` — 🔴 BLOQUEADO por OPS-SUPAVISOR (A-005)
 
-## Fila pós-revisão
+## Histórico — Fase C (FECHADA 2026-06-23)
 
-1. 🔵 **`fase-c/revisao-publicacao-opencodex`** (atual — PLAN_ONLY)
-2. ⏳ **Publicação do `.opencodex`** — somente após revisão + autorização humana
-3. ⏳ **Cleanup de branch/worktree** — somente no final, sob autorização explícita
-4. ⏳ **`agent/joefelipe-consolidation`** — SHELVADO até Fase C terminar
-5. ⏳ `security/rls-companies-users-policy` — após Fase C
-6. ⏳ `infra/redis-production-config` — após Fase C
-7. ⏳ `cicd/migrations-fail-fast` — 🔴 BLOQUEADO por OPS-SUPAVISOR (A-005)
+- ✅ **PR #16 MERGED (`bd13f69`)** — deploy disparou → **success**.
+- ✅ **PR #15 MERGED (`af04618`)** — sem deploy (`paths-ignore` OK). `origin/main` head = `af04618`.
+- ✅ `fase-c/revisao-publicacao-opencodex` / publicação `.opencodex` — encerradas com a Fase C.
+- ✅ `fase-c/redacao-opencodex`, `decisao-opencodex` (D-014), PR-2 (backup/B2), PR-1 (PR #13 `863d811`) — concluídas.

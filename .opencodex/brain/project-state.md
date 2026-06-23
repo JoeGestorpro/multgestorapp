@@ -1,19 +1,20 @@
 ﻿# 📌 ESTADO DO PROJETO — Estado Atual Real
 
-> **Atualizado:** 2026-06-23 · **state_version:** 16
+> **Atualizado:** 2026-06-23 · **state_version:** 18
 > **REGRA:** este arquivo é atualizado a cada missão APPROVE (Loop de Fechamento). Se estiver desatualizado, o CHECK 0 deve bloquear/reduzir o Context Confidence.
 > **Origem:** substitui `.opencodex/state/project-state.md` (V2, congelado 06-04) e `.agent/memory/current-state.md`.
 
 ```yaml
 project: MultGestor v2
-state_version: 17
+state_version: 18
 phase: "estabilizacao-de-producao + endurecimento-de-seguranca"
 
 git:
-  origin_main: "863d811 (PUSHED 2026-06-23) — PR #13 (test(agent): add safety unit tests for JoeFelipe Agent)"
+  origin_main: "af04618 (PUSHED 2026-06-23) — PR #15 MERGED (head). PR #16 (bd13f69) MERGED antes — deploy success."
   reconciliation: >-
-    PR #13 mergeado em origin/main (863d811). main local atrasado (6a6d8e3 ~ #11) — pendente
-    fast-forward. Fase C continua ativa como resgate cirúrgico, não merge.
+    FASE C FECHADA (2026-06-23). PR #16 (bd13f69) mergeado → deploy disparou e terminou success.
+    PR #15 (af04618) mergeado → NÃO disparou deploy (paths-ignore funcionou). origin/main head = af04618.
+    PR #13 (863d811) já estava em main. Próximo: cleanup/fase-c-branches-worktrees.
 
 # Reconciliado para main:
 in_main:
@@ -38,15 +39,13 @@ prod_evidence_2026_06_15:
   - "POST /api/auth/register com <script> → 400 (portão XSS ativo)"
 
 queue:
-  current_task: "idle — fase-c/redacao-opencodex, fase-c/decisao-opencodex, fase-c/pr-2, fase-c/pr-1 CONCLUÍDAS (2026-06-23)"
-  next_task: "fase-c/revisao-publicacao-opencodex — PLAN_ONLY: revisar o .opencodex redigido, classificar arquivos como publicáveis/privados/com ressalvas, gerar recomendação final ao humano. Não publicar ainda."
-  unblocked_ready: "fase-c/revisao-publicacao-opencodex (aguardando autorização humana — PLAN_ONLY)"
+  current_task: "idle — FASE C FECHADA (2026-06-23). PRs #15/#16 mergeados."
+  next_task: "cleanup/fase-c-branches-worktrees — HUMAN_APPROVAL_REQUIRED: higiene de branches/worktrees acumulados na Fase C; deleção só com lista explícita aprovada. Depois: agent/joefelipe-consolidation."
+  unblocked_ready: "cleanup/fase-c-branches-worktrees (aguardando autorização humana — HUMAN_APPROVAL_REQUIRED)"
   last_decision: >-
-    D-014 DECIDIDO (2026-06-23): publicar .opencodex com ressalvas/redação.
-    fase-c/redacao-opencodex CONCLUÍDA (2026-06-23): 9 arquivos redigidos,
-    20 substituições aplicadas, valores reais removidos, domínios frontend
-    preservados. Nenhuma publicação executada. Próximo: fase-c/revisao-publicacao-opencodex
-    (PLAN_ONLY — revisar e classificar, gerar recomendação final).
+    FASE C FECHADA (2026-06-23). PR #16 (bd13f69) MERGED — deploy disparou e terminou success.
+    PR #15 (af04618) MERGED — NÃO disparou deploy (paths-ignore funcionou). origin/main head = af04618.
+    Próxima missão: cleanup/fase-c-branches-worktrees; depois agent/joefelipe-consolidation.
 
 deploy_blockers:
   - id: "OPS-1"
@@ -76,6 +75,7 @@ open_risks:
 #   - PR #7 (chore/brain-queue-cleanup) — mergeado (21317cd); deploy workflow verde.
 
 ultimas_missoes:
+  - "FASE C FECHADA (2026-06-23) — PR #16 (bd13f69) MERGED, deploy disparou e terminou success; PR #15 (af04618) MERGED, NÃO disparou deploy (paths-ignore funcionou). origin/main head = af04618. state_version 17→18. Próxima: cleanup/fase-c-branches-worktrees → agent/joefelipe-consolidation."
   - "fase-c/redacao-opencodex CONCLUÍDO (2026-06-23) — 9 arquivos redigidos, 20 substituições aplicadas. Valores reais sensíveis removidos. Domínios frontend públicos preservados. Nenhuma publicação, commit, push, branch, cleanup, deploy ou migration executada. Veredito: pronto para revisão."
   - "fase-c/decisao-opencodex CONCLUÍDO (2026-06-23) — varredura PLAN_ONLY do .opencodex concluída. Nenhum secret real encontrado. Decisão D-014: publicar com ressalvas/redação. ~70% classificado como potencialmente publicável; nenhuma publicação autorizada nesta missão."
   - "fase-c/pr-2-backup-b2-checklist CONCLUÍDO (2026-06-23) — backup/B2 checklist READ_ONLY. Veredito OK: backup local dump 648KB APPROVED; scheduler Ready 02:00 exit 0 0 missed; B2 backblaze-b2 verified=true sha1 match; agente/fila OK conforme inspeção READ_ONLY. Escopo exclusivo backup/B2 — R-002 (RLS/multi-tenant) não resolvido por PR-2."
@@ -93,11 +93,10 @@ ultimas_missoes:
   - "PR #7 chore/brain-queue-cleanup — mergeado (21317cd); deploy verde"
 
 next_recommended_action: >-
-  fase-c/revisao-publicacao-opencodex: PLAN_ONLY — revisar o .opencodex
-  redigido (9 arquivos, 20 substituições), classificar arquivos como
-  publicáveis, privados ou com ressalvas, gerar recomendação final ao
-  humano. Não publicar ainda. Cleanup de branch/worktree continua travado.
-  agent/joefelipe-consolidation shelvado.
+  cleanup/fase-c-branches-worktrees: HUMAN_APPROVAL_REQUIRED — inventariar e
+  higienizar branches/worktrees acumulados na Fase C (agora FECHADA); deleção
+  só com lista explícita aprovada item a item, preservando backup/*. Depois do
+  cleanup: agent/joefelipe-consolidation (retomar consolidação do agente).
 ```
 
 ## Módulos

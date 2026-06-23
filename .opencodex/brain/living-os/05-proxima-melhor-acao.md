@@ -9,7 +9,7 @@
 
 | Critério | Missão | Nota |
 |---|---|---|
-| **Mais valor agora** | **Fase C — Revisão publicação .opencodex (PLAN_ONLY)** | Redação concluída. Próximo passo: revisar, classificar e recomendar |
+| **Mais valor agora** | **Cleanup de branches/worktrees (pós-Fase C FECHADA)** | Fase C encerrada (PRs #15/#16 mergeados, `main`=`af04618`). Higiene antes de retomar o agente |
 | **Reduz mais risco** | `security/rls-companies-users-policy` | P1 de segurança multi-tenant ainda aberto |
 | **Desbloqueia produção** | `security/rls-companies-users-policy` | Próximo da fundação segura após backup |
 | **Desbloqueia venda** | `security/rls-companies-users-policy` | Segurança é pré-requisito para cliente pagante |
@@ -50,11 +50,16 @@ como **resgate cirúrgico**, não merge.
 Backup externo B2 validado e ligado (`verified=true`, `BRCHK_EXTERNAL_ENABLED=1`, conexão direta).
 Ver [[../audits/AUDITORIA-BACKUP-GOVERNANCA-PROVA-VIVA-2026-06-22|prova viva]].
 
-## Próxima missão: **Fase C — Revisão publicação .opencodex (PLAN_ONLY)**
+## ✅ Fase C — FECHADA (2026-06-23)
 
-`fase-c/redacao-opencodex` concluída. O próximo passo é revisar o `.opencodex`
-redigido, classificar arquivos como publicáveis, privados ou com ressalvas, e
-gerar recomendação final ao humano. **PLAN_ONLY** — não publicar ainda.
+PR #16 (`bd13f69`) MERGED — deploy disparou e terminou **success**. PR #15 (`af04618`)
+MERGED — **não** disparou deploy (`paths-ignore` funcionou). `origin/main` head = `af04618`.
+state_version 17→18. Fase C encerrada oficialmente.
+
+## Próxima missão: **`cleanup/fase-c-branches-worktrees` (HUMAN_APPROVAL_REQUIRED)**
+
+Higiene dos branches/worktrees acumulados na Fase C; deleção só com lista explícita
+aprovada item a item (preservar `backup/*`). Depois: `agent/joefelipe-consolidation`.
 
 Em paralelo, manter:
 
@@ -67,12 +72,10 @@ Em paralelo, manter:
 
 | Ordem | Missão | Prioridade | Modo |
 |---|---|---|---|
-| 1 | **`fase-c/revisao-publicacao-opencodex`** | P2 | PLAN_ONLY — revisar, classificar, recomendar |
-| 2 | Publicação do `.opencodex` | P2 | Somente após revisão + autorização humana |
-| 3 | Cleanup de branch/worktree (somente no final) | P2 | Autorização explícita |
-| 3 | `agent/joefelipe-consolidation` | SHELVADO | Retomar após Fase C |
-| — | `security/rls-companies-users-policy` | P1 | Após Fase C |
-| — | `infra/redis-production-config` | P1 | Após Fase C |
+| 1 | **`cleanup/fase-c-branches-worktrees`** | P2 | HUMAN_APPROVAL_REQUIRED — inventário + deleção com lista explícita |
+| 2 | `agent/joefelipe-consolidation` | P2 | Próxima após o cleanup (retomar consolidação do agente) |
+| — | `security/rls-companies-users-policy` | P1 | Após cleanup |
+| — | `infra/redis-production-config` | P1 | Após cleanup (backbone do R-003) |
 
 Após a Fase C, a fundação P1 estará fechada e o sistema estará pronto para:
 - `cicd/migrations-fail-fast` (se OPS-SUPAVISOR resolvido)
@@ -102,10 +105,9 @@ fase-c/pr-1 (PR #13)          Alto   —      Baixo    ✅ CONCLUÍDO 2026-06-23
 fase-c/pr-2-b2-checklist       Médio  ↓      Baixo    ✅ CONCLUÍDO 2026-06-23
 decisao-opencodex              Alto   ↓↓     Baixo    ✅ CONCLUÍDO 2026-06-23
 redacao-opencodex              Alto   ↓↓     Baixo    ✅ CONCLUÍDO 2026-06-23
-revisao-publicacao-opencodex   Alto   ↓↓     Baixo    1º (PLAN_ONLY)
-publicacao-opencodex           Alto   ↓↓     Baixo    2º (pós-revisão)
-cleanup-branch-worktree        Médio  —      Baixo    3º (final)
-joefelipe-consolidation        Alto   —      Médio    SHELVADO
+fase-c (encerramento #15/#16)  Alto   ↓↓     Baixo    ✅ FECHADA 2026-06-23 (main=af04618)
+cleanup-branch-worktree        Médio  —      Baixo    1º (HUMAN_APPROVAL_REQUIRED)
+joefelipe-consolidation        Alto   —      Médio    2º (após cleanup)
 rls-companies-users            Alto   ↓↓     Médio    Após Fase C
 redis-production-config        Médio  ↓      Baixo    Após Fase C
 cicd-migrations-fail-fast      Alto   ↓↓     Alto     ⏳ bloqueado
