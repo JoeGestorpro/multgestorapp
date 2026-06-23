@@ -140,7 +140,7 @@ function buildLogRecord({
     finished_at: finishedAt,
     source: sourceLabel, // label, nunca host/URL
     target: targetLabel, // label, nunca host/URL
-    dump_file: dumpFile ? path.basename(dumpFile) : null, // só o nome, nunca caminho/conteúdo
+    dump_file: dumpFile ? String(dumpFile).split(/[\\/]/).pop() : null, // só o nome (cross-platform: trata \ e /), nunca caminho/conteúdo
     dump_status: dumpStatus,
     restore_status: restoreStatus,
     restore_managed_warnings: restoreWarnings, // contagem, não o texto
