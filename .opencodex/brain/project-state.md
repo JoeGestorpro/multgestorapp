@@ -1,6 +1,6 @@
 ﻿# 📌 ESTADO DO PROJETO — Estado Atual Real
 
-> **Atualizado:** 2026-06-23 · **state_version:** 18
+> **Atualizado:** 2026-06-23 · **state_version:** 19
 > **REGRA:** este arquivo é atualizado a cada missão APPROVE (Loop de Fechamento). Se estiver desatualizado, o CHECK 0 deve bloquear/reduzir o Context Confidence.
 > **Origem:** substitui `.opencodex/state/project-state.md` (V2, congelado 06-04) e `.agent/memory/current-state.md`.
 
@@ -10,7 +10,7 @@ state_version: 19
 phase: "estabilizacao-de-producao + endurecimento-de-seguranca"
 
 git:
-  origin_main: "af04618 (PUSHED 2026-06-23) — PR #15 MERGED (head). PR #16 (bd13f69) MERGED antes — deploy success."
+  origin_main: "e95d43b (origin/main HEAD, verificado 2026-06-23 Fase D) — Merge PR #12 (feat/master-panel-clean), mergeado APÓS o último fechamento. Ancestral: af04618 (era apontado como head pelo doc; correção de freeze)."
   reconciliation: >-
     FASE C FECHADA (2026-06-23). PR #16 (bd13f69) mergeado → deploy disparou e terminou success.
     PR #15 (af04618) mergeado → NÃO disparou deploy (paths-ignore funcionou). origin/main head = af04618.
