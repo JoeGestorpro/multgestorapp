@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '.opencodex/**'
 
 jobs:
   # ─── Roda CI completo antes de qualquer deploy ───────────────────────────
