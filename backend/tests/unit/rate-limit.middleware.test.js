@@ -325,3 +325,107 @@ describe('RateLimit — keyGenerator / cota por tenant (P1-A)', () => {
     expect(res.status).not.toHaveBeenCalledWith(429);
   });
 });
+
+describe('RateLimit — Barber public routes (P1-A)', () => {
+  let res, next;
+
+  function makeReq(overrides = {}) {
+    return {
+      ip: '127.0.0.1',
+      method: 'GET',
+      path: '/barber/public/acme/booking-info',
+      originalUrl: '/barber/public/acme/booking-info',
+      params: { slug: 'acme' },
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    cacheManager._fbClear();
+    jest.clearAllMocks();
+    mockRedisClient.isAvailable.mockReturnValue(false);
+    createRateLimit._resetWarnThrottle();
+    res = {
+      setHeader: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+    next = jest.fn();
+  });
+
+  it('public read rate limit (60/15min) permite abaixo do teto', async () => {
+    const rl = createRateLimit({ windowMs: 60000, max: 60 });
+    for (let i = 0; i < 60; i++) {
+      await rl(makeReq(), res, next);
+    }
+    expect(next).toHaveBeenCalledTimes(60);
+  });
+
+  it('public read rate limit bloqueia acima de 60', async () => {
+    const rl = createRateLimit({ windowMs: 60000, max: 60 });
+    for (let i = 0; i < 60; i++) {
+      await rl(makeReq(), res, next);
+    }
+    expect(next).toHaveBeenCalledTimes(60);
+    await rl(makeReq(), res, next);
+    expect(res.status).toHaveBeenCalledWith(429);
+  });
+
+  it('booking POST: IP rate limit (10/15min) bloqueia no 11o request do mesmo IP', async () => {
+    const rl = createRateLimit({ windowMs: 60000, max: 10 });
+    const req = makeReq({ method: 'POST', path: '/barber/public/acme/appointments' });
+    for (let i = 0; i < 10; i++) {
+      await rl(req, res, next);
+    }
+    expect(next).toHaveBeenCalledTimes(10);
+    await rl(req, res, next);
+    expect(res.status).toHaveBeenCalledWith(429);
+  });
+
+  it('booking POST: IP rate limit isola IPs diferentes', async () => {
+    const rl = createRateLimit({ windowMs: 60000, max: 5 });
+    const req1 = makeReq({ method: 'POST', path: '/barber/public/acme/appointments', ip: '1.1.1.1' });
+    const req2 = makeReq({ method: 'POST', path: '/barber/public/acme/appointments', ip: '2.2.2.2' });
+    for (let i = 0; i < 5; i++) {
+      await rl(req1, res, next);
+    }
+    expect(next).toHaveBeenCalledTimes(5);
+    // IP diferente não deve herdar o contador
+    await rl(req2, res, next);
+    expect(next).toHaveBeenCalledTimes(6);
+  });
+
+  it('booking POST: tenant rate limit compartilha contador entre IPs no mesmo slug', async () => {
+    const rl = createRateLimit({
+      windowMs: 60000,
+      max: 3,
+      keyGenerator: (req) => `booking-tenant:${req.params.slug}`,
+    });
+    // Três IPs diferentes, mesmo slug — todos compartilham o mesmo bucket
+    await rl(makeReq({ method: 'POST', path: '/barber/public/acme/appointments', ip: '1.1.1.1', params: { slug: 'acme' } }), res, next);
+    await rl(makeReq({ method: 'POST', path: '/barber/public/acme/appointments', ip: '2.2.2.2', params: { slug: 'acme' } }), res, next);
+    await rl(makeReq({ method: 'POST', path: '/barber/public/acme/appointments', ip: '3.3.3.3', params: { slug: 'acme' } }), res, next);
+    expect(next).toHaveBeenCalledTimes(3);
+    // 4o request (qualquer IP) deve ser bloqueado
+    await rl(makeReq({ method: 'POST', path: '/barber/public/acme/appointments', ip: '4.4.4.4', params: { slug: 'acme' } }), res, next);
+    expect(res.status).toHaveBeenCalledWith(429);
+  });
+
+  it('booking POST: slugs diferentes têm contadores de tenant independentes', async () => {
+    const rl = createRateLimit({
+      windowMs: 60000,
+      max: 2,
+      keyGenerator: (req) => `booking-tenant:${req.params.slug}`,
+    });
+    await rl(makeReq({ method: 'POST', params: { slug: 'acme' } }), res, next);
+    await rl(makeReq({ method: 'POST', params: { slug: 'acme' } }), res, next);
+    await rl(makeReq({ method: 'POST', params: { slug: 'acme' } }), res, next);
+    expect(res.status).toHaveBeenCalledWith(429);
+    // Outra barbearia, não deve herdar o limite
+    res.status.mockClear();
+    next.mockClear();
+    await rl(makeReq({ method: 'POST', params: { slug: 'other' } }), res, next);
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.status).not.toHaveBeenCalledWith(429);
+  });
+});
