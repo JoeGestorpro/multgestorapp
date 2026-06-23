@@ -1,6 +1,6 @@
 ﻿# 📌 ESTADO DO PROJETO — Estado Atual Real
 
-> **Atualizado:** 2026-06-23 · **state_version:** 18
+> **Atualizado:** 2026-06-23 · **state_version:** 20
 > **REGRA:** este arquivo é atualizado a cada missão APPROVE (Loop de Fechamento). Se estiver desatualizado, o CHECK 0 deve bloquear/reduzir o Context Confidence.
 > **Origem:** substitui `.opencodex/state/project-state.md` (V2, congelado 06-04) e `.agent/memory/current-state.md`.
 
@@ -10,7 +10,7 @@ state_version: 19
 phase: "estabilizacao-de-producao + endurecimento-de-seguranca"
 
 git:
-  origin_main: "af04618 (PUSHED 2026-06-23) — PR #15 MERGED (head). PR #16 (bd13f69) MERGED antes — deploy success."
+  origin_main: "e95d43b (origin/main HEAD, verificado 2026-06-23 Fase D) — Merge PR #12 (feat/master-panel-clean), mergeado APÓS o último fechamento. Ancestral: af04618 (era apontado como head pelo doc; correção de freeze)."
   reconciliation: >-
     FASE C FECHADA (2026-06-23). PR #16 (bd13f69) mergeado → deploy disparou e terminou success.
     PR #15 (af04618) mergeado → NÃO disparou deploy (paths-ignore funcionou). origin/main head = af04618.
@@ -64,6 +64,9 @@ xss_cycle_status: >-
   entrada (/register com <script>) → 400. Bloco A v2 (users.name): UPDATE afetou exatamente
   os 3 IDs autorizados, sem DELETE/migration/schema/código/commit/push. Ciclo XSS fechado de fato.
 
+resolved_this_session:
+  - "P1-A: barber.routes.js rotas públicas (GET/POST /public/:slug/*) agora têm rate limit consistente com public-booking.routes.js — IP (10/15min) + tenant (30/60min) para POST, leitura (60/15min) para GET. R-003 parcialmente mitigado: bypass por caminho alternativo eliminado."
+
 open_risks:
   - "Migrations automáticas no CI desativadas (continue-on-error) — drift volta a acumular se novas migrations não forem aplicadas manualmente via MCP."
   - ".agent/ ainda fisicamente presente (rebaixado a histórico) — consolidação de namespaces é backlog separado."
@@ -76,6 +79,7 @@ open_risks:
 #   - PR #7 (chore/brain-queue-cleanup) — mergeado (21317cd); deploy workflow verde.
 
 ultimas_missoes:
+  - "fase-d/p1a-public-booking-rate-limit CONCLUÍDO (2026-06-23) — rate limit adicionado nas rotas públicas duplicadas em barber.routes.js (GET /public/:slug/booking-info, GET /public/:slug/available-slots, POST /public/:slug/appointments). Mesmos limites de public-booking.routes.js: 60/15min leitura, 10/15min IP + 30/60min tenant para criação. Testes existentes de tenant keyGenerator reaproveitados + novos testes para barber public rates. state_version 19→20. trust proxy já ativo (server.js:92)."
   - "fase-c/consolidar-segundo-cerebro-opencodex-safe-write-1 CONCLUÍDO (2026-06-23) — D-015 criada, .gitignore atualizado (5 padrões), 12 arquivos do Living OS oficial adicionados ao git, wikilinks corrigidos no INDEX.md ([[living-os/...]] → [[brain/living-os/...]]). state_version 19."
   - "FASE C FECHADA (2026-06-23) — PR #16 (bd13f69) MERGED, deploy disparou e terminou success; PR #15 (af04618) MERGED, NÃO disparou deploy (paths-ignore funcionou). origin/main head = af04618. state_version 17→18. Próxima: cleanup/fase-c-branches-worktrees → agent/joefelipe-consolidation."
   - "fase-c/redacao-opencodex CONCLUÍDO (2026-06-23) — 9 arquivos redigidos, 20 substituições aplicadas. Valores reais sensíveis removidos. Domínios frontend públicos preservados. Nenhuma publicação, commit, push, branch, cleanup, deploy ou migration executada. Veredito: pronto para revisão."
@@ -95,10 +99,10 @@ ultimas_missoes:
   - "PR #7 chore/brain-queue-cleanup — mergeado (21317cd); deploy verde"
 
 next_recommended_action: >-
-  cleanup/fase-c-branches-worktrees: HUMAN_APPROVAL_REQUIRED — inventariar e
-  higienizar branches/worktrees acumulados na Fase C (agora FECHADA); deleção
-  só com lista explícita aprovada item a item, preservando backup/*. Depois do
-  cleanup: agent/joefelipe-consolidation (retomar consolidação do agente).
+  fase-d/F0 — poda de branches/worktrees (cleanup/fase-c-branches-worktrees):
+  HUMAN_APPROVAL_REQUIRED. Inventariar e higienizar branches/worktrees
+  acumulados na Fase C. Deleção só com lista explícita aprovada item a item,
+  preservando backup/*. Depois: agent/joefelipe-consolidation.
 ```
 
 ## Módulos

@@ -86,6 +86,10 @@ const whatsappWebhook = new WhatsAppWebhook({
 });
 
 const app = express();
+// Atrás do proxy do Render (1 hop): confiar no primeiro X-Forwarded-For para que
+// req.ip reflita o IP real do cliente. Pré-requisito para o rate limit por IP — sem
+// isto, req.ip seria o IP do proxy e todos os clientes cairiam no mesmo bucket.
+app.set('trust proxy', 1);
 const PORT = Number(process.env.PORT || 5000);
 const resend = new Resend(process.env.RESEND_API_KEY);
 

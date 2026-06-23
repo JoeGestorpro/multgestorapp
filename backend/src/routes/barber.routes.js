@@ -2,6 +2,7 @@ const express = require('express');
 const barberController = require('../controllers/barber');
 const authMiddleware = require('../middlewares/auth.middleware');
 const { requireBarberAdminAuth } = require('../middlewares/auth.middleware');
+const createRateLimit = require('../middlewares/rate-limit.middleware');
 const requireActivePlan = require('../middlewares/requireActivePlan');
 const requirePlanFeature = require('../middlewares/requirePlanFeature');
 const requireCompany = require('../middlewares/requireCompany');
@@ -43,9 +44,34 @@ const upload = multer({
 const router = express.Router();
 
 router.post('/collaborator-login', barberController.collaboratorLogin);
-router.get('/public/:slug/booking-info', barberController.getPublicBooking);
-router.get('/public/:slug/available-slots', barberController.getPublicAvailableSlots);
-router.post('/public/:slug/appointments', barberController.createPublicBookingAppointment);
+
+// Controle de abuso/custo das rotas públicas de agendamento (mesmo padrão de public-booking.routes.js).
+// Estas rotas duplicam endpoints em /api/public/booking/:slug sem auth — precisam do mesmo rate limit
+// para evitar bypass do limite via caminho alternativo.
+
+// Leitura pública: teto generoso por IP para não punir uso legítimo.
+const barberPublicReadRateLimit = createRateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60
+});
+
+// Teto por IP para criação pública (anti-flood por origem).
+const barberPublicBookingIpRateLimit = createRateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10
+});
+
+// Cota por tenant (slug), independente de IP: impede flood da agenda de UMA barbearia
+// mesmo com rotação de IP. Janela maior, teto por estabelecimento.
+const barberPublicBookingTenantRateLimit = createRateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => `booking-tenant:${req.params.slug}`
+});
+
+router.get('/public/:slug/booking-info', barberPublicReadRateLimit, barberController.getPublicBooking);
+router.get('/public/:slug/available-slots', barberPublicReadRateLimit, barberController.getPublicAvailableSlots);
+router.post('/public/:slug/appointments', barberPublicBookingIpRateLimit, barberPublicBookingTenantRateLimit, barberController.createPublicBookingAppointment);
 
 router.use(authMiddleware);
 router.use(requireBarberAdminAuth);

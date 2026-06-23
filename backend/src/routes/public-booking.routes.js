@@ -12,8 +12,39 @@ const sensitivePublicRateLimit = createRateLimit({
   max: 5
 });
 
-router.get('/booking/:slug', barberController.getPublicBooking);
-router.post('/booking/:slug/appointments', barberController.createPublicBookingAppointment);
+// Controle de abuso/custo das rotas públicas de agendamento (CLAUDE.md / R-003):
+// 1) Pode gerar abuso? Sim — criação anônima de agendamentos por slug (poluição/DoS de agenda).
+// 2) Gera custo? DB/compute hoje; mensagens pagas quando o WhatsApp real for ligado.
+// 3) Rate limit? Sim. 4) Limite por tenant? Sim — IP isolado não basta (rotação de IP).
+
+// Teto por IP para a criação pública (anti-flood por origem).
+const publicBookingIpRateLimit = createRateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10
+});
+
+// Cota por tenant (slug), independente de IP: impede flood da agenda de UMA barbearia
+// mesmo com rotação de IP. Janela maior, teto por estabelecimento.
+const publicBookingTenantRateLimit = createRateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  keyGenerator: (req) =>
+    `booking-tenant:${req.params.slug || req.params.companySlug || 'unknown'}`
+});
+
+// Leitura pública (compute em DB): teto generoso por IP para não punir uso legítimo.
+const publicReadRateLimit = createRateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60
+});
+
+router.get('/booking/:slug', publicReadRateLimit, barberController.getPublicBooking);
+router.post(
+  '/booking/:slug/appointments',
+  publicBookingIpRateLimit,
+  publicBookingTenantRateLimit,
+  barberController.createPublicBookingAppointment
+);
 router.post('/booking/:companySlug/register', sensitivePublicRateLimit, clientBookingController.preRegister);
 router.post('/booking/:companySlug/login', sensitivePublicRateLimit, (req, res, next) => {
   req.body.companySlug = req.body.companySlug || req.params.companySlug;
@@ -25,8 +56,8 @@ router.post('/booking/:companySlug/resend-confirmation', sensitivePublicRateLimi
 });
 router.post('/scheduling/:companySlug/pre-register', sensitivePublicRateLimit, clientBookingController.preRegister);
 router.post('/scheduling/resend-confirmation', sensitivePublicRateLimit, clientBookingController.resendConfirmation);
-router.get('/scheduling/confirm-email', clientBookingController.confirmEmail);
-router.get('/scheduling/:companySlug/availability', clientBookingController.getAvailability);
+router.get('/scheduling/confirm-email', publicReadRateLimit, clientBookingController.confirmEmail);
+router.get('/scheduling/:companySlug/availability', publicReadRateLimit, clientBookingController.getAvailability);
 
 // GET /api/public/plan-config
 // Retorna planos, limites e features para o frontend consumir (dado público)

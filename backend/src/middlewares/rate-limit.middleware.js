@@ -7,12 +7,21 @@ const { appLogger } = require('../shared/core/logger');
 let _lastDegradationWarnAt = 0;
 const DEGRADATION_WARN_INTERVAL_MS = 60_000;
 
+// keyGenerator default: bucket por IP + método + rota (comportamento histórico).
+// Permite cota por tenant passando um keyGenerator que lê req.params (ex.: slug).
+function defaultKeyGenerator(req) {
+  return `${req.ip}:${req.method}:${req.path}`;
+}
+
 function createRateLimit(options = {}) {
   const windowMs = options.windowMs || 15 * 60 * 1000;
   const max = options.max || 5;
+  const keyGenerator = typeof options.keyGenerator === 'function'
+    ? options.keyGenerator
+    : defaultKeyGenerator;
 
   return async function rateLimit(req, res, next) {
-    const key = `mg:ratelimit:${req.ip}:${req.method}:${req.path}`;
+    const key = `mg:ratelimit:${keyGenerator(req)}`;
     const windowKey = `${key}:${Math.floor(Date.now() / windowMs)}`;
 
     if (!redisClient.isAvailable()) {
