@@ -7,6 +7,18 @@
 > **Regra de promoção:** uma missão só vai para `next-task.md` quando sua `unblock_condition` estiver
 > satisfeita (auditoria APPROVE/APPROVE_WITH_NOTES do antecessor + aprovação final do Claude Code).
 
+---
+
+## 🛡️ DIRETRIZ PERMANENTE — Proteção de Rotas e Controle de Abuso
+
+> **ATIVA E OBRIGATÓRIA — NÃO é missão consumível. NÃO promover, NÃO executar, NÃO marcar como concluída.**
+> Diretriz vinculante e sempre ativa: toda nova rota/funcionalidade responde **(1) pode gerar abuso? (2) gera custo?
+> (3) precisa de rate limit? (4) precisa de limite por tenant ou usuário?** antes de ser dada como "pronta".
+> **Fonte de verdade:** `.opencodex/brain/constitution.md` §7 + `.opencodex/rules/route-protection-abuse-control.md`
+> (instrução fixa p/ agentes em `CLAUDE.md` + `AGENTS.md`).
+> **Backbone técnico:** missão **R-003** (Redis / limiter global / tenant-usuário / quotas / kill-switch — `DANGEROUS/LOCKED`, gated).
+> **Verificada em:** PR checklist · preflight CHECK 6 · auditoria (Loop de Fechamento).
+
 > ✅ **Fase 1 — Blindagem de Produção: COMPLETA** (B3 `1348df3` · B4 `e532285` · B2 `e137217` · B1 `0a85929`).
 
 > 🚀 **#0c RELEASE SAFETY GATE v1** — `task_id: release-safety-gate-v1`

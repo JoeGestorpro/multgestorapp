@@ -37,3 +37,8 @@ MultGestor é um **core compartilhado multi-tenant** que orquestra **módulos ve
 
 ## 6. O que NÃO é autoridade
 `.agent/` (congelado em 2026-06-04) é **histórico**. Em conflito, o brain prevalece (ver `source-of-truth.md`).
+
+## 7. Proteção de rotas e controle de abuso (ativa e obrigatória)
+Regra **vinculante e não-opcional**: toda nova rota/funcionalidade precisa responder, antes de ser dada como pronta:
+**(1) pode gerar abuso? (2) gera custo? (3) precisa de rate limit? (4) precisa de limite por tenant ou usuário?**
+Rota exposta sem responder as 4 e sem aplicar a proteção correspondente (ou justificar a isenção por escrito) **não está pronta**. Aplica-se a humanos **e** agentes de IA. Regra canônica: `.opencodex/rules/route-protection-abuse-control.md`. Backbone técnico: missão **R-003** (Redis / limiter global / limite por tenant-usuário / quotas / kill-switch — gated).

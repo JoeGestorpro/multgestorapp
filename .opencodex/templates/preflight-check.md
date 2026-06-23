@@ -127,10 +127,19 @@ git status --short | grep '^??' | grep -vE '^\?\? (\.opencodex/|docs/private/)'
   `git clean` futuro. `docs/private/` é tolerado mas **nunca deve ser commitado**.
 - **Ação segura:** humano decide rastrear, ignorar (`.gitignore`) ou remover manualmente.
 
+### CHECK 6 — Abuso / Custo (missões de nova rota/feature)
+> Estabelecido pela diretriz de Proteção de Rotas (`../brain/constitution.md` §7 + `../rules/route-protection-abuse-control.md`).
+
+- **Bloqueia se** a missão cria/altera rota ou funcionalidade **exposta** e o card de `next-task.md` **não** traz a seção
+  "Avaliação de Abuso/Custo" nos Critérios de Aceite, respondendo: **(1) pode gerar abuso? (2) gera custo? (3) precisa de
+  rate limit? (4) precisa de limite por tenant/usuário?** — com a proteção aplicada ou a isenção justificada por escrito.
+- **Por que é perigoso:** rota sem teto = vetor de abuso/custo (ex.: `POST /public/:slug/appointments` hoje sem limite).
+- **Ação segura:** Claude Code completa a "Avaliação de Abuso/Custo" no card **antes** de promover a missão.
+
 ---
 
 ## Resultado do preflight
-- **CHECK 0 (score ≥ 95) + TODAS as 5 passaram** → ✅ permitir `/next-task` (espelhar `current-task.md` `running`, criar branch
+- **CHECK 0 (score ≥ 95) + TODAS as 5 + CHECK 6 (quando aplicável) passaram** → ✅ permitir `/next-task` (espelhar `current-task.md` `running`, criar branch
   conforme o card, executar).
 - **CHECK 0 entre 80–94** → planejar com riscos declarados; **70–79** só investigação; **< 70** → ⛔ PARAR e perguntar.
 - **QUALQUER um (CHECK 0 ou 1–5) falhou** → ⛔ ABORTAR. Imprimir, para cada falha: **qual problema · por que é perigoso · ação

@@ -31,6 +31,9 @@ A autoridade operacional é a fila/regras `.opencodex/`. `.agent/` é histórico
 ## ADR-08 — Ambiente oficial Windows + PowerShell
 Estabelecido após incidente. Comandos operacionais compatíveis com PowerShell. **Status: vigente.**
 
+## ADR-09 — Controle de abuso obrigatório por rota (rate limit / tenant / quota)
+**Contexto:** rate limit hoje só em auth/booking (per-IP, fail-open, sem Redis em produção — R-003); rotas de negócio e `POST /public/:slug/appointments` sem teto. **Decisão:** toda nova rota/funcionalidade responde 4 perguntas obrigatórias (abuso? custo? rate limit? limite por tenant/usuário?) e aplica a proteção antes de "pronto"; verificado em PR, preflight (CHECK 6) e auditoria. Backbone técnico: R-003. **Status: vigente (ativa e obrigatória; regra `.opencodex/rules/route-protection-abuse-control.md`, constitution §7).**
+
 ## Decisões estratégicas herdadas (de `.agent/memory/decisions.md` — revalidar antes de citar)
 - JWT em HttpOnly cookie (refresh) em vez de localStorage (Sprint 2).
 - Shared kernel / capabilities como base multi-nicho (Sprint 8+).

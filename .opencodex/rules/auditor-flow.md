@@ -46,6 +46,7 @@ Toda missão **APPROVE** deve verificar se o brain (`.opencodex/brain/`) precisa
 
 ## Disciplina inviolável
 - **Event Contracts** (`event-contracts.md`): ao auditar diffs de `EventBus`/`Outbox`/`Consumers`/Services que publicam eventos, **reprovar (REQUEST_CHANGES)** se houver campo de evento acessado como variável solta (sem origem), acesso no formato errado (in-memory vs outbox), ausência de helper para campo variável, ou falta do teste unitário do evento.
+- **Controle de Abuso por rota** (`route-protection-abuse-control.md` + `constitution.md` §7): ao auditar diffs que criam/alteram rota ou funcionalidade **exposta**, **reprovar (REQUEST_CHANGES)** se a missão/PR não responder as 4 perguntas obrigatórias (abuso? custo? rate limit? limite por tenant/usuário?) e não aplicar a proteção correspondente nem justificar a isenção. Gate verificado no **Loop de Fechamento**, igual ao de EVENT CONTRACTS.
 - Stage **seletivo** (allowlist 1:1). Sem `git add -A`.
 - **Sem `git clean`** com governança untracked. `.opencodex/` é **rastreada** (commit `ce034ae`).
 - Uma-missão-por-vez. Quarentenas (ex.: Fase C `sale.created`) só saem por promoção formal.
