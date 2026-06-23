@@ -6,7 +6,7 @@
 
 ```yaml
 project: MultGestor v2
-state_version: 18
+state_version: 19
 phase: "estabilizacao-de-producao + endurecimento-de-seguranca"
 
 git:
@@ -39,13 +39,14 @@ prod_evidence_2026_06_15:
   - "POST /api/auth/register com <script> → 400 (portão XSS ativo)"
 
 queue:
-  current_task: "idle — FASE C FECHADA (2026-06-23). PRs #15/#16 mergeados."
+  current_task: "idle — CONSOLIDAÇÃO DO SEGUNDO CÉREBRO CONCLUÍDA (2026-06-23). D-015 criada, .gitignore atualizado, living-os completo no git, wikilinks corrigidos."
   next_task: "cleanup/fase-c-branches-worktrees — HUMAN_APPROVAL_REQUIRED: higiene de branches/worktrees acumulados na Fase C; deleção só com lista explícita aprovada. Depois: agent/joefelipe-consolidation."
   unblocked_ready: "cleanup/fase-c-branches-worktrees (aguardando autorização humana — HUMAN_APPROVAL_REQUIRED)"
   last_decision: >-
-    FASE C FECHADA (2026-06-23). PR #16 (bd13f69) MERGED — deploy disparou e terminou success.
-    PR #15 (af04618) MERGED — NÃO disparou deploy (paths-ignore funcionou). origin/main head = af04618.
-    Próxima missão: cleanup/fase-c-branches-worktrees; depois agent/joefelipe-consolidation.
+    D-015 DECIDIDO (2026-06-23): fonte única do Segundo Cérebro.
+    .gitignore atualizado (docs/private/, vendas/, body-login.json, .opencodex/.obsidian/, .opencodex/segundo cerebro/).
+    12 arquivos do Living OS oficial adicionados ao git. Wikilinks corrigidos no INDEX.md.
+    FASE C OFICIALMENTE FECHADA. Próximo: cleanup/fase-c-branches-worktrees; depois agent/joefelipe-consolidation.
 
 deploy_blockers:
   - id: "OPS-1"
@@ -75,6 +76,7 @@ open_risks:
 #   - PR #7 (chore/brain-queue-cleanup) — mergeado (21317cd); deploy workflow verde.
 
 ultimas_missoes:
+  - "fase-c/consolidar-segundo-cerebro-opencodex-safe-write-1 CONCLUÍDO (2026-06-23) — D-015 criada, .gitignore atualizado (5 padrões), 12 arquivos do Living OS oficial adicionados ao git, wikilinks corrigidos no INDEX.md ([[living-os/...]] → [[brain/living-os/...]]). state_version 19."
   - "FASE C FECHADA (2026-06-23) — PR #16 (bd13f69) MERGED, deploy disparou e terminou success; PR #15 (af04618) MERGED, NÃO disparou deploy (paths-ignore funcionou). origin/main head = af04618. state_version 17→18. Próxima: cleanup/fase-c-branches-worktrees → agent/joefelipe-consolidation."
   - "fase-c/redacao-opencodex CONCLUÍDO (2026-06-23) — 9 arquivos redigidos, 20 substituições aplicadas. Valores reais sensíveis removidos. Domínios frontend públicos preservados. Nenhuma publicação, commit, push, branch, cleanup, deploy ou migration executada. Veredito: pronto para revisão."
   - "fase-c/decisao-opencodex CONCLUÍDO (2026-06-23) — varredura PLAN_ONLY do .opencodex concluída. Nenhum secret real encontrado. Decisão D-014: publicar com ressalvas/redação. ~70% classificado como potencialmente publicável; nenhuma publicação autorizada nesta missão."

@@ -85,3 +85,10 @@ awesome-design-md/
 .agent/skills/create-vertical/
 .agent/skills/event-driven-patterns/
 .agent/skills/multi-tenant-patterns/
+
+# Secrets, runtime artifacts e ruído local — NUNCA commitar
+docs/private/
+vendas/
+body-login.json
+.opencodex/.obsidian/
+.opencodex/segundo cerebro/

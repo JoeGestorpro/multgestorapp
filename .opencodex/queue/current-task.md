@@ -16,7 +16,17 @@ note: >-
 - **PR #15 MERGED (`af04618`)** — **não** disparou deploy (`paths-ignore` funcionou). `origin/main` head = `af04618`.
 - PR-1 (PR #13, `863d811`, testes do agente) + PR-2 (backup/B2) + redação/decisão `.opencodex` (D-014) — concluídas.
 
+## ✅ Missão atual — CONSOLIDAÇÃO DO SEGUNDO CÉREBRO (2026-06-23)
+- **`fase-c/consolidar-segundo-cerebro-opencodex-safe-write-1`** — concluída.
+  - `.gitignore` atualizado: `docs/private/`, `vendas/`, `body-login.json`, `.opencodex/.obsidian/`, `.opencodex/segundo cerebro/` bloqueados.
+  - 12 arquivos do Living OS oficial adicionados ao git (00, 01, 03, 04, README, gates, scorecards).
+  - `[[living-os/...]]` corrigido para `[[brain/living-os/...]]` no `INDEX.md`.
+  - Decisão D-015 (`fonte-unica-segundo-cerebro`) criada.
+  - `state_version` bumpado para 19.
+  - Commit: `docs(governance): consolidate opencodex living os source of truth`
+
 ## ✅ Últimas missões concluídas
+- **`fase-c/consolidar-segundo-cerebro-opencodex-safe-write-1`** — living-os completo no git, secrets bloqueados, wikilinks corrigidos, D-015 criada. ✅ 2026-06-23.
 - **`fase-c` (encerramento)** — PRs #15/#16 mergeados; deploys conforme esperado; `origin/main` = `af04618`. ✅ 2026-06-23.
 - **`fase-c/redacao-opencodex`** — 9 arquivos redigidos, 20 substituições aplicadas. ✅ 2026-06-23.
 - **`fase-c/decisao-opencodex`** — D-014: publicar `.opencodex` com ressalvas/redação. ✅ 2026-06-23.
