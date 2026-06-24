@@ -39,4 +39,20 @@ const updateProductStatus = asyncHandler(async (req, res) => {
   return success(res, product);
 }, 'Erro ao atualizar status do produto');
 
-module.exports = { listProducts, getProductById, createProduct, updateProduct, deleteProduct, updateProductStatus };
+const getFridgeReport = asyncHandler(async (req, res) => {
+  const report = await productService.getFridgeReport(req.user.company_id, req.user, req.query);
+
+  return success(res, report);
+}, 'Erro ao carregar relatorio de geladeira');
+
+const toggleFridgeFavorite = asyncHandler(async (req, res) => {
+  const result = await productService.toggleFridgeFavorite(req.user.company_id, req.user, req.params.id);
+
+  return success(res, result);
+}, 'Erro ao atualizar favorito de geladeira');
+
+module.exports = {
+  listProducts, getProductById, createProduct, updateProduct,
+  deleteProduct, updateProductStatus,
+  getFridgeReport, toggleFridgeFavorite
+};

@@ -273,6 +273,63 @@ class ProductRepository extends BaseRepository {
 
     return result.rows[0].total
   }
+
+  async getFridgeReport(companyId, filters = {}) {
+    const period = String(filters.period || 'month').trim()
+    let dateFrom = null
+    const now = new Date()
+    if (period === 'month') {
+      dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    } else if (period === 'last_month') {
+      dateFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
+    } else if (period === 'year') {
+      dateFrom = new Date(now.getFullYear(), 0, 1).toISOString()
+    }
+
+    const result = await this.db.query(`
+      SELECT
+        bp.id,
+        bp.name,
+        bp.location,
+        bp.is_favorite,
+        COALESCE(bp.stock_current, 0)       AS stock_current,
+        COALESCE(bp.stock_minimum, 0)       AS stock_minimum,
+        COALESCE(SUM(bsi.quantity), 0)::int AS total_items_sold,
+        COALESCE(SUM(bsi.total_price), 0)   AS total_revenue
+      FROM barber_products bp
+      LEFT JOIN barber_sale_items bsi
+             ON bsi.product_id = bp.id
+            AND bsi.company_id = bp.company_id
+      LEFT JOIN barber_sales bs
+             ON bs.id = bsi.sale_id
+            AND bs.deleted_at IS NULL
+            AND ($2::timestamptz IS NULL OR bs.created_at >= $2)
+      WHERE bp.company_id = $1
+        AND bp.product_type = 'fridge'
+        AND COALESCE(bp.is_deleted, false) = false
+      GROUP BY bp.id, bp.name, bp.location, bp.is_favorite,
+               bp.stock_current, bp.stock_minimum
+      ORDER BY total_revenue DESC
+    `, [companyId, dateFrom])
+
+    return result.rows
+  }
+
+  async toggleFridgeFavorite(companyId, productId) {
+    const result = await this.db.query(
+      `UPDATE barber_products
+       SET is_favorite = NOT is_favorite,
+           updated_at  = NOW()
+       WHERE id = $1
+         AND company_id = $2
+         AND product_type = 'fridge'
+         AND COALESCE(is_deleted, false) = false
+       RETURNING id, name, is_favorite`,
+      [productId, companyId]
+    )
+
+    return result.rows[0] || null
+  }
 }
 
 module.exports = ProductRepository

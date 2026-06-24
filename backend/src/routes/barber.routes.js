@@ -129,6 +129,8 @@ router.post('/products', barberController.createProduct);
 router.put('/products/:id', barberController.updateProduct);
 router.delete('/products/:id', barberController.deleteProduct);
 router.patch('/products/:id/status', barberController.updateProductStatus);
+router.get('/fridge-items/report', barberController.getFridgeReport);
+router.patch('/fridge-items/:id/favorite', barberController.toggleFridgeFavorite);
 router.get('/collaborators', barberController.listCollaborators);
 router.get('/collaborators/financial-summary', requirePlanFeature('advanced_reports'), barberController.listCollaboratorFinancialSummary);
 router.get('/collaborators/:id', barberController.getCollaboratorById);

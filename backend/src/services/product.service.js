@@ -205,6 +205,41 @@ class ProductService {
     await this.repository.softDelete(companyId, productId)
     return true
   }
+
+  async getFridgeReport(companyId, user, filters = {}) {
+    ensureCompany(companyId)
+    ensureAdmin(user, 'Apenas admin pode acessar relatorio de geladeira')
+
+    const rows = await this.repository.getFridgeReport(companyId, filters)
+
+    const totalRevenue = rows.reduce((sum, r) => sum + Number(r.total_revenue), 0)
+    const totalItemsSold = rows.reduce((sum, r) => sum + Number(r.total_items_sold), 0)
+    const lowStock = rows.filter(r =>
+      Number(r.stock_minimum) > 0 &&
+      Number(r.stock_current) > 0 &&
+      Number(r.stock_current) <= Number(r.stock_minimum)
+    ).length
+    const outOfStock = rows.filter(r => Number(r.stock_current) === 0).length
+
+    return { totalRevenue, totalItemsSold, topSelling: rows, lowStock, outOfStock }
+  }
+
+  async toggleFridgeFavorite(companyId, user, productId) {
+    ensureCompany(companyId)
+    ensureAdmin(user, 'Apenas admin pode alterar favorito de geladeira')
+
+    const existing = await this.repository.findById(companyId, productId)
+
+    if (!existing) {
+      throw new NotFoundError('Produto')
+    }
+
+    if (existing.product_type !== 'fridge') {
+      throw new ValidationError('Produto nao e item de geladeira')
+    }
+
+    return this.repository.toggleFridgeFavorite(companyId, productId)
+  }
 }
 
 module.exports = ProductService
