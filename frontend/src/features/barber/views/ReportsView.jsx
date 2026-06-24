@@ -11,7 +11,9 @@ export default function ReportsView({
   services,
   visibleServices,
   products,
-  lowStockProducts
+  lowStockProducts,
+  fridgeItems = [],
+  fridgeReport = null
 }) {
   if (!isAdmin) {
     return (
@@ -203,6 +205,120 @@ export default function ReportsView({
           ]}
         />
       </section>
+
+      <Card padding="md">
+        <div className="barber-panel-header">
+          <div>
+            <h3>Itens da Geladeira</h3>
+            <p>Relatorio de vendas, estoque e desempenho dos itens do frigobar.</p>
+          </div>
+          <Badge variant="admin">{fridgeItems.filter(i => i.is_active || i.isActive).length} ativos</Badge>
+        </div>
+
+        <SummaryCard
+          title="Metricas de vendas"
+          subtitle="Dados reais de barber_products com product_type='fridge'."
+          items={[
+            {
+              label: "Total de itens",
+              description: "Itens ativos no catalogo da geladeira",
+              value: <strong>{fridgeItems.filter(i => i.is_active || i.isActive).length}</strong>
+            },
+            {
+              label: "Itens vendidos",
+              description: "Quantidade total vendida no periodo",
+              value: <strong>{fridgeReport ? fridgeReport.totalItemsSold : 0}</strong>
+            },
+            {
+              label: "Receita gerada",
+              description: "Faturamento dos itens vendidos",
+              value: <strong>{money(fridgeReport ? fridgeReport.totalRevenue : 0)}</strong>
+            },
+            {
+              label: "Estoque baixo",
+              description: "Itens com estoque abaixo do minimo",
+              value: <strong>{fridgeReport ? fridgeReport.lowStock : 0}</strong>,
+              valueVariant: (fridgeReport ? fridgeReport.lowStock : 0) > 0 ? 'warning' : 'default'
+            },
+            {
+              label: "Esgotados",
+              description: "Itens com estoque zero",
+              value: <strong>{fridgeReport ? fridgeReport.outOfStock : 0}</strong>,
+              valueVariant: (fridgeReport ? fridgeReport.outOfStock : 0) > 0 ? 'danger' : 'default'
+            }
+          ]}
+        />
+
+        {(fridgeReport && fridgeReport.topSelling.length > 0) && (
+          <div style={{ marginTop: 16 }}>
+            <div className="barber-table-header">
+              <h4>Mais vendidos</h4>
+              <Badge variant="pix">Top {fridgeReport.topSelling.length}</Badge>
+            </div>
+            <BarberTable columns={['#', 'Item', 'Vendidos', 'Receita']}>
+              {fridgeReport.topSelling.map((item, index) => (
+                <tr key={item.id}>
+                  <td><strong>{index + 1}</strong></td>
+                  <td>
+                    <strong>{item.name}</strong>
+                    <span>{item.location || '-'}</span>
+                  </td>
+                  <td>{item.total_items_sold}</td>
+                  <td>{money(Number(item.total_revenue || 0))}</td>
+                </tr>
+              ))}
+            </BarberTable>
+          </div>
+        )}
+
+        {(fridgeReport && fridgeReport.lowStock > 0) && (
+          <div style={{ marginTop: 16 }}>
+            <div className="barber-table-header">
+              <h4>Estoque baixo</h4>
+              <Badge variant="warning">{fridgeReport.lowStock} itens</Badge>
+            </div>
+            <BarberTable columns={['Item', 'Estoque', 'Minimo', 'Status']}>
+              {(fridgeReport.topSelling || [])
+                .filter(i =>
+                  Number(i.stock_minimum) > 0 &&
+                  Number(i.stock_current) > 0 &&
+                  Number(i.stock_current) <= Number(i.stock_minimum)
+                )
+                .map((item) => (
+                  <tr key={item.id}>
+                    <td><strong>{item.name}</strong></td>
+                    <td>{Number(item.stock_current || 0)}</td>
+                    <td>{Number(item.stock_minimum || 0)}</td>
+                    <td>
+                      <span className="fridge-badge fridge-badge-warning">
+                        Estoque baixo
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+            </BarberTable>
+          </div>
+        )}
+
+        {(fridgeReport && fridgeReport.outOfStock > 0) && (
+          <div style={{ marginTop: 16 }}>
+            <div className="barber-table-header">
+              <h4>Esgotados</h4>
+              <Badge variant="danger">{fridgeReport.outOfStock} itens</Badge>
+            </div>
+            <BarberTable columns={['Item', 'Estoque']}>
+              {(fridgeReport.topSelling || [])
+                .filter(i => Number(i.stock_current || 0) <= 0)
+                .map((item) => (
+                  <tr key={item.id}>
+                    <td><strong>{item.name}</strong></td>
+                    <td>0</td>
+                  </tr>
+                ))}
+            </BarberTable>
+          </div>
+        )}
+      </Card>
     </>
   )
 }

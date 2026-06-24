@@ -69,8 +69,15 @@ import BookingAvailabilityView from '../components/premium/BookingAvailabilityVi
 import ServicesAnalyticsView from '../components/premium/ServicesAnalyticsView'
 import Servicos from './barber/Servicos'
 import Produtos from './barber/Produtos'
+import ItensGeladeira from './barber/ItensGeladeira'
 import AtendimentoWorkspace from '../components/atendimento/AtendimentoWorkspace'
 import api from '../services/api'
+import {
+  emptyFridgeItem,
+  defaultFridgeFilters,
+  normalizeFridgeItem,
+  fridgeItemToPayload
+} from '../features/barber/utils/fridgeHelpers'
 import {
   canUseFeature,
   getLockedFeatureMessage,
@@ -100,7 +107,7 @@ import SettlementsView from '../features/barber/views/SettlementsView'
 import ReportsView from '../features/barber/views/ReportsView'
 import SettingsView from '../features/barber/views/SettingsView'
 import SalesView from '../features/barber/views/SalesView'
-import CollaboratorFormModal from '../features/barber/components/CollaboratorFormModal'
+import TeamFormModal from '../features/barber/components/team/TeamFormModal'
 import CollaboratorSummaryModal from '../features/barber/components/CollaboratorSummaryModal'
 import SaleSlideover from '../features/barber/components/SaleSlideover'
 import DeleteSaleModal from '../features/barber/components/DeleteSaleModal'
@@ -378,6 +385,11 @@ const viewMeta = {
     label: 'Produtos',
     title: 'Catalogo de produtos da barbearia',
     description: 'Organize estoque, categorias, fornecedor opcional e precificacao no mesmo padrao premium.'
+  },
+  fridge: {
+    label: 'Itens da Geladeira',
+    title: 'Controle de itens da geladeira',
+    description: 'Cadastre bebidas, produtos de balcao e itens de consumo rapido com estoque e comissao.'
   },
   sales: {
     label: 'Atendimentos',
@@ -798,6 +810,8 @@ function getInitialBarberView(pathname) {
 
   if (normalized.startsWith('/barber/produtos')) return 'products'
 
+  if (normalized.startsWith('/barber/geladeira')) return 'fridge'
+
   if (normalized.startsWith('/barber/vendas')) return 'sales'
 
   if (normalized.startsWith('/barber/caixa')) return 'cashier'
@@ -830,6 +844,7 @@ function getBarberViewPath(view) {
     'services-favorites': '/barber/servicos/favoritos',
     'services-commissions': '/barber/servicos/comissoes',
     products: '/barber/produtos',
+    fridge: '/barber/geladeira',
     sales: '/barber/vendas',
     cashier: '/barber/caixa',
     settlements: '/barber/acertos',
@@ -916,6 +931,12 @@ function Barber() {
   const [productForm, setProductForm] = useState(emptyProduct)
   const [editingProductId, setEditingProductId] = useState('')
   const [suppliers, setSuppliers] = useState([])
+  const [fridgeItems, setFridgeItems] = useState([])
+  const [fridgeCatalog, setFridgeCatalog] = useState([])
+  const [fridgeFilters, setFridgeFilters] = useState(defaultFridgeFilters)
+  const [fridgeForm, setFridgeForm] = useState(emptyFridgeItem)
+  const [editingFridgeId, setEditingFridgeId] = useState('')
+  const [fridgeReport, setFridgeReport] = useState(null)
   const [collaborators, setCollaborators] = useState([])
   const [sales, setSales] = useState([])
   const [advances, setAdvances] = useState([])
@@ -1161,6 +1182,28 @@ function Barber() {
     }
   }, [isAdmin, productFilters])
 
+  const loadFridgeCatalog = useCallback(async (filters = fridgeFilters, options = {}) => {
+    try {
+      const params = {}
+      if (filters.search) params.search = filters.search
+      if (filters.status && filters.status !== 'all') params.status = filters.status
+      if (filters.location) params.location = filters.location
+      if (filters.category) params.category = filters.category
+      const response = await api.get('/barber/products', { params: { ...params, product_type: 'fridge' } })
+      setFridgeCatalog(response.data.data)
+      if (!options.keepFullList) {
+        const fullResponse = await api.get('/barber/products', { params: { product_type: 'fridge' } })
+        setFridgeItems(fullResponse.data.data)
+      }
+      const reportResponse = await api.get('/barber/fridge-items/report')
+      setFridgeReport(reportResponse.data.data)
+    } catch (err) {
+      if (options.showError !== false) {
+        setError(err.response?.data?.error || 'Nao foi possivel carregar os itens da geladeira')
+      }
+    }
+  }, [fridgeFilters])
+
   const loadData = useCallback(async (options = {}) => {
     if (options.clearMessage !== false) {
       setError('')
@@ -1206,6 +1249,8 @@ function Barber() {
         requests.push(api.get('/barber/products'))
         requests.push(api.get('/barber/suppliers'))
       }
+
+      requests.push(api.get('/barber/products', { params: { product_type: 'fridge' } }))
 
       if ((isAdmin || canManageCash) && canUseCollaboratorsFeature) {
         requests.push(api.get('/barber/collaborators'))
@@ -1281,6 +1326,15 @@ function Barber() {
         setProducts([])
         setProductCatalog([])
         setSuppliers([])
+      }
+
+      {
+        const fridgeResponse = restResponses[responseIndex]
+        if (fridgeResponse) {
+          setFridgeItems(fridgeResponse.data.data)
+          setFridgeCatalog(fridgeResponse.data.data)
+          responseIndex += 1
+        }
       }
 
       if ((isAdmin || canManageCash) && canUseCollaboratorsFeature) {
@@ -1817,6 +1871,18 @@ function Barber() {
 
     return () => window.clearTimeout(timeoutId)
   }, [activeView, isAdmin, loadProductCatalog, productFilters])
+
+  useEffect(() => {
+    if (activeView !== 'fridge') {
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      loadFridgeCatalog(fridgeFilters, { keepFullList: true })
+    }, 220)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [activeView, loadFridgeCatalog, fridgeFilters])
 
   const selectedService = useMemo(() => {
     return services.find((service) => service.id === saleForm.serviceId)
@@ -2610,6 +2676,116 @@ function Barber() {
     }
   }
 
+  function resetFridgeEditor() {
+    setEditingFridgeId('')
+    setFridgeForm(emptyFridgeItem)
+  }
+
+  function updateFridgeForm(event) {
+    const { name, value } = event.target
+    setFridgeForm((current) => ({
+      ...current,
+      [name]: name === 'isActive' ? value === 'true' : value
+    }))
+  }
+
+  function updateFridgeFilters(event) {
+    const { name, value } = event.target
+    setFridgeFilters((current) => ({ ...current, [name]: value }))
+  }
+
+  async function submitFridgeItem(event) {
+    event.preventDefault()
+    setError('')
+    setSuccess('')
+
+    const payload = { ...fridgeItemToPayload(fridgeForm), productType: 'fridge' }
+
+    try {
+      if (Boolean(editingFridgeId)) {
+        await api.put(`/barber/products/${editingFridgeId}`, payload)
+        setSuccess('Item atualizado')
+      } else {
+        await api.post('/barber/products', payload)
+        setSuccess('Item cadastrado')
+      }
+
+      resetFridgeEditor()
+      await loadData()
+
+      if (activeView === 'fridge') {
+        await loadFridgeCatalog(fridgeFilters, { keepFullList: true, showError: false })
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Nao foi possivel salvar o item')
+    }
+  }
+
+  async function editFridgeItem(itemId) {
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await api.get(`/barber/products/${itemId}`)
+      setEditingFridgeId(itemId)
+      setFridgeForm(normalizeFridgeItem(response.data.data))
+      navigateView('fridge')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Nao foi possivel carregar o item')
+    }
+  }
+
+  async function toggleFridgeStatus(item) {
+    setError('')
+    setSuccess('')
+
+    try {
+      const currentIsActive = item.is_active ?? item.isActive
+      await api.patch(`/barber/products/${item.id}/status`, { is_active: !currentIsActive })
+      setSuccess(currentIsActive ? 'Item desativado' : 'Item ativado')
+      await loadData()
+      await loadFridgeCatalog(fridgeFilters, { keepFullList: true, showError: false })
+    } catch (err) {
+      setError(err.response?.data?.error || 'Nao foi possivel atualizar o status do item')
+    }
+  }
+
+  async function toggleFridgeFavorite(item) {
+    setError('')
+    setSuccess('')
+
+    try {
+      await api.patch(`/barber/fridge-items/${item.id}/favorite`)
+      const currentIsFavorite = item.is_favorite ?? item.isFavorite
+      setSuccess(currentIsFavorite ? 'Item removido dos favoritos' : 'Item marcado como favorito')
+      await loadData()
+      await loadFridgeCatalog(fridgeFilters, { keepFullList: true, showError: false })
+    } catch (err) {
+      setError(err.response?.data?.error || 'Nao foi possivel atualizar o favorito')
+    }
+  }
+
+  async function removeFridgeItem(itemId) {
+    if (!window.confirm('Deseja realmente excluir este item?')) {
+      return
+    }
+
+    setError('')
+    setSuccess('')
+
+    try {
+      await api.delete(`/barber/products/${itemId}`)
+      if (editingFridgeId === itemId) {
+        resetFridgeEditor()
+      }
+      setSuccess('Item excluido')
+      await loadData()
+      await loadFridgeCatalog(fridgeFilters, { keepFullList: true, showError: false })
+    } catch (err) {
+      setError(err.response?.data?.error || 'Nao foi possivel excluir o item')
+    }
+  }
+
   async function createCollaborator(event) {
     event.preventDefault()
     setError('')
@@ -2706,6 +2882,12 @@ function Barber() {
   }
 
   async function toggleCollaboratorStatus(collaborator) {
+    const action = collaborator.is_active ? 'desativar' : 'ativar'
+    const name = collaboratorDisplayName(collaborator)
+    if (!window.confirm(`Tem certeza que deseja ${action} o colaborador "${name}"?`)) {
+      return
+    }
+
     setError('')
     setSuccess('')
 
@@ -2717,19 +2899,6 @@ function Barber() {
       await loadData()
     } catch (err) {
       setError(err.response?.data?.error || 'Nao foi possivel atualizar o status do colaborador')
-    }
-  }
-
-  async function saveCollaboratorPermissions(collaboratorId, permissions) {
-    setError('')
-    setSuccess('')
-
-    try {
-      await api.patch(`/barber/collaborators/${collaboratorId}/permissions`, permissions)
-      setSuccess('Permissoes atualizadas')
-      await loadData()
-    } catch (err) {
-      setError(err.response?.data?.error || 'Nao foi possivel atualizar as permissoes')
     }
   }
 
@@ -4262,6 +4431,17 @@ function renderActiveView() {
       )
     }
 
+    if (!isAdmin && currentView === 'fridge') {
+      return (
+        <Card padding="md">
+          <Empty
+            description="O modulo Itens da Geladeira fica disponivel apenas para perfis gestores da barbearia."
+            title="Itens da Geladeira indisponivel"
+          />
+        </Card>
+      )
+    }
+
     if (!isAdmin && !isCollaborator && currentView === 'appointments') {
       return (
         <Card padding="md">
@@ -4415,11 +4595,29 @@ function renderActiveView() {
           products={productCatalog}
           suppliers={suppliers}
         />
+      case 'fridge':
+        return <ItensGeladeira
+          filters={fridgeFilters}
+          form={fridgeForm}
+          isEditing={Boolean(editingFridgeId)}
+          isAdmin={isAdmin}
+          money={money}
+          onCancelEdit={resetFridgeEditor}
+          onDelete={removeFridgeItem}
+          onEdit={editFridgeItem}
+          onFilterChange={updateFridgeFilters}
+          onFormChange={updateFridgeForm}
+          onSubmit={submitFridgeItem}
+          onToggleStatus={toggleFridgeStatus}
+          onToggleFavorite={toggleFridgeFavorite}
+          items={fridgeCatalog}
+        />
       case 'sales':
         return <SalesView
           useNewAtendimentoLayout={useNewAtendimentoLayout}
           services={services}
           products={products}
+          fridgeItems={fridgeCatalog}
           collaborators={collaborators}
           sales={sales}
           salesSummary={salesSummary}
@@ -4499,6 +4697,7 @@ function renderActiveView() {
           setSaleModalOpen={setSaleModalOpen}
           loadData={loadData}
           paymentChartData={paymentChartData}
+          fridgeReport={fridgeReport}
         />
       case 'settlements':
         return <SettlementsView
@@ -4535,7 +4734,6 @@ function renderActiveView() {
           navigateView={navigateView}
           openCollaboratorCreateModal={openCollaboratorCreateModal}
           toggleCollaboratorStatus={toggleCollaboratorStatus}
-          saveCollaboratorPermissions={saveCollaboratorPermissions}
           removeCollaborator={removeCollaborator}
         />
       case 'reports':
@@ -4550,6 +4748,8 @@ function renderActiveView() {
           visibleServices={visibleServices}
           products={products}
           lowStockProducts={lowStockProducts}
+          fridgeItems={fridgeCatalog}
+          fridgeReport={fridgeReport}
         />
       case 'settings':
         return <SettingsView
@@ -4717,7 +4917,7 @@ function renderActiveView() {
         </section>
       </Shell>
 
-      <CollaboratorFormModal
+      <TeamFormModal
         collaboratorModalOpen={collaboratorModalOpen}
         closeCollaboratorModal={closeCollaboratorModal}
         isEditingCollaborator={isEditingCollaborator}

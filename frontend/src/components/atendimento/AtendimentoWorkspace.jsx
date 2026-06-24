@@ -9,11 +9,13 @@ import EmptyStateAtendimento from './EmptyStateAtendimento'
 import HistoryTable from './HistoryTable'
 import PaymentErrorModal from './PaymentErrorModal'
 import QuickSaleModal from './QuickSaleModal'
+import QuickFridgeModal from './QuickFridgeModal'
 import './atendimento.css'
 
 function AtendimentoWorkspace({
   services = [],
   products = [],
+  fridgeItems = [],
   collaborators = [],
   salesSummary = {},
   salesHistory = [],
@@ -39,6 +41,7 @@ function AtendimentoWorkspace({
   const [showPaymentError, setShowPaymentError] = useState(false)
   const [paymentErrorMessage, setPaymentErrorMessage] = useState('')
   const [showQuickSale, setShowQuickSale] = useState(false)
+  const [showQuickFridge, setShowQuickFridge] = useState(false)
 
   const activeCollaborators = useMemo(() => {
     return collaborators.filter(c => c.is_active && !c.is_deleted)
@@ -70,6 +73,23 @@ function AtendimentoWorkspace({
 
   function applyCommission(item, collaborator) {
     const totalPrice = Number(item.unitPrice) * Number(item.quantity)
+    if (item.itemType === 'fridge') {
+      if (item.commissionEnabled) {
+        const commType = item.commissionType || 'percentage'
+        const commValue = Number(item.commissionValue) || 0
+        const commissionAmount = commType === 'fixed'
+          ? commValue * Number(item.quantity)
+          : totalPrice * (commValue / 100)
+        return {
+          ...item,
+          commissionType: commType,
+          commissionValue: commValue,
+          commissionAmount,
+          shopNetAmount: Math.max(0, totalPrice - commissionAmount)
+        }
+      }
+      return { ...item, commissionType: 'percentage', commissionValue: 0, commissionAmount: 0, shopNetAmount: totalPrice }
+    }
     if (!collaborator || item.itemType !== 'service') {
       return { ...item, commissionType: 'percentage', commissionValue: 0, commissionAmount: 0, shopNetAmount: totalPrice }
     }
@@ -121,8 +141,9 @@ function AtendimentoWorkspace({
         unitPrice,
         quantity: 1,
         totalPrice: unitPrice,
-        commissionType: 'percentage',
-        commissionValue: 0,
+        commissionEnabled: itemData.commissionEnabled || false,
+        commissionType: itemData.commissionType || 'percentage',
+        commissionValue: itemData.commissionValue || 0,
         commissionAmount: 0,
         shopNetAmount: unitPrice
       }
@@ -171,13 +192,16 @@ function AtendimentoWorkspace({
         amountReceived: isCashPayment ? Number(amountReceived) || undefined : undefined,
         changeAmount: cashChange > 0 ? cashChange : 0,
         notes: notes || null,
-        items: items.map(item => ({
-          itemType: item.itemType,
-          itemId: item.itemId,
-          service_id: item.itemType === 'service' ? item.itemId : undefined,
-          product_id: item.itemType === 'product' ? item.itemId : undefined,
-          quantity: Number(item.quantity) || 1
-        }))
+        items: items.map(item => {
+          const backendItemType = item.itemType === 'fridge' ? 'product' : item.itemType
+          return {
+            itemType: backendItemType,
+            itemId: item.itemId,
+            service_id: backendItemType === 'service' ? item.itemId : undefined,
+            product_id: backendItemType === 'product' ? item.itemId : undefined,
+            quantity: Number(item.quantity) || 1
+          }
+        })
       }
 
       await onSubmit(saleData)
@@ -216,6 +240,22 @@ function AtendimentoWorkspace({
       icon: 'package',
       type: 'product'
     })
+  }, [handleSelectItem])
+
+  const handleQuickFridgeItem = useCallback((itemData) => {
+    const qty = Math.max(1, Number(itemData.quantity) || 1)
+    for (let i = 0; i < qty; i++) {
+      handleSelectItem({
+        id: itemData.id,
+        name: itemData.name,
+        price: itemData.price,
+        icon: 'package',
+        type: 'fridge',
+        commissionEnabled: itemData.commissionEnabled,
+        commissionType: itemData.commissionType,
+        commissionValue: itemData.commissionValue
+      })
+    }
   }, [handleSelectItem])
 
   const handleNewAttendance = useCallback(() => {
@@ -299,10 +339,30 @@ function AtendimentoWorkspace({
 
       <HistoryTable sales={salesHistory} />
 
+      <div className="at-actions-row">
+        <button
+          className="at-action-btn"
+          onClick={() => setShowQuickSale(true)}
+          type="button"
+        >
+          <Package size={14} />
+          + Venda Rápida
+        </button>
+        <button
+          className="at-action-btn at-action-btn-fridge"
+          onClick={() => setShowQuickFridge(true)}
+          type="button"
+        >
+          <Package size={14} />
+          + Item da Geladeira
+        </button>
+      </div>
+
       <div className="at-main">
         <ServiceCatalog
           services={services}
           products={products}
+          fridgeItems={fridgeItems}
           onSelectItem={handleSelectItem}
           selectedItems={items}
         />
@@ -347,6 +407,13 @@ function AtendimentoWorkspace({
         onClose={() => setShowQuickSale(false)}
         products={products}
         onAddProduct={handleQuickSaleProduct}
+      />
+
+      <QuickFridgeModal
+        open={showQuickFridge}
+        onClose={() => setShowQuickFridge(false)}
+        fridgeItems={fridgeItems.filter(f => f.isActive !== false)}
+        onAddFridgeItem={handleQuickFridgeItem}
       />
     </div>
   )
