@@ -45,6 +45,12 @@ function normalizeProductPayload(data = {}) {
     unit: String(data.unit || data.unidade || '').trim() || null,
     commissionType: String(data.commission_type || data.commissionType || 'fixed').trim() || 'fixed',
     commissionValue: toNumber(data.commission_value || data.commissionValue),
+    commissionEnabled: Boolean(data.commission_enabled ?? data.commissionEnabled ?? false),
+    productType: ['product', 'fridge'].includes(String(data.product_type || data.productType || '').trim())
+      ? String(data.product_type || data.productType).trim()
+      : 'product',
+    location: String(data.location || '').trim() || null,
+    isFavorite: Boolean(data.is_favorite ?? data.isFavorite ?? false),
     isActive: resolvedIsActive !== null
       ? resolvedIsActive
       : data.is_active === undefined && data.isActive === undefined

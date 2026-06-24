@@ -18,6 +18,10 @@ const SELECT_COLUMNS = `
   barber_products.unit,
   barber_products.commission_type,
   barber_products.commission_value,
+  barber_products.commission_enabled,
+  barber_products.product_type,
+  barber_products.location,
+  barber_products.is_favorite,
   barber_products.is_active,
   barber_products.is_deleted,
   barber_products.created_at,
@@ -76,6 +80,12 @@ class ProductRepository extends BaseRepository {
     if (category) {
       values.push(category)
       where.push(`COALESCE(barber_products.category, '') = $${values.length}`)
+    }
+
+    const productType = String(filters.product_type || filters.productType || '').trim()
+    if (productType) {
+      values.push(productType)
+      where.push(`barber_products.product_type = $${values.length}`)
     }
 
     const result = await this.db.query(
@@ -137,9 +147,10 @@ class ProductRepository extends BaseRepository {
          company_id, supplier_id, name, description, category,
          brand, internal_code, cost_price, sale_price,
          stock_current, stock_minimum, unit, commission_type,
-         commission_value, is_active, is_deleted, updated_at
+         commission_value, commission_enabled, product_type,
+         location, is_favorite, is_active, is_deleted, updated_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false, NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, false, NOW())
        RETURNING ${SELECT_COLUMNS}`,
       [
         companyId,
@@ -156,6 +167,10 @@ class ProductRepository extends BaseRepository {
         data.unit,
         data.commissionType,
         data.commissionValue,
+        data.commissionEnabled,
+        data.productType,
+        data.location,
+        data.isFavorite,
         data.isActive
       ]
     )
@@ -179,7 +194,11 @@ class ProductRepository extends BaseRepository {
            unit = $13,
            commission_type = $14,
            commission_value = $15,
-           is_active = $16,
+           commission_enabled = $16,
+           product_type = $17,
+           location = $18,
+           is_favorite = $19,
+           is_active = $20,
            updated_at = NOW()
        WHERE id = $1
          AND company_id = $2
@@ -201,6 +220,10 @@ class ProductRepository extends BaseRepository {
         data.unit,
         data.commissionType,
         data.commissionValue,
+        data.commissionEnabled,
+        data.productType,
+        data.location,
+        data.isFavorite,
         data.isActive
       ]
     )

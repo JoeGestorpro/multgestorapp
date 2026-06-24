@@ -56,6 +56,8 @@ function calculateCommission(item, service, collaborator) {
     return toNumber(item.total_price) * (collaboratorCommissionRate / 100)
   }
 
+  if (service.commission_enabled === false) return 0
+
   if (service.commission_type === 'fixed') {
     return toNumber(service.commission_value) * toNumber(item.quantity)
   }

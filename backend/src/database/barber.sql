@@ -804,3 +804,23 @@ ALTER TABLE barber_appointments ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'ad
 ALTER TABLE barber_appointments ADD COLUMN IF NOT EXISTS canceled_reason TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_barber_appointments_comp_coll_start ON barber_appointments(company_id, collaborator_id, appointment_date, appointment_time);
+
+-- BG-001 — fridge items via barber_products discriminador
+ALTER TABLE barber_products ADD COLUMN IF NOT EXISTS product_type TEXT NOT NULL DEFAULT 'product';
+ALTER TABLE barber_products ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE barber_products ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE barber_products ADD COLUMN IF NOT EXISTS commission_enabled BOOLEAN NOT NULL DEFAULT false;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chk_barber_products_product_type'
+  ) THEN
+    ALTER TABLE barber_products
+      ADD CONSTRAINT chk_barber_products_product_type
+      CHECK (product_type IN ('product', 'fridge'));
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_barber_products_company_type
+  ON barber_products(company_id, product_type) WHERE is_deleted = false;
