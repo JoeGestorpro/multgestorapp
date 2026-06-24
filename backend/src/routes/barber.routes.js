@@ -111,6 +111,7 @@ router.post('/cash/close', requirePlanFeature('financial_dashboard'), barberCont
 router.post('/cash/reopen', requirePlanFeature('financial_dashboard'), barberController.reopenCash);
 router.get('/dashboard', barberController.getDashboard);
 router.get('/services', barberController.listServices);
+router.get('/services/analytics', barberController.getServicesAnalytics);
 router.get('/services/:id', barberController.getServiceById);
 router.post('/services', validateRequest(createServiceSchema), barberController.createService);
 router.put('/services/:id', validateRequest(updateServiceSchema), barberController.updateService);
@@ -174,7 +175,6 @@ router.put('/availability', barberController.updateAvailability);
 
 router.get('/crm/summary', barberController.getCrmSummary);
 router.get('/agenda/crm', barberController.getAgendaCrm);
-router.get('/services/analytics', barberController.getServicesAnalytics);
 
 // Anamnese — exclusão LGPD (M3)
 router.delete('/customers/:id/anamnesis', requirePlanFeature('advanced_reports'), barberController.requestDelete);
