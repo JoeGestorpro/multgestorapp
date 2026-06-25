@@ -1,7 +1,7 @@
 -- A-001: RLS para companies e users
 -- Aplica Row Level Security nas tabelas companies e users.
--- S√≥ tem efeito para conex√µes cujo role N√ÉO possui BYPASSRLS (app_runtime).
--- DATABASE_URL / service_role mant√™m BYPASSRLS e ignoram estas policies.
+-- SÛ tem efeito para conexıes cujo role N√O possui BYPASSRLS (app_runtime).
+-- DATABASE_URL / service_role mantÍm BYPASSRLS e ignoram estas policies.
 
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
 
@@ -13,7 +13,11 @@ CREATE POLICY tenant_self_read ON companies
 DROP POLICY IF EXISTS tenant_self_update ON companies;
 CREATE POLICY tenant_self_update ON companies
   FOR UPDATE
-  USING (id = NULLIF(current_setting('app.current_company_id', true), '')::uuid);
+  USING (id = NULLIF(current_setting('app.current_company_id', true), '')::uuid)
+  WITH CHECK (id = NULLIF(current_setting('app.current_company_id', true), '')::uuid);
+
+-- INSERT companies: sem policy ? default DENY (app_runtime n„o cria empresas)
+-- DELETE companies: sem policy ? default DENY (app_runtime n„o deleta empresas)
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
@@ -33,5 +37,5 @@ CREATE POLICY tenant_users_update ON users
   USING (company_id = NULLIF(current_setting('app.current_company_id', true), '')::uuid)
   WITH CHECK (company_id = NULLIF(current_setting('app.current_company_id', true), '')::uuid);
 
--- DELETE n√£o tem policy: RLS default-deny bloqueia hard delete via app_runtime.
--- Barber app usa soft-delete (is_deleted); remover esta se√ß√£o √© intencional (least-privilege).
+-- DELETE users: sem policy ? default DENY (app_runtime n„o pode hard-deletar usu·rios)
+-- Barber app usa soft-delete (is_deleted); remover esta seÁ„o È intencional (least-privilege).
