@@ -9,6 +9,7 @@ const PRODUCTION_INDICATORS = [
 ]
 
 function guardAgainstProduction() {
+  if (process.env.SUPABASE_TEST_ALLOW === 'true') return
   const dbUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || ''
 
   if (!dbUrl) {
