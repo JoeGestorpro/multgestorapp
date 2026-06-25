@@ -1,13 +1,13 @@
 ﻿# 📌 ESTADO DO PROJETO — Estado Atual Real
 
-> **Atualizado:** 2026-06-23 · **state_version:** 20
+> **Atualizado:** 2026-06-24 · **state_version:** 21
 > **REGRA:** este arquivo é atualizado a cada missão APPROVE (Loop de Fechamento). Se estiver desatualizado, o CHECK 0 deve bloquear/reduzir o Context Confidence.
 > **Origem:** substitui `.opencodex/state/project-state.md` (V2, congelado 06-04) e `.agent/memory/current-state.md`.
 
 ```yaml
 project: MultGestor v2
-state_version: 19
-phase: "estabilizacao-de-producao + endurecimento-de-seguranca"
+state_version: 21
+phase: "knowledge-os-v3 — Second Brain V3 completo + estabilizacao-de-producao"
 
 git:
   origin_main: "e95d43b (origin/main HEAD, verificado 2026-06-23 Fase D) — Merge PR #12 (feat/master-panel-clean), mergeado APÓS o último fechamento. Ancestral: af04618 (era apontado como head pelo doc; correção de freeze)."
@@ -39,14 +39,14 @@ prod_evidence_2026_06_15:
   - "POST /api/auth/register com <script> → 400 (portão XSS ativo)"
 
 queue:
-  current_task: "idle — CONSOLIDAÇÃO DO SEGUNDO CÉREBRO CONCLUÍDA (2026-06-23). D-015 criada, .gitignore atualizado, living-os completo no git, wikilinks corrigidos."
+  current_task: "idle — KNOWLEDGE OS 3.0 CONCLUÍDO (2026-06-24). 7 camadas, Constitution, Digital Twin, Feature Genome, Impact Graph, Simulation Center, AI Brain, Knowledge DNA/Health/Memory, Decision Graph, Ops Center, Executive Intelligence. ~60+ arquivos. Próximo: cleanup/fase-c-branches-worktrees."
   next_task: "cleanup/fase-c-branches-worktrees — HUMAN_APPROVAL_REQUIRED: higiene de branches/worktrees acumulados na Fase C; deleção só com lista explícita aprovada. Depois: agent/joefelipe-consolidation."
   unblocked_ready: "cleanup/fase-c-branches-worktrees (aguardando autorização humana — HUMAN_APPROVAL_REQUIRED)"
   last_decision: >-
-    D-015 DECIDIDO (2026-06-23): fonte única do Segundo Cérebro.
-    .gitignore atualizado (docs/private/, vendas/, body-login.json, .opencodex/.obsidian/, .opencodex/segundo cerebro/).
-    12 arquivos do Living OS oficial adicionados ao git. Wikilinks corrigidos no INDEX.md.
-    FASE C OFICIALMENTE FECHADA. Próximo: cleanup/fase-c-branches-worktrees; depois agent/joefelipe-consolidation.
+    KNOWLEDGE OS 3.0 CONCLUÍDO (2026-06-24). state_version 20→21.
+    Missão doc-only: 60+ arquivos em .opencodex/brain/.
+    Escopo expandido registrado como lição L-11.
+    Próximo: cleanup/fase-c-branches-worktrees.
 
 deploy_blockers:
   - id: "OPS-1"

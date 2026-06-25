@@ -34,5 +34,8 @@ RLS `ENABLE` não isola nada se o role de runtime tem BYPASSRLS. **Aprendizado:*
 - O **GATE-INTEG provou seu valor na 1ª execução** — segurou um bug crítico que teria ido para produção.
 - "Verde no unit" ≠ "funciona": mocks validam contrato do chamador, não a implementação real do dependido.
 
+## L-11 — Knowledge OS 3.0: escopo cresceu além do planejado (2026-06-24)
+Missão `knowledge-os-v3` expandiu escopo em ~50% durante execução (Knowledge DNA, Health, Memory, Decision Graph, Ops Center, Executive Intelligence, Agent Matrix, Builder, Planner, Providers foram adicionados além do plano original). **Aprendizado:** escopo deve ser congelado após aprovação; adições vão para o backlog, não para a missão corrente. (Detalhe: [[lessons/L-11-knowledge-os-scope-creep]].)
+
 ## L-08 — Dois formatos de evento (in-memory vs outbox)
 Consumer escrito para um formato quebra no outro (`event.event_name` vs `event.type`; `event.company_id` vs `context.companyId`). **Aprendizado:** acessar campos pelo formato correto; helper/factory central se variar.
