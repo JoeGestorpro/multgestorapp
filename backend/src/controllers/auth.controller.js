@@ -202,7 +202,7 @@ const refresh = asyncHandler(async (req, res) => {
       `SELECT u.*, c.name as company_name
        FROM users u
        LEFT JOIN companies c ON c.id = u.company_id
-       WHERE u.id = $1 AND COALESCE(u.is_deleted, false) = false
+       WHERE u.id = $1
        LIMIT 1`,
       [payload.id]
     );
