@@ -36,6 +36,15 @@ const migrations = [
 
   // Fase 2 — Lembrete de agendamento via WhatsApp
   { version: '20260604_023', file: 'barber_appointments_reminder.sql' },
+
+  // A-001 — RLS policies para companies + users (sem app.auth_scope)
+  { version: '20260624_024', file: '20260624_024_rls_companies_users.sql' },
+
+  // A-001, P2 — WITH CHECK explícito nas 22 policies tenant existentes
+  { version: '20260624_025', file: '20260624_025_rls_with_check.sql' },
+
+  // A-001, P3 — Role app_runtime NOBYPASSRLS + grants
+  { version: '20260624_026', file: '20260624_026_rls_app_runtime_role.sql' },
 ];
 
 async function ensureMigrationsTable() {

@@ -11,6 +11,7 @@ describe('Database Production Protection', () => {
   it('throws when no DATABASE_URL is set', () => {
     delete process.env.DATABASE_URL
     delete process.env.TEST_DATABASE_URL
+    delete process.env.SUPABASE_TEST_ALLOW
 
     expect(() => guardAgainstProduction()).toThrow(
       'TEST_DATABASE_URL or DATABASE_URL is not set'
@@ -18,6 +19,7 @@ describe('Database Production Protection', () => {
   })
 
   it('throws when URL contains supabase.co (production indicator)', () => {
+    delete process.env.SUPABASE_TEST_ALLOW
     process.env.DATABASE_URL = 'postgres://user:pass@db.xyz123.supabase.co:5432/production'
 
     expect(() => guardAgainstProduction()).toThrow(
@@ -26,6 +28,7 @@ describe('Database Production Protection', () => {
   })
 
   it('throws when URL contains production keyword', () => {
+    delete process.env.SUPABASE_TEST_ALLOW
     process.env.DATABASE_URL = 'postgres://user:pass@host:5432/my-production-db'
 
     expect(() => guardAgainstProduction()).toThrow(

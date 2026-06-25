@@ -21,6 +21,7 @@ const clientRoutes = require('./routes/client.routes');
 const publicAuthRoutes = require('./routes/public-auth.routes');
 const publicBookingRoutes = require('./routes/public-booking.routes');
 const webhooksRoutes = require('./routes/webhooks.routes');
+const internalRoutes = require('./routes/internal.routes');
 const { getAppBaseUrl } = require('./services/email/email.service');
 const { appLogger } = require('./shared/core/logger');
 const correlationId = require('./middlewares/correlation-id.middleware');
@@ -370,6 +371,7 @@ app.use('/api/webhooks', webhooksRoutes);
 
 app.get('/api/webhooks/whatsapp', (req, res) => whatsappWebhook.handleVerification(req, res));
 app.post('/api/webhooks/whatsapp', (req, res) => whatsappWebhook.handleIncoming(req, res));
+app.use('/internal', internalRoutes);
 app.use('/api/master', masterRoutes);
 app.use('/api/client', clientRoutes);
 app.use('/api/barber', barberRoutes);
