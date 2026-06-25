@@ -302,7 +302,7 @@ class ProductRepository extends BaseRepository {
             AND bsi.company_id = bp.company_id
       LEFT JOIN barber_sales bs
              ON bs.id = bsi.sale_id
-            AND bs.deleted_at IS NULL
+            AND bs.canceled_at IS NULL
             AND ($2::timestamptz IS NULL OR bs.created_at >= $2)
       WHERE bp.company_id = $1
         AND bp.product_type = 'fridge'
