@@ -22,7 +22,7 @@ VITE_API_URL=https://api.barbergestor.com.br
 | Plataforma | Render (Web Service) |
 | Start command | `node backend/server.js` |
 | Node version | 20.x (LTS) |
-| Health check | `/health` ou similar |
+| Health check | `/api/health` |
 
 **Variáveis de ambiente (Render):**
 ```

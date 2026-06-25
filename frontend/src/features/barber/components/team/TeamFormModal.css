@@ -1,0 +1,39 @@
+.team-form-tabs {
+  display: flex;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 16px;
+  padding: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.team-form-tab {
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  color: #94a3b8;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 600;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 18px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.team-form-tab:hover {
+  color: #e2e8f0;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.team-form-tab-active {
+  background: rgba(163, 255, 18, 0.12);
+  border: 1px solid rgba(163, 255, 18, 0.2);
+  color: #a3ff12;
+  box-shadow: 0 0 12px rgba(163, 255, 18, 0.06);
+}

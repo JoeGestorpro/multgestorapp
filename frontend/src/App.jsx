@@ -320,6 +320,14 @@ function App() {
         }
       />
       <Route
+        path="/barber/geladeira"
+        element={
+          <BarberPrivateRoute>
+            <BarberDashboard />
+          </BarberPrivateRoute>
+        }
+      />
+      <Route
         path="/barber/vendas"
         element={
           <BarberPrivateRoute>

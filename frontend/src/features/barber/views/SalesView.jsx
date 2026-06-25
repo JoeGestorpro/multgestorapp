@@ -22,6 +22,7 @@ export default function SalesView({
   useNewAtendimentoLayout,
   services,
   products,
+  fridgeItems,
   collaborators,
   sales,
   salesSummary,
@@ -187,6 +188,7 @@ export default function SalesView({
       <AtendimentoWorkspace
         services={visibleServicesForAt}
         products={visibleProductsForAt}
+        fridgeItems={fridgeItems}
         collaborators={activeCollaboratorsForAt}
         salesSummary={salesSummary}
         onSubmit={onSubmit}

@@ -880,6 +880,27 @@ function BookingFlow() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  const canProceed = useMemo(() => {
+    switch (currentStep) {
+      case STEPS.SERVICE: return !!form.serviceId
+      case STEPS.PROFESSIONAL: return true
+      case STEPS.DATETIME: return !!form.appointmentDate && !!form.appointmentTime
+      case STEPS.SUMMARY: return true
+      default: return false
+    }
+  }, [currentStep, form])
+
+  const goNext = useCallback(() => {
+    if (!canProceed) return
+    stepDir.current = 1
+    setCurrentStep(s => Math.min(s + 1, STEPS.SUMMARY))
+  }, [canProceed])
+
+  const goBack = useCallback(() => {
+    stepDir.current = -1
+    setCurrentStep(s => Math.max(s - 1, STEPS.SERVICE))
+  }, [])
+
   useEffect(() => {
     const el = flowRef.current
     if (!el || isDesktop) return
@@ -898,16 +919,6 @@ function BookingFlow() {
       el.removeEventListener('touchend', handleTouchEnd)
     }
   }, [isDesktop, goNext, goBack])
-
-  const canProceed = useMemo(() => {
-    switch (currentStep) {
-      case STEPS.SERVICE: return !!form.serviceId
-      case STEPS.PROFESSIONAL: return true
-      case STEPS.DATETIME: return !!form.appointmentDate && !!form.appointmentTime
-      case STEPS.SUMMARY: return true
-      default: return false
-    }
-  }, [currentStep, form])
 
   useEffect(() => {
     async function loadData() {
@@ -980,17 +991,6 @@ function BookingFlow() {
 
   const selectTime = useCallback((time) => {
     setForm(f => ({ ...f, appointmentTime: time }))
-  }, [])
-
-  const goNext = useCallback(() => {
-    if (!canProceed) return
-    stepDir.current = 1
-    setCurrentStep(s => Math.min(s + 1, STEPS.SUMMARY))
-  }, [canProceed])
-
-  const goBack = useCallback(() => {
-    stepDir.current = -1
-    setCurrentStep(s => Math.max(s - 1, STEPS.SERVICE))
   }, [])
 
   const submitAppointment = useCallback(async () => {

@@ -24,6 +24,11 @@ export const viewMeta = {
     title: 'Catalogo de produtos da barbearia',
     description: 'Organize estoque, categorias, fornecedor opcional e precificacao no mesmo padrao premium.'
   },
+  fridge: {
+    label: 'Itens da Geladeira',
+    title: 'Controle de itens da geladeira',
+    description: 'Cadastre bebidas, produtos de balcao e itens de consumo rapido com estoque e comissao.'
+  },
   sales: {
     label: 'Atendimentos',
     title: 'Operacao de atendimentos',

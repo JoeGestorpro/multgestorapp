@@ -31,9 +31,12 @@ export default function CashierView({
   loggedInCollaboratorId,
   setSaleModalOpen,
   loadData,
-  paymentChartData
+  paymentChartData,
+  fridgeReport = null
 }) {
     const grossTotal = sales.reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0)
+    const fridgeRevenue = fridgeReport ? Number(fridgeReport.totalRevenue) || 0 : 0
+    const serviceRevenue = Math.max(0, grossTotal - fridgeRevenue)
     const cashTotal = sales
       .filter((sale) => normalizePaymentMethod(sale.payment_method) === 'cash')
       .reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0)
@@ -110,6 +113,20 @@ export default function CashierView({
                   <p>Registros retornados pela API</p>
                 </div>
                 <strong className="cash-metric-value">{sales.length}</strong>
+              </div>
+              <div className="cash-metric-card cash-metric-card-info">
+                <div>
+                  <span>Receita Serviços</span>
+                  <p>Vendas de serviços no período</p>
+                </div>
+                <strong className="cash-metric-value">{money(serviceRevenue)}</strong>
+              </div>
+              <div className="cash-metric-card cash-metric-card-fridge">
+                <div>
+                  <span>Receita Itens (Geladeira)</span>
+                  <p>Produtos da geladeira vendidos</p>
+                </div>
+                <strong className="cash-metric-value">{money(fridgeRevenue)}</strong>
               </div>
               <div className="cash-metric-card">
                 <div>

@@ -1950,6 +1950,112 @@
 }
 
 /* ============================================
+   ACTION BUTTONS (Venda Rápida + Item Geladeira)
+   ============================================ */
+
+.at-actions-row {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.at-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--at-bg);
+  border: 1px solid var(--at-border);
+  border-radius: var(--at-radius);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--at-text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.at-action-btn:hover {
+  border-color: var(--at-border-hover);
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateY(-1px);
+}
+
+.at-action-btn svg {
+  color: var(--at-primary);
+}
+
+.at-action-btn-fridge {
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.at-action-btn-fridge svg {
+  color: #3b82f6;
+}
+
+.at-action-btn-fridge:hover {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+/* ============================================
+   FRIDGE — Stock Badges & States
+   ============================================ */
+
+.at-stock-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+.at-stock-normal {
+  color: #8cff4f;
+  background: rgba(140, 255, 79, 0.12);
+}
+
+.at-stock-baixo {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.at-stock-esgotado {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.at-card-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(0.5);
+}
+
+.at-modal-item-disabled {
+  opacity: 0.4;
+  cursor: not-allowed !important;
+}
+
+.at-modal-item-disabled:hover {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.at-modal-product-info span + .at-stock-badge {
+  margin-left: 6px;
+}
+
+.at-fridge-star-icon {
+  display: inline;
+  color: #f59e0b;
+  margin-left: 2px;
+  vertical-align: middle;
+}
+
+/* ============================================
    RESPONSIVE — Desktop, Tablet, Mobile
    ============================================ */
 

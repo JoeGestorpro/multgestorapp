@@ -1,7 +1,8 @@
 import { X, Minus, Plus, Package } from 'lucide-react'
 import ServiceIcon from '../barber/ServiceIcon'
 
-function CartItem({ item, onUpdateQty, onRemove, isProduct = false }) {
+function CartItem({ item, onUpdateQty, onRemove, isProduct = false, isFridge = false }) {
+  const showPackageIcon = isProduct || isFridge || item.itemType === 'product' || item.itemType === 'fridge'
   return (
     <div className="at-item">
       <button
@@ -13,7 +14,7 @@ function CartItem({ item, onUpdateQty, onRemove, isProduct = false }) {
         <X size={12} />
       </button>
       <div className="at-item-icon">
-        {isProduct ? (
+        {showPackageIcon ? (
           <Package size={14} />
         ) : (
           <ServiceIcon icon={item.icon} serviceName={item.name} size={14} />

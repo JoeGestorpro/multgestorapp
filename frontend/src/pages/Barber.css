@@ -2120,6 +2120,48 @@
   color: var(--barber-accent);
 }
 
+.cash-metric-card-info .cash-metric-value {
+  color: #3b82f6;
+}
+
+.cash-metric-card-info {
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.cash-metric-card-fridge .cash-metric-value {
+  color: #a78bfa;
+}
+
+.cash-metric-card-fridge {
+  border-color: rgba(167, 139, 250, 0.2);
+}
+
+.fridge-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fridge-badge-warning {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.fridge-badge-danger {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.fridge-badge-success {
+  color: #8cff4f;
+  background: rgba(140, 255, 79, 0.12);
+}
+
 .barber-summary-item {
   justify-content: space-between;
   min-width: 0;
@@ -3413,6 +3455,27 @@
 
 .barber-collaborator-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.barber-team-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.barber-card-team {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+    #111827;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 20px;
+  min-height: 200px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.barber-card-team:hover {
+  border-color: rgba(163, 255, 18, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .barber-toolbar {

@@ -50,6 +50,7 @@ const NAV_ITEMS = [
         ]
       },
       { id: 'products', label: 'Produtos', icon: Package },
+      { id: 'fridge', label: 'Itens da Geladeira', icon: Package },
       { id: 'team', label: 'Equipe', icon: Users },
       { id: 'cashier', label: 'Caixa', icon: Wallet },
     ]

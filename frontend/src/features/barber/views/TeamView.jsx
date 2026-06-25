@@ -1,7 +1,9 @@
-import { Card, Badge, Button, Empty, SummaryCard } from '../../../components/design-system'
+import { Card, Badge, Button, SummaryCard } from '../../../components/design-system'
 import CollaboratorAvatar from '../../../components/barber/CollaboratorAvatar'
 import { BarberTable } from '../../../components/barber/BarberUI'
-import { money, fullDate, collaboratorDisplayName } from '../utils/formatters'
+import TeamList from '../components/team/TeamList'
+import TeamEmptyState from '../components/team/TeamEmptyState'
+import { money, fullDate } from '../utils/formatters'
 
 export default function TeamView({
   isAdmin,
@@ -16,7 +18,6 @@ export default function TeamView({
   navigateView,
   openCollaboratorCreateModal,
   toggleCollaboratorStatus,
-  saveCollaboratorPermissions,
   removeCollaborator,
 }) {
   const financialSummary = visibleCollaboratorFinancialSummary
@@ -31,7 +32,7 @@ export default function TeamView({
 
   return (
     <>
-<Card padding="md">
+      <Card padding="md">
         <div className="barber-panel-header">
           <div>
             <h3>{isAdmin ? 'Colaboradores' : 'Seu resumo financeiro'}</h3>
@@ -96,7 +97,7 @@ export default function TeamView({
             const collaboratorRecord = collaborators.find((item) => item.id === collaborator.collaborator_id) || {}
 
             return (
-<Card className="barber-collaborator-card" padding="md">
+              <Card className="barber-collaborator-card" padding="md" key={collaborator.collaborator_id}>
                 <div className="barber-collaborator-top">
                   <div className="barber-collaborator-heading">
                     <CollaboratorAvatar
@@ -154,7 +155,7 @@ export default function TeamView({
                   <p className="barber-inline-hint">Este colaborador ainda nao gerou vendas no periodo.</p>
                 )}
 
-<div className="barber-inline-actions">
+                <div className="barber-inline-actions">
                   <Button onClick={() => openCollaboratorSummary(collaborator.collaborator_id)} type="button" variant="secondary">
                     Ver resumo
                   </Button>
@@ -175,36 +176,20 @@ export default function TeamView({
                       Registrar adiantamento
                     </Button>
                   )}
-                  </div>
-                </Card>
-              )
-            })
-) : (
-          <Card className="barber-collaborator-card" padding="md">
-            <Empty
-              description={isAdmin
-                ? hasOperationalCollaborators
-                  ? 'A equipe ja foi cadastrada, mas ainda nao gerou movimentacao no periodo selecionado.'
-                  : 'Nenhum colaborador cadastrado ainda.'
-                : 'Seu resumo financeiro aparecera aqui assim que houver vendas reais no periodo.'}
-              title={isAdmin
-                ? hasOperationalCollaborators
-                  ? 'Equipe sem movimentacao no periodo'
-                  : 'Nenhum colaborador cadastrado'
-                : 'Sem resumo financeiro'}
-            />
-            {isAdmin && !hasOperationalCollaborators && (
-              <div className="barber-inline-actions">
-                <Button onClick={openCollaboratorCreateModal} type="button" variant="primary">
-                  Adicionar primeiro colaborador
-                </Button>
-              </div>
-            )}
-          </Card>
+                </div>
+              </Card>
+            )
+          })
+        ) : (
+          <TeamEmptyState
+            isAdmin={isAdmin}
+            hasOperationalCollaborators={hasOperationalCollaborators}
+            onCreate={openCollaboratorCreateModal}
+          />
         )}
       </section>
 
-<section className="barber-grid-two">
+      <section className="barber-grid-two">
         <Card className="barber-card-full" padding="md">
           <div className="barber-panel-header">
             <div>
@@ -218,95 +203,17 @@ export default function TeamView({
           </div>
 
           {isAdmin ? (
-            <BarberTable columns={['Colaborador', 'Comissao', 'Permissoes', 'Status', 'Acoes']}>
-              {collaborators.length > 0 ? (
-                collaborators.map((collaborator) => {
-                  const rank = financialSummary.findIndex((item) => item.collaborator_id === collaborator.id)
-
-                  return (
-                    <tr key={collaborator.id}>
-                      <td>
-                        <div className="barber-collaborator-main-cell">
-                          <CollaboratorAvatar
-                            avatarUrl={collaborator.avatar_url}
-                            name={collaboratorDisplayName(collaborator)}
-                            size="sm"
-                          />
-                          <div>
-                            <strong>
-                              {collaborator.name || collaborator.nickname}
-                              {rank >= 0 ? <span> #{rank + 1}</span> : null}
-                            </strong>
-                            <span>{collaborator.email || 'Sem email'}</span>
-                            <span>{collaborator.phone || 'Sem telefone'} - {collaborator.role || 'collaborator'}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        {collaborator.commission_type === 'fixed'
-                          ? money(collaborator.commission_rate)
-                          : `${collaborator.commission_rate}%`}
-                      </td>
-                      <td>
-                        <div className="barber-status-grid">
-                          {collaborator.can_view_own_dashboard && <Badge variant="success">Dashboard</Badge>}
-                          {collaborator.can_view_own_reports && <Badge variant="pix">Relatorio</Badge>}
-                          {collaborator.can_launch_sales && <Badge variant="permuta">Vendas</Badge>}
-                        </div>
-                      </td>
-                      <td>
-                        <Badge variant={collaborator.is_active ? 'success' : 'danger'}>
-                          {collaborator.is_active ? 'Ativo' : 'Inativo'}
-                        </Badge>
-                      </td>
-                      <td>
-                        <div className="barber-inline-actions">
-                          <Button onClick={() => openCollaboratorSummary(collaborator.id)} type="button" variant="secondary">
-                            Ver resumo
-                          </Button>
-                          <Button onClick={() => editCollaborator(collaborator.id)} type="button" variant="ghost">
-                            Editar
-                          </Button>
-                          <Button
-                            onClick={() => toggleCollaboratorStatus(collaborator)}
-                            type="button"
-                            variant={collaborator.is_active ? 'secondary' : 'primary'}
-                          >
-                            {collaborator.is_active ? 'Desativar' : 'Ativar'}
-                          </Button>
-                          <Button
-                            onClick={() => saveCollaboratorPermissions(collaborator.id, {
-                              canLaunchSales: !collaborator.can_launch_sales,
-                              canViewOwnDashboard: collaborator.can_view_own_dashboard,
-                              canViewOwnReports: collaborator.can_view_own_reports
-                            })}
-                            type="button"
-                            variant="ghost"
-                          >
-                            {collaborator.can_launch_sales ? 'Bloquear vendas' : 'Liberar vendas'}
-                          </Button>
-                          <Button onClick={() => removeCollaborator(collaborator.id)} type="button" variant="danger">
-                            Excluir
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              ) : (
-                <tr>
-                  <td colSpan="5">
-                    <Empty
-                      description="Cadastre colaboradores para montar o ranking e a distribuicao das comissoes."
-                      title="Nenhum colaborador cadastrado"
-                    />
-                  </td>
-                </tr>
-              )}
-            </BarberTable>
+            <TeamList
+              collaborators={collaborators}
+              isAdmin={isAdmin}
+              onEdit={editCollaborator}
+              onToggleStatus={toggleCollaboratorStatus}
+              onRemove={removeCollaborator}
+              onCreate={openCollaboratorCreateModal}
+            />
           ) : currentCollaboratorFinancialSummary ? (
             <>
-<SummaryCard
+              <SummaryCard
                 items={[
                   {
                     label: "Atendimentos",
@@ -338,10 +245,17 @@ export default function TeamView({
               </div>
             </>
           ) : (
-            <Empty
-              description="Seu resumo financeiro aparecera aqui assim que houver vendas reais no periodo."
-              title="Sem dados financeiros"
-            />
+            <div className="barber-empty-state">
+              <div className="barber-empty-icon">
+                <svg className="barber-icon" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <strong style={{ fontSize: 18, color: '#f8fafc' }}>Sem dados financeiros</strong>
+              <p style={{ color: 'var(--barber-muted)', margin: 0, fontSize: 14 }}>
+                Seu resumo financeiro aparecera aqui assim que houver vendas reais no periodo.
+              </p>
+            </div>
           )}
         </Card>
       </section>

@@ -23,14 +23,14 @@
 
 ## Ambientes
 
-| Ambiente | URL | Status |
-|---|---|---|
-| **Produção** | `https://barbergestor.com.br` | 🟢 Online |
-| **Backend** | Render | 🟢 Health 200, DB conectado |
-| **Frontend** | Vercel | 🟢 Ativo |
-| **Banco** | Supabase PostgreSQL 17 (sa-east-1) | 🟢 Conectado |
-| **Backup** | Local + Backblaze B2 | 🟢 `verified=true` |
-| **Homologação** | — | ⚪ Não configurado |
+| Ambiente        | URL                                | Status                      |
+| --------------- | ---------------------------------- | --------------------------- |
+| **Produção**    | `https://barbergestorapp.com.br`   | 🟢 Online                   |
+| **Backend**     | Render                             | 🟢 Health 200, DB conectado |
+| **Frontend**    | Vercel                             | 🟢 Ativo                    |
+| **Banco**       | Supabase PostgreSQL 17 (sa-east-1) | 🟢 Conectado                |
+| **Backup**      | Local + Backblaze B2               | 🟢 `verified=true`          |
+| **Homologação** | —                                  | ⚪ Não configurado           |
 
 ---
 

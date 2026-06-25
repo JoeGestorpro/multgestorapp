@@ -1,4 +1,4 @@
-﻿# 05 — Próxima Melhor Ação
+# 05 — Próxima Melhor Ação
 
 > **Status:** VIVO · **Atualizado:** 2026-06-23
 > **Propósito:** Responder qual missão gera mais valor agora, reduz mais risco, desbloqueia produção/venda e deve ser executada primeiro.

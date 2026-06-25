@@ -1,0 +1,754 @@
+/* =========================================
+   BARBER OVERVIEW PAGE — Layout & Components
+   Usa exclusivamente tokens do Design System
+   ========================================= */
+
+/* ── Page wrapper ── */
+.barber-overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-bottom: var(--space-10);
+}
+
+/* ── Grid layouts ── */
+.overview-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.overview-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+/* ── Hero ── */
+.overview-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+}
+
+.overview-hero__overline {
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-muted);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+  margin-bottom: var(--space-1);
+}
+
+.overview-hero__title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  letter-spacing: var(--letter-spacing-tight);
+  margin: 0 0 var(--space-1) 0;
+  line-height: var(--line-height-tight);
+}
+
+.overview-hero__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.overview-hero__actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+/* ── Next Appointment Card ── */
+.next-appointment-card {
+  position: relative;
+}
+
+.next-appointment-card--loading {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.next-apt__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.next-apt__time-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--accent-primary);
+  font-weight: var(--font-weight-semibold);
+  margin: var(--space-1) 0 0 0;
+}
+
+.next-apt__body {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.next-apt__avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--accent-muted);
+  border: 2px solid var(--border-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.next-apt__details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.next-apt__detail-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.next-apt__client {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.next-apt__professional {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin: var(--space-1) 0 0 0;
+}
+
+.next-apt__cta {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ── Today Agenda Card ── */
+.today-agenda-card--loading {
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agenda-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.agenda-card__progress-track {
+  height: 6px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+}
+
+.agenda-card__progress-bar {
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slow);
+}
+
+.agenda-card__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.agenda-card__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.agenda-card__item-time {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--accent-primary);
+  min-width: 44px;
+  font-variant-numeric: tabular-nums;
+}
+
+.agenda-card__item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.agenda-card__item-client {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agenda-card__item-service {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.agenda-card__item-badge {
+  flex-shrink: 0;
+}
+
+.agenda-card__empty-note {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-4) 0;
+  margin: 0;
+}
+
+.agenda-card__free-slots {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.agenda-card__free-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-weight: var(--font-weight-medium);
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.agenda-card__free-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.agenda-card__free-chip {
+  padding: var(--space-1) var(--space-3);
+  background: var(--accent-muted);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--accent-primary);
+}
+
+/* ── Smart Alerts ── */
+.smart-alerts__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.smart-alerts__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.smart-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+}
+
+.smart-alert--high {
+  border-color: rgba(251, 113, 133, 0.2);
+  background: rgba(251, 113, 133, 0.05);
+}
+
+.smart-alert--medium {
+  border-color: rgba(244, 200, 108, 0.2);
+  background: rgba(244, 200, 108, 0.04);
+}
+
+.smart-alert__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.smart-alert__icon--high {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.smart-alert__icon--medium {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.smart-alert__icon--low {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.smart-alert__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.smart-alert__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.smart-alert__desc {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: var(--line-height-normal);
+}
+
+.smart-alert__badge {
+  flex-shrink: 0;
+}
+
+/* ── KPI Grid ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-4);
+}
+
+.kpi-card {
+  cursor: default;
+}
+
+.kpi-card__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.kpi-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kpi-card__data {
+  min-width: 0;
+}
+
+.kpi-card__label {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-card__value {
+  display: block;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  letter-spacing: var(--letter-spacing-tight);
+  line-height: var(--line-height-tight);
+}
+
+/* ── Daily Goal Card ── */
+.daily-goal-card--loading {
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.daily-goal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.daily-goal__value-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-3);
+}
+
+.daily-goal__realized {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.daily-goal__percent {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--accent-primary);
+}
+
+.daily-goal__track {
+  height: 8px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: var(--space-3);
+}
+
+.daily-goal__bar {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slow);
+}
+
+.daily-goal__bar--achieved { background: var(--success); }
+.daily-goal__bar--ontrack  { background: var(--info); }
+.daily-goal__bar--behind   { background: var(--warning); }
+.daily-goal__bar--critical { background: var(--danger); }
+
+.daily-goal__remaining {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.daily-goal__empty {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Team Performance Card ── */
+.team-perf-card--loading {
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Recovery Clients Card ── */
+.recovery-card--loading {
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recovery-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.recovery-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.recovery-item:last-child {
+  border-bottom: none;
+}
+
+.recovery-item__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.recovery-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.recovery-item__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.recovery-item__vip {
+  color: var(--warning);
+}
+
+.recovery-item__days {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.recovery-item__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* ── Extra Sales / Products ── */
+.extra-sales-card--loading {
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.extra-sales__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  gap: var(--space-4);
+}
+
+.extra-sales__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.extra-sales__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.extra-sales__item:last-child {
+  border-bottom: none;
+}
+
+.extra-sales__item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.extra-sales__item-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.extra-sales__item-qty {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.extra-sales__qty--low {
+  color: var(--warning);
+  font-weight: var(--font-weight-semibold);
+}
+
+.extra-sales__item-revenue {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+/* ── Payments Card ── */
+.payments-card--loading {
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.payments-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.payments-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.payments-item__icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.payments-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.payments-item__label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.payments-item__count {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.payments-item__value {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+/* ── Revenue Chart Card ── */
+.revenue-chart-card--loading {
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.revenue-chart__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  gap: var(--space-4);
+}
+
+.revenue-chart__week-total {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════ */
+
+@media (max-width: 1280px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .overview-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .overview-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+
+  .overview-hero__actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .overview-hero__title {
+    font-size: var(--font-size-xl);
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .kpi-card__value {
+    font-size: var(--font-size-base);
+  }
+}
+
+@media (max-width: 480px) {
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

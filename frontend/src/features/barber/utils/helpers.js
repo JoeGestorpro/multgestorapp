@@ -83,6 +83,8 @@ export function getInitialBarberView(pathname) {
 
   if (normalized.startsWith('/barber/produtos')) return 'products'
 
+  if (normalized.startsWith('/barber/geladeira')) return 'fridge'
+
   if (normalized.startsWith('/barber/vendas')) return 'sales'
 
   if (normalized.startsWith('/barber/caixa')) return 'cashier'
@@ -115,6 +117,7 @@ export function getBarberViewPath(view) {
     'services-favorites': '/barber/servicos/favoritos',
     'services-commissions': '/barber/servicos/comissoes',
     products: '/barber/produtos',
+    fridge: '/barber/geladeira',
     sales: '/barber/vendas',
     cashier: '/barber/caixa',
     settlements: '/barber/acertos',

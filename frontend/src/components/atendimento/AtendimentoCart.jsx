@@ -88,6 +88,7 @@ function AtendimentoCart({
               onUpdateQty={onUpdateQty}
               onRemove={onRemoveItem}
               isProduct={item.itemType === 'product'}
+              isFridge={item.itemType === 'fridge'}
             />
           ))
         ) : (

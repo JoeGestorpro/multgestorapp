@@ -5,6 +5,7 @@ import CollaboratorMobileDashboard from '../../../components/barber/Collaborator
 import { TrendingUp, DollarSign, Repeat, Percent, Users, Clock, AlertCircle, Link, Plus, CreditCard, Calendar, Eye, CalendarCheck, Landmark } from 'lucide-react'
 import { money, fullDate, shortDate } from '../utils/formatters'
 import { getPaymentMethodTone, getPaymentMethodLabel } from '../../../utils/paymentMethods'
+import BarberOverviewPage from '../dashboard/BarberOverviewPage'
 
 function paymentTone(method) {
   return getPaymentMethodTone(method)
@@ -743,24 +744,11 @@ export default function DashboardView({
   }
 
   return (
-    <AdminDashboardContent
-      dashboard={dashboard}
-      todaySalesCount={todaySalesCount}
-      ranking={ranking}
-      topCollaborator={topCollaborator}
-      salesChartData={salesChartData}
-      visibleCollaboratorSummary={visibleCollaboratorSummary}
-      collaborators={collaborators}
+    <BarberOverviewPage
       user={user}
-      appointmentsOverview={appointmentsOverview}
       onNewSale={() => {
         setSaleForm(buildEmptySaleForm(loggedInCollaboratorId))
         setSaleModalOpen(true)
-      }}
-      onCopyLink={() => {
-        if (appointmentsOverview?.public_booking_path) {
-          navigator.clipboard.writeText(`${window.location.origin}${appointmentsOverview.public_booking_path}`)
-        }
       }}
     />
   )
