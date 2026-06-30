@@ -1,8 +1,8 @@
 # 📊 Estado do Projeto — Current State
 
 > **Status:** OFICIAL • VIVO • ATUALIZADO A CADA MISSÃO
-> **Atualizado:** 2026-06-24
-> **state_version:** 21
+> **Atualizado:** 2026-06-29
+> **state_version:** 22
 > **Fonte canônica detalhada:** [[project-state]]
 > **Living OS:** [[living-os/02-painel-executivo]]
 
@@ -31,6 +31,14 @@
 | **Banco**       | Supabase PostgreSQL 17 (sa-east-1) | 🟢 Conectado                |
 | **Backup**      | Local + Backblaze B2               | 🟢 `verified=true`          |
 | **Homologação** | —                                  | ⚪ Não configurado           |
+
+---
+
+## Clientes em Produção
+
+| Empresa | Plano | Status | Colaboradores | Nota |
+|---|---|---|---|---|
+| **Barbearia JoeFelipe** (`ed607874…`) | `premium` | 🟢 active | 8 usuários (1 admin + 7 colab.) | Promovida a premium em **2026-06-29** (trial expirado bloqueava caixa). Ver [[decisions/D-016-plano-joefelipe-premium]]. Colaboradores ilimitados. |
 
 ---
 
