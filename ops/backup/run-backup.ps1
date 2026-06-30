@@ -24,8 +24,45 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Diretório de log resolvido (preenchido assim que BRCHK_LOG_DIR é conhecido).
+# Antes disso, usa um fallback — para que falhas precoces ainda gravem o status.
+$script:ResolvedLogDir = $null
+$FallbackLogDir = Join-Path $env:USERPROFILE 'backups\logs'
+$script:StatusWritten = $false
+
+# Garante que last-status.json SEMPRE reflita a última tentativa — inclusive
+# guard-aborts e erros terminantes — para nunca mascarar uma falha com um status
+# OK antigo. Best-effort: nunca lança (um erro aqui não pode derrubar o tratamento).
+function Write-FailStatus([string]$reason, [int]$exitCode = 2) {
+  if ($script:StatusWritten) { return }
+  try {
+    $dir = if ($script:ResolvedLogDir) { $script:ResolvedLogDir } else { $FallbackLogDir }
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    $fail = [ordered]@{
+      tool            = 'backup-restore-check'
+      mode            = 'dump-only'
+      finished_at     = (Get-Date).ToString('o')
+      exit_code       = $exitCode
+      status          = 'FAIL'
+      error           = $reason
+      external_upload = [ordered]@{ enabled = ($env:BRCHK_EXTERNAL_ENABLED -eq '1'); status = 'SKIPPED' }
+    }
+    $fail | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $dir 'last-status.json') -Encoding utf8
+    $script:StatusWritten = $true
+  } catch {
+    Write-Warning "[backup-daily] nao foi possivel gravar last-status.json de falha: $($_.Exception.Message)"
+  }
+}
+
+# Captura QUALQUER erro terminante inesperado e registra FAIL antes de sair.
+trap {
+  Write-FailStatus "erro terminante: $($_.Exception.Message)" 1
+  exit 1
+}
+
 function Abort([string]$msg) {
-  Write-Error "[backup-daily] $msg"
+  Write-Warning "[backup-daily] $msg"
+  Write-FailStatus $msg 2
   exit 2
 }
 
@@ -72,6 +109,10 @@ foreach ($raw in (Get-Content -LiteralPath $EnvFile)) {
   }
   Set-Item -Path "env:$key" -Value $val
 }
+
+# BRCHK_LOG_DIR já é conhecido — registra para que qualquer falha a partir daqui
+# (Guard 3, dump, upload, etc.) grave last-status.json no diretório correto.
+if ($env:BRCHK_LOG_DIR) { $script:ResolvedLogDir = $env:BRCHK_LOG_DIR }
 
 # ── Guard 3: variáveis obrigatórias presentes ────────────────────────────────
 $required = @('BRCHK_SOURCE_DB_URL', 'BRCHK_BACKUP_DIR', 'BRCHK_LOG_DIR')
@@ -153,6 +194,7 @@ $status = [ordered]@{
   external_upload = $externalUpload
 }
 $status | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $logDir 'last-status.json') -Encoding utf8
+$script:StatusWritten = $true
 
 if ($code -eq 0) { Write-Host '[backup-daily] OK.' } else { Write-Warning "[backup-daily] FALHOU (exit $code)." }
 exit $code
