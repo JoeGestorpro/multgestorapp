@@ -45,6 +45,15 @@ const migrations = [
 
   // A-001, P3 — Role app_runtime NOBYPASSRLS + grants
   { version: '20260624_026', file: '20260624_026_rls_app_runtime_role.sql' },
+
+  // RLS — policies de tenant_isolation para company_modules/modules
+  { version: '20260625_027', file: '20260625_027_rls_company_modules.sql' },
+
+  // RLS — policy de tenant_isolation para subscriptions
+  { version: '20260625_028', file: '20260625_028_rls_subscriptions.sql' },
+
+  // R-003 — Grants explícitos e reforço RLS para barber_working_hours e dependências
+  { version: '20260626_029', file: '20260626_029_fix_barber_working_hours_grants.sql' },
 ];
 
 async function ensureMigrationsTable() {
@@ -76,7 +85,9 @@ async function applyMigration(version, file, applied) {
     return;
   }
 
-  const sql = fs.readFileSync(filePath, 'utf8');
+  // Remove BOM UTF-8 — Postgres falha com "syntax error" se o BOM (﻿)
+  // chegar como primeiro caractere da query.
+  const sql = fs.readFileSync(filePath, 'utf8').replace(/^﻿/, '');
   const start = Date.now();
 
   await pool.query(sql);
