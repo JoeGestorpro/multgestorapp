@@ -42,7 +42,13 @@ module.exports = function requireCompany(req, res, next) {
     }
 
     try {
-      client = await pool.connect();
+      client = await pool.poolTenant.connect();
+      if (process.env.LOG_POOL_DIAGNOSTICS === 'true') {
+        const diag = await client.query(
+          `SELECT current_user AS role_name, rolbypassrls FROM pg_roles WHERE rolname = current_user`
+        );
+        appLogger.debug({ poolDiag: diag.rows[0] }, '[requireCompany] poolTenant connection opened');
+      }
       await client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`);
       await client.query(`SET idle_in_transaction_session_timeout = ${IDLE_TXN_TIMEOUT_MS}`);
       await client.query('BEGIN');
