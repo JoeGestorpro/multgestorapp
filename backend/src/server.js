@@ -201,9 +201,11 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
+// CSP com os defaults do helmet: este servidor responde só JSON e imagens
+// em /uploads (nenhum HTML é servido), então a política restritiva não
+// afeta o frontend (Vercel) e neutraliza qualquer resposta HTML injetada.
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' },
-  contentSecurityPolicy: false
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 app.use(cookieParser());
 app.use(express.json({
