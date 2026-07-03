@@ -66,9 +66,17 @@ npx jest --testPathPatterns="tenant-isolation-rls"    # só enforcement RLS
 - `tenant-isolation-rls`: **34 testes** (cross-tenant deny, WITH CHECK/USING,
   default-deny company/user, app_runtime via APP_RUNTIME_URL respeita RLS).
 
-## Pendência conhecida (P2)
+## Pendência conhecida (P2) — ✅ RESOLVIDA (2026-07-02)
 
-`run-migrations.js` registra `20260603_018..021` (`mg_prepaid/packages/loyalty/anamnese_v1.sql`)
-mas os **arquivos não existem** em `src/database/` → runner emite `[warn] arquivo não encontrado`
-e segue. Migrations efetivamente ausentes do schema reconstruído. Investigar se foram
-renomeadas/perdidas ou remover do registro.
+~~`run-migrations.js` registra `20260603_018..021` mas os arquivos não existem~~ —
+arquivos `mg_prepaid/packages/loyalty/anamnese_v1.sql` recuperados e versionados
+(commit `8056831`; origin recebeu o equivalente via PR #21). `npm run migrate` no banco
+de teste aplica 018–021 limpo. Migração adicional: `20260702_030_refresh_tokens.sql`.
+
+## Nota (2026-07-02)
+
+- `.env.test` local apontava para a porta **5433** (morta) — corrigido para **5432**.
+- O Jest **não carrega** `.env.test`; os testes de integração dependem dos `export`
+  acima na sessão do shell (por isso aparecem como skip no `npm test` seco).
+- Validação de 2026-07-02: integração **97/97 pass** (34 RLS + gate0 endurecido com
+  PATH-C via poolTenant + 5 de rotação de refresh).
