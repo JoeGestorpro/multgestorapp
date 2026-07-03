@@ -5,6 +5,7 @@
 > **state_version:** 23
 > **Fonte canônica detalhada:** [[project-state]]
 > **Living OS:** [[living-os/02-painel-executivo]]
+> **Manual de execução (roadmap+gates vivos):** [[EXECUTION-PLAYBOOK-PRODUCAO]]
 
 ---
 

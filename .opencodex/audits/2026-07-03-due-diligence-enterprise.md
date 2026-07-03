@@ -1,11 +1,60 @@
 # DUE DILIGENCE ENTERPRISE — MultGestor — 2026-07-03
 
 > Pergunta-mãe: **"O que exatamente impede o MultGestor de vender em escala amanhã?"**
-> Método: evidência primeiro. Cada afirmação marcada como **[FATO]** (verificado nesta sessão),
-> **[PARCIAL]** (evidência incompleta), **[HIPÓTESE]** (inferência fundamentada) ou
-> **[INSUFICIENTE]** (sem dados para responder).
-> Base: auditoria completa 2026-07-02 + sprint P0 (17 commits locais) + smoke 20/20 +
-> verificação de billing/self-service/IA de 2026-07-03.
+> Base: auditoria completa 2026-07-02 + sprint P0 batch 1+2 (29 commits locais, `ace2d05`..`7038f89`,
+> nenhum push) + smoke local 20/20 (venda sob app_runtime + rotação/revogação de sessão ao vivo +
+> isolamento cross-tenant A/B) + verificação de billing/self-service/IA de 2026-07-03.
+
+### Matriz de evidências (escala usada em todo o documento)
+
+| Tag | Definição |
+|---|---|
+| **VALIDADO** | Confirmado em produção real (health prod, endpoint prod, incidente real ocorrido) |
+| **[FATO]** | Confirmado por código, teste automatizado ou execução local nesta sessão |
+| **[PARCIAL]** | Há indícios/código, mas falta validação completa (ex.: env não verificável daqui) |
+| **[HIPÓTESE]** | Inferência fundamentada em evidência indireta; precisa de investigação |
+| **[INSUFICIENTE]** | Não há dados para responder — declarado em vez de inventado |
+
+---
+
+## EXECUTIVE SUMMARY
+
+```
+MULTGESTOR — ENTERPRISE DUE DILIGENCE
+Data: 2026-07-03
+
+Status por eixo:
+  🟢 Engenharia         🟡 Produto            🟡 Comercial
+  🔴 Self-Service        🔴 Compliance/LGPD
+
+Enterprise Maturity Index:  57/100  (era 44,5 em 2026-06-26)
+
+Produção (operação própria):   🟢 pronto — VALIDADO (JoeFelipe em prod desde junho)
+Venda assistida (1-5 clientes): 🟡 pronta após o release gate
+Venda self-service:             🔴 bloqueada por 3 gaps de ativação
+Escala (100 empresas):          🟡 alcançável em ~1 mês (P0+P1)
+Escala (1.000 empresas):        🔴 não avaliável ainda — reavaliar com dados reais
+
+Tempo p/ produção comercial (assistida):  ≈ 1 dia (após deploy do batch)
+Tempo p/ SaaS self-service real:          ≈ 1 semana de execução P0
+Tempo p/ escalar a 100 empresas:          ≈ 3-4 semanas adicionais (P1)
+
+Maior gargalo:      Circuito de receita (ativação pós-pagamento)
+Maior risco:        Plano pago não reflete no gating (companies.plan_type) — já causou 1 incidente real (D-016)
+Maior oportunidade: Onboarding 100% automático — a infra já existe, falta ligar 3 fios
+```
+
+---
+
+## MATRIZ DE CRITICIDADE (usada em todo o roadmap)
+
+| Criticidade | Significado | Aparece nesta auditoria |
+|---|---|---|
+| **P0** | Bloqueia produção/venda — impede fechar uma venda hoje sem intervenção manual de risco | 6 itens (circuito de receita) |
+| **P1** | Bloqueia operação sem susto — funciona, mas quebra silenciosamente ou expõe risco jurídico/reputacional | 6 itens (alertas, WhatsApp, LGPD-op, suporte) |
+| **P2** | Bloqueia escala — funciona para poucos clientes, não aguenta crescimento ou gera dívida técnica visível | 6 itens (Redis, billing avançado, E2E, refactor) |
+| **P3** | Melhoria importante — não bloqueia nada, mas move a agulha de produto/receita | 2 itens (2º nicho, relatórios) |
+| **P4** | Evolução futura/estratégica — decisão de negócio, não de engenharia | 1 item (plataforma/API pública) |
 
 ---
 
@@ -137,7 +186,7 @@ dos artefatos no repo]
 
 | Item | Prio | IA | Humano | Bloqueia venda? | Tempo |
 |---|---|---|---|---|---|
-| Merge origin/main + push + deploy do batch (27 commits) | P0 | assiste | **decide/executa** | SIM (nada local vale até deployar) | 1-2h |
+| Merge origin/main + push + deploy do batch (29 commits) | P0 | assiste | **decide/executa** | SIM (nada local vale até deployar) | 1-2h |
 | Webhook setar `companies.plan_type`+`trial_ends_at` (P0-SS1) | P0 | ✅ | revisa | SIM | 2-4h |
 | Popular `plans` em prod + produtos no Kiwify | P0 | ✅ SQL/código | ✅ conta Kiwify | SIM | 2h |
 | Configurar `VITE_KIWIFY_URL_*` no Vercel | P0 | ❌ | ✅ | SIM | 15min |
@@ -169,6 +218,165 @@ dos artefatos no repo]
 - **Novos nichos:** fundação pronta; custo estimado do 2º nicho: 1-2 semanas se usar capabilities
   existentes [HIPÓTESE — validar com piloto].
 - **API pública/plataforma:** exige versionamento+OpenAPI+API keys+quotas (R-003). [P4]
+
+## PRODUCTION READINESS
+
+Checklist única — responde "está pronto ou não?" sem precisar ler o resto do documento.
+
+```
+Arquitetura        ✔
+Banco              ✔
+Segurança          ✔  (TLS verify e CSP prontos no código, ativação em prod pendente)
+RLS                ✔  (reads em prod; writes prontos localmente, aguardando deploy)
+Deploy/CI          ✔
+Backup/Restore     ✔  (restore drill periódico ainda não é rotina — P1)
+Billing (técnico)  ✔  (webhook, idempotência, invoices)
+Billing (gating)   ❌  (plan_type não é setado — P0-1)
+Landing            ✔
+Checkout           ❌  (env Vercel não confirmada, plans vazia em prod)
+Onboarding self-service  ❌  (módulo não ativa sozinho no registro)
+LGPD/Termos        ❌
+Suporte/FAQ        ❌
+Monitoramento/Alertas  ❌  (health existe, ninguém é avisado se cair)
+```
+
+**Leitura:** a coluna técnica está praticamente toda ✔. A coluna comercial/self-service/legal
+está quase toda ❌. Isso confirma o diagnóstico: **o gargalo não é mais engenharia.**
+
+---
+
+## RELEASE GATE — checklist antes de qualquer deploy do batch atual
+
+```
+Banco (migrations idempotentes testadas)   ☑
+Smoke local (20/20)                        ☑
+Backup pré-deploy verificado                ☑
+Plano de rollback (kill-switch documentado) ☑
+Suíte completa (unit+integration)           ☑
+Merge origin/main resolvido                 ☐  ← humano
+Billing/webhook seta plan_type              ☐  ← P0-1, ainda não implementado
+Plano (plans populada em prod)              ☐  ← P0-2
+Self-service (auto-ativação módulo)         ☐  ← P0-3
+LGPD (termos publicados)                    ☐  ← P0-4
+Monitoramento (alerta pós-deploy)           ☐  ← P1
+
+Pode liberar o BATCH ATUAL (fixes técnicos)?           SIM — é seguro e não depende do resto
+Pode declarar "pronto para self-service"?              NÃO — faltam os 5 itens marcados ☐
+```
+
+---
+
+## DEFINITION OF DONE — ENTERPRISE
+
+Uma funcionalidade só é considerada concluída quando:
+
+```
+[ ] Código implementado
+[ ] Testes (unit/integration) cobrindo o caminho feliz e o de erro
+[ ] Smoke local ou prod executado com evidência registrada
+[ ] Documentação técnica atualizada (se mudou contrato de API/schema)
+[ ] Roadmap mestre e fila de missões refletindo o novo estado
+[ ] Segundo Cérebro (.opencodex/brain) sincronizado — sem divergência código×docs
+[ ] Changelog/commit com mensagem que explica o porquê, não só o quê
+[ ] Deploy em produção (não vale só "está no código")
+[ ] Monitoramento cobrindo o novo caminho (se crítico)
+[ ] Plano de rollback conhecido antes do deploy
+```
+
+Aplicar esse critério retroativamente explica por que o sprint P0 desta auditoria está
+classificado como **[FATO]** e não **VALIDADO**: passou em tudo acima exceto "deploy em produção".
+
+---
+
+## MAPA DE DEPENDÊNCIAS — circuito de receita
+
+```
+  Landing / Registro
+        │
+        ▼
+   Escolha de Plano ──────► Checkout (Kiwify/AbacatePay)
+        │                         │
+        │                         ▼
+        │                  Webhook de Pagamento
+        │                         │
+        │                         ▼
+        │                  companies.status ✔   companies.plan_type ❌ (P0-1)
+        │                         │
+        ▼                         ▼
+   Empresa criada  ◄──────  company_modules (ativação)
+        │
+        ▼
+   Gating (requirePlanFeature lê plan_type)
+        │
+        ▼
+   Dashboard / Agenda / Caixa / Colaboradores / Clientes
+```
+
+**Leitura de impacto:** qualquer empresa que siga o caminho da esquerda (registro orgânico)
+funciona hoje em trial. Qualquer empresa que pague (caminho da direita) fica com
+`companies.status = active` mas `plan_type` desatualizado — o Gating não libera os recursos
+pagos até alguém corrigir na mão. É o único elo quebrado de uma corrente inteira que já funciona.
+
+---
+
+## ESTIMATIVA DE ESFORÇO — itens P0 (circuito de receita)
+
+| Item | Horas estimadas |
+|---|---:|
+| Webhook seta `plan_type`+`trial_ends_at` | 2–4h |
+| Popular `plans` em prod + produtos Kiwify | 2h |
+| Configurar `VITE_KIWIFY_URL_*` no Vercel | 15min |
+| Auto-ativar módulo barber no registro | 2h |
+| Termos de Uso + Política de Privacidade (rascunho IA) | 3–4h (+ revisão humana/advogado) |
+| Teste de pagamento real/sandbox ponta a ponta | 1h |
+| Merge origin/main + push + deploy + canário | 1–2h |
+| **Total P0 (execução, exclui revisão jurídica)** | **≈ 11–15h — 2 dias úteis** |
+
+---
+
+## BURNDOWN DE PRODUÇÃO (visão por prioridade, 2026-07-03)
+
+```
+P0 — Circuito de receita
+████░░░░░░  40%   (writes RLS e sessão prontos; plan_type/plans/checkout/LGPD faltando)
+
+P1 — Operação sem susto
+███░░░░░░░  30%   (backup e rate-limit prontos; alertas/WhatsApp/suporte/cancelamento faltando)
+
+P2 — Escala e qualidade
+██░░░░░░░░  20%   (testes/CI fortes; Redis/billing avançado/E2E/refactor pendentes)
+
+P3/P4 — Crescimento e plataforma
+░░░░░░░░░░   0%   (não iniciado — correto para o estágio atual)
+```
+
+---
+
+## PLANO DOS PRÓXIMOS 30 DIAS
+
+```
+Semana 1 — Circuito de receita (P0)
+  Merge + deploy do batch · webhook plan_type · plans em prod
+  Kiwify produtos + env Vercel · auto-ativação no registro
+  Termos/LGPD (rascunho) · 1 pagamento real de teste
+
+Semana 2 — Confiança e compliance (P0 fecha / P1 começa)
+  Publicar termos/LGPD revisados · FAQ + página de suporte
+  Alertas de uptime/erro (Sentry ativo, UptimeRobot)
+  Restore drill agendado
+
+Semana 3 — Self-service sem sustos (P1)
+  WhatsApp provider real (credenciais Meta)
+  Fluxo de cancelamento/exclusão de conta no produto
+  Limpeza de artefatos do repo (lista aprovada)
+
+Semana 4 — Preparar escala (P1→P2)
+  Redis em prod · CA TLS ativo no Render
+  Primeiras métricas reais de billing (MRR/churn com dados de verdade)
+  Decisão: seguir para 100 empresas ou consolidar mais 30 dias
+```
+
+---
 
 ## ROADMAP EXECUTIVO
 
@@ -207,5 +415,8 @@ migração TS gradual
 10. **Caminho mínimo para SaaS self-service vendável:** executar o P0 na ordem (deploy → plan_type → plans/Kiwify → auto-ativação → termos → pagamento real de teste). **É 1 semana de execução, não 1 trimestre.** O sistema técnico já chegou; falta ligar a caixa registradora e assinar o jurídico.
 
 ---
-*Documento mestre. Fontes: `.opencodex/audits/2026-07-02-auditoria-completa-e-sprint-p0.md`,
+*Documento de auditoria. Fontes: `.opencodex/audits/2026-07-02-auditoria-completa-e-sprint-p0.md`,
 smoke 20/20, health prod, código citado inline. Atualizar após cada release gate.*
+*O manual de execução vivo (estado + gates + roadmap sempre sincronizados) é
+[`EXECUTION-PLAYBOOK-PRODUCAO.md`](../brain/EXECUTION-PLAYBOOK-PRODUCAO.md) — esta auditoria é
+uma de suas fontes históricas, não o documento operacional do dia a dia.*
