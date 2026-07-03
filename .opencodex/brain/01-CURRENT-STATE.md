@@ -1,12 +1,36 @@
 # 📊 Estado do Projeto — Current State
 
 > **Status:** OFICIAL • VIVO • ATUALIZADO A CADA MISSÃO
-> **Atualizado:** 2026-06-29
-> **state_version:** 22
+> **Atualizado:** 2026-07-03
+> **state_version:** 23
 > **Fonte canônica detalhada:** [[project-state]]
 > **Living OS:** [[living-os/02-painel-executivo]]
 
 ---
+
+## 🔄 Atualização pós-auditoria — 2026-07-03
+
+> Fontes: [[../audits/2026-07-02-auditoria-completa-e-sprint-p0]] · [[../audits/2026-07-03-due-diligence-enterprise]]
+
+**Maturity Index: 57/100** (era 44,5 em 26/06). Sprint P0 autônomo CONCLUÍDO — **17 commits
+locais em `main` sem push** (`ace2d05`..`f2de9fe`):
+
+- ✅ **Implementado+testado (local):** writes tenant → `app_runtime` (bypass RLS fechado, `02c5396`) ·
+  rotação/revogação de refresh + migração 030 (`f03af4d`) · migrations 018-021 versionadas ·
+  TLS verify por env (inerte sem CA) · CSP on · lint frontend 0 errors · terra fantasma removido ·
+  purga diária refresh_tokens · fix sale_date fallback (`24d7497`) · unwrap pool client (`57619bd`)
+- ✅ **Auditado:** smoke local **20/20** (fluxo completo + isolamento A/B + sessão ao vivo) ·
+  enforcement RLS 98/98 vs banco de teste · prod health/booking/frontends 200
+- 🔴 **Risco ativo (release):** `main` local **divergiu** de `origin/main` — origin tem PRs #20/#21
+  (mesmo conteúdo, SHAs diferentes); local tem 27 commits à frente **incl. geladeira BG-001 e
+  `becb0ee` nunca deployados**. Merge dry-run: 3 conflitos pequenos mapeados.
+- 🔴 **Gap central self-service (novo, due diligence):** webhook de pagamento NÃO seta
+  `companies.plan_type` → cliente pago é bloqueado no fim do trial (raiz do incidente D-016).
+  + `plans` vazia em prod + `VITE_KIWIFY_URL_*` não confirmadas no Vercel.
+- ⏳ **Bloqueado por humano:** merge+push+deploy (gate `release/push-p0-batch` em queue/next-task.md) ·
+  CA TLS no Render · credenciais Meta (WhatsApp é **mock em prod**) · termos/LGPD · lista de
+  deleção de artefatos · produtos Kiwify.
+- 📌 **Decisões pendentes:** aprovar P0 comercial da due diligence (circuito de receita, ~1 semana).
 
 ## Identificação
 

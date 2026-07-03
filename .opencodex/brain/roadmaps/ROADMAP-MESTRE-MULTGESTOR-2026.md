@@ -7,6 +7,27 @@
 
 ---
 
+## 🔄 SINCRONIZAÇÃO PÓS-AUDITORIA — 2026-07-03 (leia antes do resto)
+
+> A foto de 2026-06-18 abaixo está **historicamente preservada, mas superada** em vários pontos.
+> Estado vigente: [[../01-CURRENT-STATE]] · Due diligence: [[../../audits/2026-07-03-due-diligence-enterprise]]
+> Maturity Index: **57/100** (era 44,5).
+
+**O que este roadmap previa e JÁ FOI FEITO (auditado):** RLS runtime em prod (reads, PR #20) ·
+writes → app_runtime (local, `02c5396`, aguarda deploy) · rate limit público · backup local+B2
+automatizado · rotação/revogação de refresh (migração 030) · migrations 018-021 reconciliadas ·
+testes de enforcement rodando (98/98) · health/deep · fila de governança reconciliada · smoke 20/20.
+
+**Reordenação vigente (due diligence 2026-07-03):** o gargalo deixou de ser técnico — é o
+**circuito de receita**. P0 comercial (~1 semana): ① deploy do batch (gate humano
+`release/push-p0-batch`; atenção à divergência main/origin) → ② webhook setar `companies.plan_type`
+(raiz do incidente D-016) → ③ `plans` em prod + produtos Kiwify + `VITE_KIWIFY_URL_*` no Vercel →
+④ auto-ativação do módulo barber no registro → ⑤ termos de uso + política LGPD → ⑥ pagamento real
+de teste. P1: alertas · WhatsApp real (mock em prod) · FAQ/suporte · cancelamento no produto ·
+TLS CA · restore drill. Matriz IA×Humano completa: due diligence §Matriz de Responsabilidades.
+
+---
+
 ## 1. Visão-mãe do MultGestor
 
 ```txt

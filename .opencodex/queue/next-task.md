@@ -65,9 +65,20 @@ rodar a suíte completa e só então prosseguir com o push.
 - [ ] Health deep 200; sem erro novo nos logs por 24h.
 - [ ] TLS com `rejectUnauthorized: true` ativo (sem warning de CA no boot).
 
-## Fila pós-release
+## Fila pós-release (reordenada pela due diligence 2026-07-03)
 
-1. ⏳ `ops/whatsapp-real-provider-activation` — P1 (credenciais Meta; mock em prod hoje)
-2. ⏳ `qa/smoke-joefelipe-full-flow` — P1 (roteiro formal + evidência)
-3. ⏳ `chore/repo-artifact-cleanup` — P2 (lista de deleção aprovada item a item)
-4. ⏳ `cleanup/fase-c-branches-worktrees` — P2 (HUMAN_APPROVAL_REQUIRED)
+**P0 — circuito de receita** (ver `.opencodex/audits/2026-07-03-due-diligence-enterprise.md`):
+1. ⏳ `billing/plan-type-provisioning-fix` — P0 (IA): webhook deve setar `companies.plan_type`
+   + `trial_ends_at`; raiz do incidente D-016 (cliente pago bloqueado no fim do trial)
+2. ⏳ `billing/seed-plans-prod` — P0 (IA+humano): popular `plans` + produtos Kiwify +
+   `VITE_KIWIFY_URL_*` no Vercel
+3. ⏳ `onboarding/auto-activate-barber-on-register` — P0 (IA): registro nicho barber sai com
+   módulo ativo em trial, sem toque do master
+4. ⏳ `legal/termos-privacidade-lgpd` — P0 (IA rascunha, humano valida)
+5. ⏳ `qa/pagamento-real-teste` — P0 (humano): 1 checkout real/sandbox ponta a ponta
+
+**P1:**
+6. ⏳ `ops/alertas-uptime-sentry` · `ops/whatsapp-real-provider-activation` (Meta) ·
+   `cs/faq-tutoriais-suporte` · `product/cancelamento-exclusao-conta` · `ops/restore-drill`
+7. ⏳ `chore/repo-artifact-cleanup` — P2 (lista aprovada item a item) ·
+   `cleanup/fase-c-branches-worktrees` — P2 (HUMAN_APPROVAL_REQUIRED)
