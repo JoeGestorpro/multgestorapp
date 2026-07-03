@@ -24,10 +24,25 @@ requires_human_approval: true
 `02c5396` **tenant writes → app_runtime (P0 central)** · `d112950` TLS verify (inerte) ·
 `f03af4d` refresh rotation + migração 030 · `d7f2fd1` lint zero · `d262676` CSP.
 
+## ⚠️ PRÉ-PASSO OBRIGATÓRIO — sincronizar main com origin (descoberto 2026-07-02)
+
+`origin/main` e `main` local **divergiram**: origin tem 8 commits (merges dos PRs #20/#21 —
+conteúdo idêntico ao trabalho local, recomitado com SHAs diferentes, + remoção do
+`rls_fix_nullif_tenant_isolation.sql`) e o local tem 21 commits à frente, **incluindo a
+feature geladeira (BG-001) e o fix de auth `becb0ee`, que NUNCA foram deployados**.
+
+Dry-run (`git merge-tree`) mostra só 3 conflitos pequenos: `backend/.env.example`,
+`backend/scripts/run-migrations.js`, `backend/tests/integration/gate0-pool-paths.test.js`
+(add/add — versão do PR #20 vs versão endurecida local). Merge é operação **gated**:
+executar `git merge origin/main` somente com autorização humana, resolver os 3 conflitos
+mantendo as versões locais endurecidas (+ a deleção do arquivo obsoleto vinda do origin),
+rodar a suíte completa e só então prosseguir com o push.
+
 ## Sequência recomendada (humano no volante, agente pode assistir)
 
-1. Revisar `git log origin/main..main` e diffs.
-2. **Autorizar push** para `main` → deploy dispara (Render + Vercel).
+1. **Autorizar o merge de `origin/main`** (pré-passo acima) e revisar `git log origin/main..main`.
+2. **Autorizar push** para `main` → deploy dispara (Render + Vercel). Atenção: o batch
+   inclui a feature geladeira e ~10k linhas nunca deployadas, não só os fixes P0.
 3. Verificar migrations em prod: 018-021 devem aplicar idempotente (tabelas provavelmente
    já existem) e 030 cria `refresh_tokens`. Como o step é `continue-on-error`, conferir o
    log do workflow — se falhar, rodar `npm run migrate` manualmente contra prod (gate humano).
