@@ -33,17 +33,6 @@ const SYSTEM_MODULE_CATALOG = [
     multi_tenant_enabled: true,
     operational_profile_label: 'Admin Cliente / Dono da empresa'
   },
-  {
-    slug: 'terra',
-    name: 'TerraGestor',
-    version: 'v1',
-    description: 'Modulo para rotinas de terraplanagem, com isolamento multiempresa e ativacao controlada pelo painel master.',
-    base_path: '/terra',
-    route_prefix: '/api/terra',
-    requires_auth: true,
-    multi_tenant_enabled: true,
-    operational_profile_label: 'Admin Cliente / Dono da empresa'
-  }
 ]
 
 const emptyForm = {

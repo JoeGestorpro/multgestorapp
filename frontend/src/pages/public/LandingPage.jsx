@@ -49,7 +49,7 @@ const gestores = [
     description: 'Gestão completa para terraplanagem e máquinas pesadas com controle de obras e equipamentos.',
     features: ['Obras', 'Equipamentos', 'Funcionários', 'Financeiro', 'Relatórios'],
     status: 'planned',
-    link: '/terra'
+    link: '#'
   }
 ]
 
@@ -520,7 +520,7 @@ function Footer() {
             <ul className="footer-links">
               <li><Link to="/barber">BarberGestor</Link></li>
               <li><Link to="/clima">ClimaGestor</Link></li>
-              <li><Link to="/terra">TerraGestor</Link></li>
+              <li><a href="#gestores">TerraGestor</a></li>
               <li><a href="#gestores">OficinaGestor</a></li>
               <li><a href="#gestores">AutoGestor</a></li>
             </ul>

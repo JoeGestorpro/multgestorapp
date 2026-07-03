@@ -35,7 +35,6 @@ const Register         = lazy(() => import('./pages/Register'))
 const ResetPassword    = lazy(() => import('./pages/ResetPassword'))
 const Settings         = lazy(() => import('./pages/Settings'))
 const Subscriptions    = lazy(() => import('./pages/Subscriptions'))
-const Terra            = lazy(() => import('./pages/Terra'))
 
 const Crm           = lazy(() => import('./pages/master/Crm'))
 const Niches        = lazy(() => import('./pages/master/Niches'))
@@ -386,14 +385,6 @@ function App() {
         element={
           <ModuleRoute slug="clima">
             <Clima />
-          </ModuleRoute>
-        }
-      />
-      <Route
-        path="/terra"
-        element={
-          <ModuleRoute slug="terra">
-            <Terra />
           </ModuleRoute>
         }
       />
