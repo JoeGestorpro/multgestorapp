@@ -146,20 +146,30 @@ pool.connect = function tenantAwareConnect(cb) {
   // Com contexto tenant: conexão sai do poolTenant (app_runtime, NOBYPASSRLS),
   // fechando o bypass residual de RLS em writes transacionais (PATH-C do Gate 0).
   // O GUC é transaction-local: só é injetado após BEGIN.
+  // O wrap é desfeito no release — sem isso a mutação persiste no client
+  // devolvido ao pool e os wrappers se acumulam a cada checkout.
   return poolTenant.connect().then((client) => {
-    const originalQuery = client.query.bind(client);
+    const originalQuery = client.query;
+    const originalRelease = client.release;
+    const boundQuery = originalQuery.bind(client);
     let gucSet = false;
 
     client.query = async function wrappedQuery(...args) {
       const sql = typeof args[0] === 'string' ? args[0] : (args[0]?.text || '');
-      const result = await originalQuery(...args);
+      const result = await boundQuery(...args);
 
       if (!gucSet && BEGIN_RE.test(sql)) {
         gucSet = true;
-        await originalQuery('SELECT set_config($1, $2, true)', ['app.current_company_id', String(companyId)]);
+        await boundQuery('SELECT set_config($1, $2, true)', ['app.current_company_id', String(companyId)]);
       }
 
       return result;
+    };
+
+    client.release = function unwrappingRelease(...args) {
+      client.query = originalQuery;
+      client.release = originalRelease;
+      return originalRelease.apply(client, args);
     };
 
     return client;
