@@ -95,6 +95,29 @@ describeDb('Refresh token — sessão server-side (requires TEST_DATABASE_URL)',
     await expect(authService.isRefreshTokenActive(jti)).resolves.toBe(false);
   });
 
+  it('purge job remove sessões expiradas além da retenção', async () => {
+    const { runRefreshTokenPurgeJob } = require('../../src/jobs/refresh-token-purge-job');
+    const oldJti = crypto.randomUUID();
+    const freshJti = crypto.randomUUID();
+
+    await pool._originalQuery(
+      `INSERT INTO refresh_tokens (jti, subject_id, auth_scope, expires_at)
+       VALUES ($1, $2, 'barber_admin', NOW() - interval '30 days'),
+              ($3, $2, 'barber_admin', NOW() + interval '7 days')`,
+      [oldJti, FAKE_USER_ID, freshJti]
+    );
+
+    await runRefreshTokenPurgeJob();
+
+    const rows = await pool._originalQuery(
+      'SELECT jti FROM refresh_tokens WHERE jti = ANY($1::uuid[])',
+      [[oldJti, freshJti]]
+    );
+    const remaining = rows.rows.map((r) => r.jti);
+    expect(remaining).not.toContain(oldJti);
+    expect(remaining).toContain(freshJti);
+  });
+
   it('token legado (sem jti) continua verificável pelo JWT', () => {
     const legacy = authService.generateRefreshToken(
       FAKE_USER_ID, 'admin', FAKE_COMPANY_ID, 'barber_admin'

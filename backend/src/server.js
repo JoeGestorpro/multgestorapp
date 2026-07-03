@@ -35,6 +35,7 @@ const OutboxWorker = require('./shared/core/outbox/outbox-worker');
 const redisClient = require('./shared/core/cache/redis-client');
 const { runTrialEmailJob } = require('./jobs/trial-email-job');
 const { runAppointmentReminderJob } = require('./jobs/appointment-reminder-job');
+const { runRefreshTokenPurgeJob } = require('./jobs/refresh-token-purge-job');
 const { billingProviderRegistry, KiwifyProvider } = require('./shared/capabilities/billing');
 
 registerDefaultConsumers();
@@ -451,6 +452,20 @@ setTimeout(() => {
   runTrialEmailJob().catch(err => appLogger.error({ err }, '[TrialEmailJob] Erro no startup'));
 }, 30_000);
 appLogger.info({ intervalMinutes: 60 }, '[TrialEmailJob] Agendado');
+
+// Purga de sessões de refresh expiradas/revogadas — 1x por dia
+const REFRESH_PURGE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+setInterval(async () => {
+  try {
+    await runRefreshTokenPurgeJob();
+  } catch (err) {
+    appLogger.error({ err }, '[RefreshTokenPurgeJob] Erro no job');
+  }
+}, REFRESH_PURGE_INTERVAL_MS).unref();
+setTimeout(() => {
+  runRefreshTokenPurgeJob().catch(err => appLogger.error({ err }, '[RefreshTokenPurgeJob] Erro no startup'));
+}, 60_000);
+appLogger.info({ intervalHours: 24 }, '[RefreshTokenPurgeJob] Agendado');
 
 // Appointment reminder job — rodar a cada 15min (configurável via REMINDER_JOB_INTERVAL_MS)
 const REMINDER_JOB_INTERVAL_MS = Number(process.env.REMINDER_JOB_INTERVAL_MS || 900000);
