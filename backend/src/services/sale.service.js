@@ -14,7 +14,6 @@ const {
   isSaleActiveSql,
   normalizePaymentMethod,
   isBarterPayment,
-  getBusinessDateParts,
   getBusinessDateString,
   normalizeDateInput,
   getMonthRange,
@@ -88,7 +87,9 @@ class SaleService {
     const appointmentId = data.appointment_id || data.appointmentId || null
     const requestedChangeAmount = toNumber(data.change_amount || data.changeAmount)
     const amountReceived = toNumber(data.amount_received || data.amountReceived)
-    const saleDateLocal = normalizeDateInput(data.sale_date_local || data.saleDateLocal, getBusinessDateParts())
+    // Fallback precisa ser a STRING YYYY-MM-DD — getBusinessDateParts() retorna
+    // objeto {year,month,day,date} e quebra o cast ::date no Postgres.
+    const saleDateLocal = normalizeDateInput(data.sale_date_local || data.saleDateLocal, getBusinessDateString())
     const notes = String(data.notes || '').trim() || null
     const discount = Math.max(0, toNumber(data.discount))
     const items = Array.isArray(data.items) ? data.items : []
