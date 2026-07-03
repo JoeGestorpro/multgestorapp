@@ -40,7 +40,30 @@ function getDatabaseTargetSummary() {
 
 const databaseTarget = getDatabaseTargetSummary();
 
-const sslConfig = process.env.NODE_ENV === 'test' ? false : { rejectUnauthorized: false };
+// TLS: com DATABASE_SSL_CA (PEM inline, \n escapado) ou DATABASE_SSL_CA_PATH
+// (arquivo .crt), a verificação de certificado é ativada (rejectUnauthorized:
+// true). Sem CA configurado, mantém o comportamento anterior com warning.
+// Path configurado mas ilegível = erro de boot (fail-fast, nunca degradar TLS
+// silenciosamente).
+function buildSslConfig() {
+  if (process.env.NODE_ENV === 'test') return false;
+
+  let ca = null;
+  if (process.env.DATABASE_SSL_CA) {
+    ca = process.env.DATABASE_SSL_CA.replace(/\\n/g, '\n');
+  } else if (process.env.DATABASE_SSL_CA_PATH) {
+    ca = require('fs').readFileSync(process.env.DATABASE_SSL_CA_PATH, 'utf8');
+  }
+
+  if (ca) {
+    return { ca, rejectUnauthorized: true };
+  }
+
+  appLogger.warn('[database] TLS sem verificação de certificado — configure DATABASE_SSL_CA ou DATABASE_SSL_CA_PATH');
+  return { rejectUnauthorized: false };
+}
+
+const sslConfig = buildSslConfig();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
