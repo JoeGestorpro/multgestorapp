@@ -29,25 +29,7 @@ function ensureAdmin(user, message = 'Apenas admin pode alterar o catalogo de se
   }
 }
 
-async function ensureWorkingHoursSchema(client = pool) {
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS barber_working_hours (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-      collaborator_id UUID NULL REFERENCES barber_collaborators(id) ON DELETE CASCADE,
-      weekday INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),
-      opens_at TIME NOT NULL,
-      closes_at TIME NOT NULL,
-      is_closed BOOLEAN NOT NULL DEFAULT false,
-      created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
-      updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
-      CONSTRAINT uq_barber_working_hours_comp_coll_day UNIQUE (company_id, collaborator_id, weekday)
-    )
-  `);
-  await client.query('CREATE INDEX IF NOT EXISTS idx_barber_working_hours_company ON barber_working_hours(company_id)');
-  await client.query('CREATE INDEX IF NOT EXISTS idx_barber_working_hours_company_weekday ON barber_working_hours(company_id, weekday)');
-  await client.query('CREATE INDEX IF NOT EXISTS idx_barber_working_hours_collaborator ON barber_working_hours(collaborator_id)');
-}
+
 
 function computeWeeklyHoursJson(workingHours) {
   const weekly = { '0': null, '1': null, '2': null, '3': null, '4': null, '5': null, '6': null };
@@ -111,8 +93,6 @@ class ScheduleService {
     ensureCompany(companyId);
 
     try {
-      await ensureWorkingHoursSchema();
-
       const result = await pool.query(
         `SELECT *
          FROM barber_working_hours
@@ -136,9 +116,6 @@ class ScheduleService {
   async updateWorkingHours(companyId, user, data) {
     ensureCompany(companyId);
     ensureAdmin(user);
-
-    await ensureWorkingHoursSchema();
-
     const { weekday, opensAt, closesAt, isClosed, collaboratorId } = data;
 
     const result = await pool.query(
@@ -194,9 +171,6 @@ class ScheduleService {
 
     try {
       await client.query('BEGIN');
-
-      await ensureWorkingHoursSchema(client);
-
       const currentRows = await client.query(
         `SELECT id FROM barber_working_hours WHERE company_id = $1`,
         [companyId]
