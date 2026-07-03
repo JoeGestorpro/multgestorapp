@@ -2,7 +2,7 @@
 
 > **Status:** OFICIAL • VIVO • ATUALIZADO A CADA MISSÃO
 > **Atualizado:** 2026-07-03
-> **state_version:** 23
+> **state_version:** 24
 > **Fonte canônica detalhada:** [[project-state]]
 > **Living OS:** [[living-os/02-painel-executivo]]
 > **Manual de execução (roadmap+gates vivos):** [[EXECUTION-PLAYBOOK-PRODUCAO]]
@@ -58,6 +58,36 @@ qualquer nicho futuro sem repetir esta investigação inteira.
 
 **Isso não bloqueia a venda do BarberGestor** (due diligence de produto continua valendo) — é
 uma frente paralela sobre arquitetura de plataforma, não sobre prontidão comercial.
+
+## 🔄 Atualização Pós-Implementação — Core P0 — 2026-07-03
+
+> Decisão: [[decisions/D-017-core-p0-fronteira-nicho]] · Spec: [[MULTGESTOR-PLATFORM-SPECIFICATION]]
+
+Os 4 achados P0 da auditoria acima foram **implementados e validados** (commits locais, sem
+push): `company.service.js` limpo de `barber-helpers`/defaults `'Barbearia'`/JOIN com
+`barber_collaborators` ([backend/src/services/company.service.js](../../backend/src/services/company.service.js));
+`getBarberMe` movido para a fronteira correta ([backend/src/services/barber-core.service.js](../../backend/src/services/barber-core.service.js));
+guard genérico `requireTenantAdminAuth` criado e em uso em `clima.routes.js`
+([backend/src/middlewares/auth.middleware.js](../../backend/src/middlewares/auth.middleware.js));
+scopes nomeados em `constants/authScopes.js` substituindo literais em `ModuleRoute.jsx` e
+`AuthContext.jsx`. Novos guards genéricos de Core (`ensureCompany`/`ensureAdmin`) em
+`shared/tenant/guards.js`.
+
+**Evidência:** suíte backend 678 pass/0 fail · lint frontend 0 errors · build frontend ok ·
+smoke local 8/9 (login master, login BarberGestor, `/master/modules`, `/barber/me`,
+`/barber/dashboard`, `/clima/info` autenticando e bloqueando por módulo — 403, não 401 —,
+`/master/companies`). 1 falha incidental (`/barber/company/theme`, 500) isolada a
+`branding.service.js`/`branding.repository.js` — arquivos não tocados por esta missão,
+pré-existente no banco de teste local, fora do escopo.
+
+**Nenhuma mudança de comportamento do BarberGestor** — confirmado por suíte completa +
+smoke. Documento oficial da plataforma criado:
+[[MULTGESTOR-PLATFORM-SPECIFICATION]] (constituição, contrato Core×Nicho, catálogos,
+manifesto de nicho, release gate, DoR/DoD).
+
+**Próximo P1 recomendado:** registry dinâmico de rotas por módulo (maior alavanca de
+extensibilidade restante) — condicionado à decisão pendente D-005 (investir ou congelar
+ClimaGestor), para não generalizar sem um segundo caso de uso real.
 
 ## Identificação
 

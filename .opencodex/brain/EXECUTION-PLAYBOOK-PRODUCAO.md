@@ -102,9 +102,9 @@ Detalhe completo e critérios de aceite: [[../../audits/2026-07-03-core-vs-nicho
 
 | Prio | Item | Bloqueia venda BarberGestor? | Bloqueia 2º nicho? | Esforço |
 |---|---|---|---|---|
-| P0 | Limpar `company.service.js` (barber-helpers/defaults/JOIN hardcoded) | Não | Sim | 3-4h |
-| P0 | Corrigir auth de `clima.routes.js` (usa guard do barber) | Não | Sim | 1-2h |
-| P0 | Generalizar scopes hardcoded (`ModuleRoute.jsx`, `AuthContext.jsx`) | Não | Sim | 2-3h |
+| ✅ P0 | Limpar `company.service.js` (barber-helpers/defaults/JOIN hardcoded) — CONCLUÍDO 2026-07-03 (D-017) | Não | Sim | 3-4h |
+| ✅ P0 | Corrigir auth de `clima.routes.js` (usa guard do barber) — CONCLUÍDO 2026-07-03 (D-017) | Não | Sim | 1-2h |
+| ✅ P0 | Generalizar scopes hardcoded (`ModuleRoute.jsx`, `AuthContext.jsx`) — CONCLUÍDO 2026-07-03 (D-017) | Não | Sim | 2-3h |
 | P1 | Registry dinâmico de rotas por módulo (hoje hardcoded em server.js/App.jsx) | Não | **Sim — maior alavanca** | 1-2d |
 | P1 | Migration-template parametrizável para schema de nicho | Não | Sim | 1d |
 | P1 | Ativação automática de módulo por `niche_type` no registro orgânico | Não | Sim | 2h |
@@ -171,6 +171,7 @@ dashboard · logout/login · isolamento entre empresas. Roteiro completo:
 | 2026-07-02 | `2026-07-02-auditoria-completa-e-sprint-p0.md` | — (sprint técnico) |
 | 2026-07-03 | `2026-07-03-due-diligence-enterprise.md` | Maturity **57/100** |
 | 2026-07-03 | `2026-07-03-core-vs-nicho-audit.md` | Core Completion **52/100** |
+| 2026-07-03 | D-017 (implementação) — 3 achados P0 do Core corrigidos e testados | — (execução, não remede o índice) |
 
 ---
 

@@ -26,6 +26,13 @@ testes de enforcement rodando (98/98) · health/deep · fila de governança reco
 de teste. P1: alertas · WhatsApp real (mock em prod) · FAQ/suporte · cancelamento no produto ·
 TLS CA · restore drill. Matriz IA×Humano completa: due diligence §Matriz de Responsabilidades.
 
+**Trilha paralela Core×Nicho (2026-07-03):** auditoria separada mediu Core Completion Index
+52/100 ([[../../audits/2026-07-03-core-vs-nicho-audit]]). Os 3 achados P0 de acoplamento já
+foram **implementados e testados** (D-017: `company.service.js` limpo, guard genérico de auth,
+scopes nomeados no frontend) — commits locais, sem push. Especificação oficial da plataforma:
+[[../MULTGESTOR-PLATFORM-SPECIFICATION]]. Pendente: registry dinâmico de rotas (P1, maior
+alavanca restante) condicionado à decisão D-005 (investir ou congelar ClimaGestor).
+
 ---
 
 ## 1. Visão-mãe do MultGestor
