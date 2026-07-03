@@ -4,11 +4,15 @@ const emailService = require('./email/email.service');
 const { getCompanyPlanSnapshot } = require('./company-plan.service');
 const { isValidEmail, isValidPin } = require('../utils/validators');
 const { appLogger } = require('../shared/core/logger');
-const {
-  createError,
-  ensureCompany,
-  ensureAdmin
-} = require('../utils/barber-helpers');
+const { AppError } = require('../shared/core/errors');
+const { ensureCompany, ensureAdmin } = require('../shared/tenant');
+
+// company.service.js é Core: qualquer módulo/nicho pode ter empresas usando
+// recuperação de PIN, tema/branding e onboarding. Por isso os erros usam a
+// hierarquia genérica de Core (AppError), nunca helpers de um módulo específico.
+function createError(message, statusCode) {
+  return new AppError(message, statusCode);
+}
 
 const PIN_RESET_EXPIRATION_MINUTES = 10;
 
@@ -51,10 +55,12 @@ const DEFAULT_THEME = {
   setup_progress: 0
 };
 
+const DEFAULT_COMPANY_NAME = 'Minha Empresa';
+
 async function getCompanyTheme(companyId) {
   const hasThemeColumns = await columnExists('companies', 'logo_url');
   if (!hasThemeColumns) {
-    return { company_id: companyId, company_name: 'Barbearia', logo_url: null, wallpaper_url: null, ...DEFAULT_THEME };
+    return { company_id: companyId, company_name: DEFAULT_COMPANY_NAME, logo_url: null, wallpaper_url: null, ...DEFAULT_THEME };
   }
   const hasOnboardingColumns = await columnExists('companies', 'onboarding_completed');
   let onboardingFields = '';
@@ -66,12 +72,12 @@ async function getCompanyTheme(companyId) {
     [companyId]
   );
   if (result.rowCount === 0) {
-    return { company_id: companyId, company_name: 'Barbearia', logo_url: null, wallpaper_url: null, ...DEFAULT_THEME };
+    return { company_id: companyId, company_name: DEFAULT_COMPANY_NAME, logo_url: null, wallpaper_url: null, ...DEFAULT_THEME };
   }
   const company = result.rows[0];
   return {
     company_id: company.company_id,
-    company_name: company.company_name || 'Barbearia',
+    company_name: company.company_name || DEFAULT_COMPANY_NAME,
     logo_url: company.logo_url || null,
     primary_color: company.primary_color || DEFAULT_THEME.primary_color,
     secondary_color: company.secondary_color || DEFAULT_THEME.secondary_color,
@@ -83,35 +89,6 @@ async function getCompanyTheme(companyId) {
 }
 
 class CompanyService {
-  async getBarberMe(companyId, user) {
-    ensureCompany(companyId);
-    const result = await pool.query(
-      `SELECT
-         users.id, users.name, users.email, users.phone, users.role, users.company_id, users.is_active,
-         users.can_launch_sales, users.can_view_own_dashboard, users.can_view_own_reports, users.created_at,
-         companies.name AS company_name,
-         barber_collaborators.id AS collaborator_id,
-         barber_collaborators.nickname,
-         barber_collaborators.avatar_url,
-         barber_collaborators.commission_type,
-         barber_collaborators.commission_rate,
-         barber_collaborators.can_make_barter
-       FROM users
-       LEFT JOIN companies ON companies.id = users.company_id
-       LEFT JOIN barber_collaborators
-         ON barber_collaborators.user_id = users.id
-        AND barber_collaborators.company_id = users.company_id
-        AND COALESCE(barber_collaborators.is_deleted, false) = false
-       WHERE users.id = $1 AND users.company_id = $2
-       LIMIT 1`,
-      [user.id, companyId]
-    );
-    if (result.rowCount === 0) {
-      throw createError('Usuario nao encontrado no BarberGestor', 404);
-    }
-    return result.rows[0];
-  }
-
   async getCompanyPlanProfile(companyId) {
     ensureCompany(companyId);
     const companyPlan = await getCompanyPlanSnapshot(companyId);

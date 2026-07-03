@@ -8,6 +8,7 @@ import {
   setStoredToken
 } from '../services/authStorage'
 import { AuthContext } from './auth.context'
+import { AUTH_SCOPE_MASTER, AUTH_SCOPE_TENANT_ADMIN } from '../constants/authScopes'
 
 function resolveStoredBackofficeSession() {
   const activeScope = getActiveBackofficeScope()
@@ -151,7 +152,7 @@ export function AuthProvider({ children }) {
 
             // Descobrir o scope pelo role do user retornado
             const refreshedUser = refreshResponse.data.data.user
-            activeScope = refreshedUser?.auth_scope === 'master' ? 'master' : 'barber'
+            activeScope = refreshedUser?.auth_scope === AUTH_SCOPE_MASTER ? 'master' : 'barber'
 
             setStoredToken(activeScope, activeToken)
             setActiveBackofficeScope(activeScope)
@@ -276,7 +277,7 @@ export function AuthProvider({ children }) {
   }, [modules])
 
   const getDefaultRoute = useCallback(() => {
-    if (scope === 'master' || user?.auth_scope === 'master' || user?.role === 'master_admin') {
+    if (scope === 'master' || user?.auth_scope === AUTH_SCOPE_MASTER || user?.role === 'master_admin') {
       return '/master/dashboard'
     }
 
@@ -303,8 +304,8 @@ export function AuthProvider({ children }) {
       scope,
       loading,
       isAuthenticated: Boolean(user && token),
-      isMasterAuthenticated: Boolean(user && token && (scope === 'master' || user?.auth_scope === 'master')),
-      isBarberAuthenticated: Boolean(user && token && (scope === 'barber' || user?.auth_scope === 'barber_admin')),
+      isMasterAuthenticated: Boolean(user && token && (scope === 'master' || user?.auth_scope === AUTH_SCOPE_MASTER)),
+      isBarberAuthenticated: Boolean(user && token && (scope === 'barber' || user?.auth_scope === AUTH_SCOPE_TENANT_ADMIN)),
       planLoading,
       login,
       loginBarber,

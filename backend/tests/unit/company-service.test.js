@@ -1,5 +1,7 @@
 // tests/unit/company-service.test.js
-// Tests para CompanyService (getBarberMe, onboarding, PIN)
+// Tests para CompanyService (onboarding, PIN) — Core, sem tabelas de nicho.
+// getBarberMe (join com barber_collaborators) vive em barber-core.service.js
+// desde a auditoria Core x Nicho de 2026-07-03 — ver barber-core-service.test.js
 
 const mockPool = {
   query: jest.fn(),
@@ -34,53 +36,8 @@ describe('CompanyService — Unit Tests', () => {
     jest.clearAllMocks();
   });
 
-  describe('getBarberMe', () => {
-    it('deve retornar perfil do usuario com dados da empresa e colaborador', async () => {
-      mockPool.query.mockResolvedValueOnce({
-        rowCount: 1,
-        rows: [{
-          id: 'user-1',
-          name: 'Joao',
-          email: 'joao@test.com',
-          role: 'admin',
-          company_id: COMPANY_ID,
-          is_active: true,
-          company_name: 'Barbearia Teste',
-          collaborator_id: 'collab-1',
-          nickname: 'Joao Barber',
-          commission_type: 'percentage',
-          commission_rate: 30
-        }]
-      });
-
-      const result = await service.getBarberMe(COMPANY_ID, ADMIN_USER);
-
-      expect(result).toMatchObject({
-        id: 'user-1',
-        name: 'Joao',
-        company_name: 'Barbearia Teste',
-        collaborator_id: 'collab-1',
-        nickname: 'Joao Barber'
-      });
-      expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('FROM users'),
-        ['user-1', COMPANY_ID]
-      );
-    });
-
-    it('deve lancar erro 403 quando companyId ausente', async () => {
-      await expect(service.getBarberMe(null, ADMIN_USER))
-        .rejects
-        .toThrow('Usuario sem empresa vinculada');
-    });
-
-    it('deve lancar erro 404 quando usuario nao encontrado', async () => {
-      mockPool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
-
-      await expect(service.getBarberMe(COMPANY_ID, ADMIN_USER))
-        .rejects
-        .toThrow('Usuario nao encontrado');
-    });
+  it('nao deve expor getBarberMe (fronteira Core x Nicho — vive em barber-core.service.js)', () => {
+    expect(service.getBarberMe).toBeUndefined();
   });
 
   describe('getOnboardingStatus', () => {

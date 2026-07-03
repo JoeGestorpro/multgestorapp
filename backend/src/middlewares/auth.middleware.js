@@ -118,6 +118,15 @@ function requireBarberAdminAuth(req, res, next) {
   });
 }
 
+// Alias genérico: hoje 'barber_admin' é o único auth_scope emitido para
+// donos/admins/colaboradores de QUALQUER empresa tenant, independente do
+// módulo/nicho ativo (auth.controller.js sempre usa authScope: 'barber_admin'
+// no login — não existe um escopo por nicho). Módulos que não são o
+// BarberGestor (ex: clima.routes.js) devem depender deste nome genérico, não
+// de requireBarberAdminAuth, mesmo apontando para a mesma implementação hoje.
+// Quando o sistema emitir auth_scope por módulo, só este alias muda.
+const requireTenantAdminAuth = requireBarberAdminAuth;
+
 function requireBookingCustomerAuth(req, res, next) {
   return requireBookingCustomerScope(req, res, function handleScope() {
     return requireBookingCustomerRole(req, res, next);
@@ -134,6 +143,7 @@ module.exports = requireAuth;
 module.exports.requireAuth = requireAuth;
 module.exports.requireBackofficeAuth = requireBackofficeAuth;
 module.exports.requireBarberAdminAuth = requireBarberAdminAuth;
+module.exports.requireTenantAdminAuth = requireTenantAdminAuth;
 module.exports.requireBookingCustomerAuth = requireBookingCustomerAuth;
 module.exports.requireMasterAdminAuth = requireMasterAdminAuth;
 module.exports.inferAuthScope = inferAuthScope;

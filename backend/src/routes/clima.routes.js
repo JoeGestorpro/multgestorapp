@@ -3,7 +3,7 @@
 const express       = require('express');
 const c             = require('../controllers/clima');
 const authMiddleware = require('../middlewares/auth.middleware');
-const { requireBarberAdminAuth } = require('../middlewares/auth.middleware');
+const { requireTenantAdminAuth } = require('../middlewares/auth.middleware');
 const requireCompany = require('../middlewares/requireCompany');
 const requireClimaModule = require('../middlewares/requireClimaModule');
 const { validateRequest, validateQuery } = require('../shared/core/validation');
@@ -12,7 +12,7 @@ const { createClimaAppointmentSchema, getClimaAvailabilitySchema } = require('..
 const router = express.Router();
 
 router.use(authMiddleware);
-router.use(requireBarberAdminAuth);
+router.use(requireTenantAdminAuth);
 router.use(requireCompany);
 router.use(requireClimaModule);
 

@@ -33,7 +33,6 @@ describe('BarberCoreService — Unit Tests with DI', () => {
         getServicesAnalytics: jest.fn()
       },
       companyService: {
-        getBarberMe: jest.fn(),
         getCompanyPlanProfile: jest.fn(),
         forgotPin: jest.fn(),
         resetPin: jest.fn(),
@@ -110,13 +109,49 @@ describe('BarberCoreService — Unit Tests with DI', () => {
     expect(result).toEqual({ today_revenue: 500 });
   });
 
-  it('deve delegar getBarberMe para companyService', async () => {
-    mockDeps.companyService.getBarberMe.mockResolvedValue({ name: 'Joao' });
+  // getBarberMe faz JOIN com barber_collaborators — vive na facade do módulo
+  // barber (não em company.service.js, que é Core) desde a auditoria Core x
+  // Nicho de 2026-07-03. Testado direto contra o pool mockado, não delegado.
+  describe('getBarberMe', () => {
+    it('deve retornar perfil do usuario com dados da empresa e colaborador', async () => {
+      mockPool.query.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{
+          id: 'user-1',
+          name: 'Joao',
+          company_name: 'Barbearia Teste',
+          collaborator_id: 'collab-1',
+          nickname: 'Joao Barber'
+        }]
+      });
 
-    const result = await service.getBarberMe('company-a', { id: 'user-1' });
+      const result = await service.getBarberMe('company-a', { id: 'user-1' });
 
-    expect(mockDeps.companyService.getBarberMe).toHaveBeenCalledWith('company-a', { id: 'user-1' });
-    expect(result).toEqual({ name: 'Joao' });
+      expect(result).toMatchObject({
+        id: 'user-1',
+        name: 'Joao',
+        collaborator_id: 'collab-1',
+        nickname: 'Joao Barber'
+      });
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('FROM users'),
+        ['user-1', 'company-a']
+      );
+    });
+
+    it('deve lancar erro quando companyId ausente', async () => {
+      await expect(service.getBarberMe(null, { id: 'user-1' }))
+        .rejects
+        .toThrow('Usuario sem empresa vinculada');
+    });
+
+    it('deve lancar erro 404 quando usuario nao encontrado', async () => {
+      mockPool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+
+      await expect(service.getBarberMe('company-a', { id: 'user-1' }))
+        .rejects
+        .toThrow('Usuario nao encontrado');
+    });
   });
 
   it('deve delegar listAdvances para advanceSettlementService', async () => {

@@ -7,6 +7,42 @@ const CustomerService = require('./customer.service');
 const CollaboratorService = require('./collaborator.service');
 const CashFlowService = require('./cash-flow.service');
 const CollaboratorRepository = require('../repositories/collaborator.repository');
+const pool = require('../config/database');
+const { NotFoundError } = require('../shared/core/errors');
+const { ensureCompany } = require('../shared/tenant');
+
+// Perfil combinado do usuário logado no BarberGestor (users + companies +
+// barber_collaborators). Vive aqui, dentro da facade do módulo barber, e não
+// em company.service.js (Core) — é a fronteira Core×Nicho: só o módulo barber
+// conhece a tabela barber_collaborators.
+async function getBarberMeProfile(companyId, user) {
+  ensureCompany(companyId);
+  const result = await pool.query(
+    `SELECT
+       users.id, users.name, users.email, users.phone, users.role, users.company_id, users.is_active,
+       users.can_launch_sales, users.can_view_own_dashboard, users.can_view_own_reports, users.created_at,
+       companies.name AS company_name,
+       barber_collaborators.id AS collaborator_id,
+       barber_collaborators.nickname,
+       barber_collaborators.avatar_url,
+       barber_collaborators.commission_type,
+       barber_collaborators.commission_rate,
+       barber_collaborators.can_make_barter
+     FROM users
+     LEFT JOIN companies ON companies.id = users.company_id
+     LEFT JOIN barber_collaborators
+       ON barber_collaborators.user_id = users.id
+      AND barber_collaborators.company_id = users.company_id
+      AND COALESCE(barber_collaborators.is_deleted, false) = false
+     WHERE users.id = $1 AND users.company_id = $2
+     LIMIT 1`,
+    [user.id, companyId]
+  );
+  if (result.rowCount === 0) {
+    throw new NotFoundError('Usuario nao encontrado no BarberGestor');
+  }
+  return result.rows[0];
+}
 
 /**
  * BarberCoreService — Facade com Injeção de Dependência
@@ -38,7 +74,7 @@ class BarberCoreService {
 
   // --- Perfil / Company ---
   async getBarberMe(companyId, user) {
-    return this.companyService.getBarberMe(companyId, user);
+    return getBarberMeProfile(companyId, user);
   }
 
   async getCompanyPlanProfile(companyId) {
