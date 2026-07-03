@@ -111,15 +111,19 @@ pool.connect = function tenantAwareConnect(cb) {
     return _originalConnect(cb);
   }
 
-  // Forma promise — await pool.connect() (services/UoW): aplica o wrap tenant/RLS.
+  // Forma promise — await pool.connect() (services/UoW).
   const store = tenantStore.getStore();
   const companyId = store?.companyId;
 
-  return _originalConnect().then((client) => {
-    if (!companyId) {
-      return client;
-    }
+  // Sem contexto tenant (auth, master, jobs): pool privilegiado, sem wrap.
+  if (!companyId) {
+    return _originalConnect();
+  }
 
+  // Com contexto tenant: conexão sai do poolTenant (app_runtime, NOBYPASSRLS),
+  // fechando o bypass residual de RLS em writes transacionais (PATH-C do Gate 0).
+  // O GUC é transaction-local: só é injetado após BEGIN.
+  return poolTenant.connect().then((client) => {
     const originalQuery = client.query.bind(client);
     let gucSet = false;
 

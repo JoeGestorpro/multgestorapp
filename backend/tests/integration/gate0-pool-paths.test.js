@@ -135,12 +135,12 @@ describeDb('Gate 0 — Pool Path Validation (requer banco de teste)', () => {
 
   // ──────────────────────────────────────────────────────────────────────────
   // PATH-C: pool.connect() dentro de contexto ALS
-  // Prova do "bypass residual": serviços que chamam pool.connect() explicitamente
-  // (collaborator.service, company.service, sale.service…) SEMPRE obtêm uma
-  // conexão de DATABASE_URL, mesmo quando ALS está ativo.
+  // Bypass residual FECHADO: serviços que chamam pool.connect() explicitamente
+  // (collaborator.service, company.service, sale.service…) obtêm conexão do
+  // poolTenant (APP_RUNTIME_URL, NOBYPASSRLS) quando o ALS tem companyId.
   // ──────────────────────────────────────────────────────────────────────────
   describe('PATH-C: pool.connect() dentro de contexto ALS', () => {
-    it('GUC company_id é injetado via tenantAwareConnect, mas role vem de DATABASE_URL', async () => {
+    it('GUC company_id é injetado via tenantAwareConnect e role vem do poolTenant', async () => {
       // Objeto mínimo que simula o client do requireCompany no ALS.
       // pool.query() usaria este client, mas PATH-C testa innerClient diretamente.
       const fakeAlsClient = {
@@ -151,8 +151,8 @@ describeDb('Gate 0 — Pool Path Validation (requer banco de teste)', () => {
       let info;
       await runWithTenantClient(fakeAlsClient, FAKE_COMPANY_ID, async () => {
         // database.connect() = tenantAwareConnect:
-        //   vê companyId no ALS → wrapper injeta set_config após BEGIN.
-        //   mas _originalConnect() sempre retorna client de DATABASE_URL.
+        //   vê companyId no ALS → conexão vem do poolTenant e o wrapper
+        //   injeta set_config após BEGIN.
         const innerClient = await database.connect();
 
         try {
@@ -160,7 +160,7 @@ describeDb('Gate 0 — Pool Path Validation (requer banco de teste)', () => {
           // O wrapper injetou set_config('app.current_company_id') após o BEGIN acima.
           info = await queryConnectionInfo((sql) => innerClient.query(sql));
 
-          if (DEBUG) { console.log('[PATH-C — bypass residual]'); console.table(info); }
+          if (DEBUG) { console.log('[PATH-C — poolTenant]'); console.table(info); }
 
           // company_id setado pelo wrapper ✓
           expect(info.company_id_guc).toBe(FAKE_COMPANY_ID);
@@ -169,10 +169,39 @@ describeDb('Gate 0 — Pool Path Validation (requer banco de teste)', () => {
           // Policies que dependem de app.current_user_id NÃO são cobertas por este caminho.
           expectGucEmpty(info.user_id_guc);
 
-          // role_name é o de DATABASE_URL (pode ter BYPASSRLS).
           expect(info.role_name).toBeDefined();
 
           await innerClient.query('ROLLBACK');
+        } finally {
+          innerClient.release();
+        }
+      });
+    });
+
+    it('GATE CRÍTICO: pool.connect() com ALS usa role do poolTenant (sem BYPASSRLS)', async () => {
+      if (!process.env.APP_RUNTIME_URL) {
+        // Sem APP_RUNTIME_URL, poolTenant = pool (DATABASE_URL) — gate não verificável.
+        return;
+      }
+
+      const fakeAlsClient = {
+        query: () => Promise.resolve({ rows: [], rowCount: 0 }),
+        release: () => {},
+      };
+
+      await runWithTenantClient(fakeAlsClient, FAKE_COMPANY_ID, async () => {
+        const innerClient = await database.connect();
+        try {
+          const result = await innerClient.query(
+            `SELECT current_user AS role_name, rolbypassrls
+             FROM pg_roles WHERE rolname = current_user`
+          );
+          const { role_name: roleName, rolbypassrls: bypassRls } = result.rows[0];
+
+          if (DEBUG) console.log(`[PATH-C GATE CRÍTICO] role=${roleName} bypass_rls=${bypassRls}`);
+
+          // Se bypassRls for true: writes transacionais continuam ignorando RLS.
+          expect(bypassRls).toBe(false);
         } finally {
           innerClient.release();
         }
@@ -426,11 +455,14 @@ describeDb('Gate 0 — Pool Path Validation (requer banco de teste)', () => {
 
       // Comparação de roles entre caminhos
       const roleA = snapshot['A: pool.query() sem ALS'].role_name;
+      const roleC = snapshot['C: pool.connect() no ALS'].role_name;
       const roleD = snapshot['D: pool.poolTenant.connect()'].role_name;
 
       if (process.env.APP_RUNTIME_URL) {
         // Com APP_RUNTIME_URL configurada, PATH-D deve usar role diferente de PATH-A
         expect(roleD).not.toBe(roleA);
+        // PATH-C (pool.connect no ALS) deve sair do poolTenant — mesmo role de PATH-D
+        expect(roleC).toBe(roleD);
       }
       // Sem APP_RUNTIME_URL: roleA === roleD (ambos usam DATABASE_URL) — OK, apenas documentado
     });
