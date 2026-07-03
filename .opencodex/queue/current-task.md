@@ -35,6 +35,22 @@ Commits locais em `main` (sem push), todos validados por teste:
 tenant-isolation-rls, gate0-*, outbox-durability rodando de verdade. `.env.test` local
 corrigido (porta 5433→5432).
 
+## ✅ Batch 2 do sprint (2026-07-03, madrugada) — validação e fechamento
+
+- **Smoke local 20/20 PASS** (backend real porta 3210 vs `multgestor_test`): registro,
+  login, serviço, colaborador, working-hours, caixa, **venda sob app_runtime**, dashboard,
+  **rotação de refresh + revogação ao vivo**, isolamento cross-tenant A/B.
+- **`24d7497`** fix(barber): fallback de `sale_date_local` era objeto → 500 em POST /sales
+  (bug pré-existente exposto pelo smoke; frontend sempre envia a data, por isso prod não via).
+- **`57619bd`** fix(security): unwrap do client tenant no release (wrappers acumulavam).
+- **`fa5ffc8`** feat(security): purga diária de refresh_tokens expirados (retenção 14d).
+- **`f3ea68e`** fix(frontend): módulo fantasma terra removido (B-003).
+- **`f8e1813`** docs(audit): registro canônico em `.opencodex/audits/` + runbook atualizado.
+- Pre-release gate: workflows OK, testes OK, lint OK — **bloqueado só pelo working tree
+  sujo** (artefatos untracked aguardando lista de deleção aprovada).
+- Lint warnings (44, react-hooks v5): **deliberadamente não tocados** — o próprio
+  eslint.config.js os marca para o cleanup sprint do Barber.jsx.
+
 ## 🔒 Pendências que EXIGEM humano
 
 - **Push/deploy** dos 8 commits (dispara migrations 018-021 + 030 em prod — idempotentes,
