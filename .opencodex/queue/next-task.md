@@ -1,79 +1,58 @@
-# 📥 PRÓXIMA MISSÃO — TEST/RLS-ENFORCEMENT-LOCAL-TESTDB (P0)
+# 📥 PRÓXIMA MISSÃO — RELEASE/PUSH-P0-BATCH (HUMAN_APPROVAL_REQUIRED)
 
-> Promovida pela auditoria completa de 2026-07-02 (achado **F-02**): os testes de isolamento
-> multi-tenant (`tenant-isolation-rls`, `gate0-*`, `outbox-durability`) existem mas estão entre
-> os **74 skip** — nunca executaram. São a rede de segurança obrigatória **antes** da missão
-> `security/tenant-writes-app-runtime-pool` (P0 central).
-> A anterior (`cleanup/fase-c-branches-worktrees`, P2) foi **despriorizada**, não cancelada —
-> ver fila em `current-task.md`.
+> Sprint autônomo de 2026-07-02 deixou **8 commits locais em `main`** prontos e validados
+> (ver `current-task.md`). O push é **uma decisão humana**: dispara deploy no Render e o
+> passo de migrations em produção (018-021 + 030, `continue-on-error` — validar manualmente
+> depois). Nada aqui pode ser executado por agente sem autorização explícita.
 
 ---
 status: pending
-task_id: test/rls-enforcement-local-testdb
-title: Executar suíte de enforcement RLS contra o TEST DB local
-type: test/security
+task_id: release/push-p0-batch
+title: Release — push dos commits P0 + ativação TLS + smoke pós-deploy
+type: release/deploy
 priority: P0
-camada: seguranca/rls
-mode: EXECUTE_WITH_REVIEW
+camada: release
+mode: HUMAN_APPROVAL_REQUIRED
 created_by: Claude Code
 created_at: 2026-07-02
-requires_human_approval: false
-human_local_steps: true
+requires_human_approval: true
 ---
 
-## 🤖 Model Capability Assessment (executor)
+## Conteúdo do batch (local, sem push)
 
-- **Tarefa:** configurar env local + rodar testes. Sem alteração de produto, sem migration nova,
-  sem produção. Risco baixo, reversível.
-- **Passos humanos-locais obrigatórios:** obter/definir `TEST_DATABASE_URL` e `APP_RUNTIME_URL`
-  do banco de TESTE (secrets não ficam no repo; MCP não provisiona env local).
-- **Modo recomendado:** EXECUTE_WITH_REVIEW. Se os testes revelarem falha de policy/grant,
-  **não corrigir migration por conta própria** → reportar e ESCALATE.
+`ace2d05` schedule DDL fix · `e906039`+governança · `8056831` migrations 018-021 ·
+`02c5396` **tenant writes → app_runtime (P0 central)** · `d112950` TLS verify (inerte) ·
+`f03af4d` refresh rotation + migração 030 · `d7f2fd1` lint zero · `d262676` CSP.
 
-## Contexto
+## Sequência recomendada (humano no volante, agente pode assistir)
 
-- Migration + código A-001 já aplicados no TEST DB (2026-06-25).
-- RLS runtime ativo em prod para **leituras** (PR #20, `aeed31c`). Writes ainda bypassam
-  (pool privilegiado em `pool.connect()` — `backend/src/config/database.js:118`).
-- Provisionamento do TEST DB local documentado em `docs/` (commit `2c7248f`).
-
-## Objetivo
-
-Fazer os 74 testes skip executarem e passarem localmente contra o banco de TESTE,
-transformando-os em gate obrigatório antes da missão de writes.
-
-## Passos
-
-1. Provisionar env local: `TEST_DATABASE_URL` + `APP_RUNTIME_URL` (banco de TESTE, **nunca** prod).
-2. `cd backend && npm run test:integration` — confirmar que os suites antes skip agora rodam:
-   `tenant-isolation-rls`, `tenant-isolation`, `gate0-runtime-check`, `gate0-pool-paths`,
-   `gate0-als-context-leak`, `outbox-durability`.
-3. Registrar evidência (contagem pass/fail, tempo) nesta fila e em `.opencodex/audits/`.
-4. Se houver falha: descrever policy/grant faltante + arquivos, **sem corrigir** — ESCALATE.
-
-## Escopo proibido
-
-- ❌ Apontar qualquer env para produção.
-- ❌ Migration nova, alteração de policy, push, merge, deploy.
-- ❌ Commitar `.env` ou secrets.
+1. Revisar `git log origin/main..main` e diffs.
+2. **Autorizar push** para `main` → deploy dispara (Render + Vercel).
+3. Verificar migrations em prod: 018-021 devem aplicar idempotente (tabelas provavelmente
+   já existem) e 030 cria `refresh_tokens`. Como o step é `continue-on-error`, conferir o
+   log do workflow — se falhar, rodar `npm run migrate` manualmente contra prod (gate humano).
+4. Canário: `GET /api/health/deep` 200; login barber/master/booking; venda+caixa na
+   JoeFelipe (valida writes sob app_runtime). `LOG_POOL_DIAGNOSTICS=true` temporário se
+   quiser ver o role nas transações.
+5. **Kill-switch** se writes quebrarem: remover `APP_RUNTIME_URL` no Render (reverte para
+   pool único) e investigar grant faltante.
+6. TLS: baixar CA (Supabase → Settings → Database → SSL Certificate), subir no Render e
+   setar `DATABASE_SSL_CA_PATH` (ou `DATABASE_SSL_CA` inline). Reiniciar e conferir boot.
+7. Smoke completo: roteiro da auditoria 2026-07-02 (seção 6) — incluir logout→refresh=401
+   (agora deve falhar de verdade com a revogação server-side).
 
 ## Critérios de aceite
 
-- [ ] Suites de enforcement executam (não-skip) contra o TEST DB.
-- [ ] 0 fail — ou relatório de falhas com ESCALATE (sem correção autônoma).
-- [ ] Evidência registrada na governança.
-- [ ] Nenhum secret commitado (`git status` limpo de `.env`).
+- [ ] Push autorizado e deploy verde (Render + Vercel).
+- [ ] Migrations 018-021/030 aplicadas em prod (verificadas, não presumidas).
+- [ ] Login/refresh/logout OK nos 3 escopos; logout invalida refresh (401).
+- [ ] Venda/caixa/agendamento funcionando (writes sob app_runtime).
+- [ ] Health deep 200; sem erro novo nos logs por 24h.
+- [ ] TLS com `rejectUnauthorized: true` ativo (sem warning de CA no boot).
 
-## Fila pós-missão (auditoria 2026-07-02)
+## Fila pós-release
 
-1. 🔵 **`test/rls-enforcement-local-testdb`** (atual)
-2. ⏳ `db/reconcile-untracked-feature-migrations` — P0: `mg_anamnese_v1.sql` (+loyalty/packages/prepaid)
-   untracked com código já deployado (`anamnesis.service.js`, rota LGPD) → drift ou endpoint quebrado.
-3. ⏳ `security/tenant-writes-app-runtime-pool` — **P0 central**: rotear `pool.connect()` (form
-   promise com tenant no ALS) para `poolTenant`; kill-switch validado = remover `APP_RUNTIME_URL`.
-4. ⏳ `security/db-tls-verify` — P1: `rejectUnauthorized: true` + CA Supabase (`database.js:43`).
-5. ⏳ `security/refresh-rotation-server-side-revoke` — P1: rotação de refresh + revogação no
-   logout + limpar cookie `mg_refresh_booking`.
-6. ⏳ `ops/whatsapp-real-provider-activation` — P1: provider real (hoje **mock em prod**).
-7. ⏳ `cleanup/fase-c-branches-worktrees` — P2 (HUMAN_APPROVAL_REQUIRED), card arquivado no
-   histórico do git (`git log -- .opencodex/queue/next-task.md`).
+1. ⏳ `ops/whatsapp-real-provider-activation` — P1 (credenciais Meta; mock em prod hoje)
+2. ⏳ `qa/smoke-joefelipe-full-flow` — P1 (roteiro formal + evidência)
+3. ⏳ `chore/repo-artifact-cleanup` — P2 (lista de deleção aprovada item a item)
+4. ⏳ `cleanup/fase-c-branches-worktrees` — P2 (HUMAN_APPROVAL_REQUIRED)
