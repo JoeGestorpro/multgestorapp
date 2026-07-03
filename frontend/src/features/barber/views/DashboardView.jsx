@@ -700,15 +700,7 @@ export default function DashboardView({
   setSaleForm,
   buildEmptySaleForm,
   loggedInCollaboratorId,
-  setSaleModalOpen,
-  dashboard,
-  collaborators,
-  todaySalesCount,
-  ranking,
-  topCollaborator,
-  salesChartData,
-  visibleCollaboratorSummary,
-  appointmentsOverview
+  setSaleModalOpen
 }) {
   if (!isAdmin) {
     if (isMobileViewport) {

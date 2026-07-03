@@ -3,7 +3,10 @@ import Card from '../../../../components/design-system/ui/Card'
 import { Skeleton } from '../../../../components/design-system/feedback/Skeleton'
 import { money } from '../../utils/formatters'
 
-function KPICard({ icon: Icon, label, value, color }) {
+function KPICard({ icon, label, value, color }) {
+  // Alias em maiúscula para uso como tag JSX (o lint core não conta
+  // JSXIdentifier como uso de parâmetro; vars ^[A-Z_] são ignoradas).
+  const Icon = icon
   return (
     <Card className="kpi-card" padding="sm">
       <div className="kpi-card__inner">

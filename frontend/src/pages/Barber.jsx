@@ -931,7 +931,6 @@ function Barber() {
   const [productForm, setProductForm] = useState(emptyProduct)
   const [editingProductId, setEditingProductId] = useState('')
   const [suppliers, setSuppliers] = useState([])
-  const [fridgeItems, setFridgeItems] = useState([])
   const [fridgeCatalog, setFridgeCatalog] = useState([])
   const [fridgeFilters, setFridgeFilters] = useState(defaultFridgeFilters)
   const [fridgeForm, setFridgeForm] = useState(emptyFridgeItem)
@@ -1191,10 +1190,6 @@ function Barber() {
       if (filters.category) params.category = filters.category
       const response = await api.get('/barber/products', { params: { ...params, product_type: 'fridge' } })
       setFridgeCatalog(response.data.data)
-      if (!options.keepFullList) {
-        const fullResponse = await api.get('/barber/products', { params: { product_type: 'fridge' } })
-        setFridgeItems(fullResponse.data.data)
-      }
       const reportResponse = await api.get('/barber/fridge-items/report')
       setFridgeReport(reportResponse.data.data)
     } catch (err) {
@@ -1331,7 +1326,6 @@ function Barber() {
       {
         const fridgeResponse = restResponses[responseIndex]
         if (fridgeResponse) {
-          setFridgeItems(fridgeResponse.data.data)
           setFridgeCatalog(fridgeResponse.data.data)
           responseIndex += 1
         }
@@ -2702,7 +2696,7 @@ function Barber() {
     const payload = { ...fridgeItemToPayload(fridgeForm), productType: 'fridge' }
 
     try {
-      if (Boolean(editingFridgeId)) {
+      if (editingFridgeId) {
         await api.put(`/barber/products/${editingFridgeId}`, payload)
         setSuccess('Item atualizado')
       } else {

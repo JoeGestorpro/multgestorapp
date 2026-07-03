@@ -15,7 +15,6 @@ import {
 function StockBadge({ item }) {
   const status = getStockStatus(item)
   const current = Number(item.stockCurrent ?? item.stock_current ?? 0)
-  const min = Number(item.stockMinimum ?? item.stock_minimum ?? 0)
 
   if (status === 'inactive') {
     return <BarberBadge tone="danger">Inativo</BarberBadge>

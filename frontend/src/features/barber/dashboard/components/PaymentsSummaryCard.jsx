@@ -44,18 +44,23 @@ export default function PaymentsSummaryCard({ payments, loading }) {
       <CardBody>
         {methods.length > 0 ? (
           <div className="payments-list">
-            {methods.map(({ key, icon: Icon, color, label, amount, count }) => (
-              <div className="payments-item" key={key}>
-                <div className="payments-item__icon" style={{ color }}>
-                  <Icon size={18} />
+            {methods.map(({ key, icon, color, label, amount, count }) => {
+              // Alias em maiúscula para uso como tag JSX (o lint core não conta
+              // JSXIdentifier como uso de parâmetro; vars ^[A-Z_] são ignoradas).
+              const Icon = icon
+              return (
+                <div className="payments-item" key={key}>
+                  <div className="payments-item__icon" style={{ color }}>
+                    <Icon size={18} />
+                  </div>
+                  <div className="payments-item__info">
+                    <span className="payments-item__label">{label}</span>
+                    <span className="payments-item__count">{count} receb.</span>
+                  </div>
+                  <strong className="payments-item__value">{money(amount)}</strong>
                 </div>
-                <div className="payments-item__info">
-                  <span className="payments-item__label">{label}</span>
-                  <span className="payments-item__count">{count} receb.</span>
-                </div>
-                <strong className="payments-item__value">{money(amount)}</strong>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <Empty title="Sem recebimentos" description="Nenhum pagamento registrado hoje." compact />
