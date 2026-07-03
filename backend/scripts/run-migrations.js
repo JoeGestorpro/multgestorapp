@@ -54,6 +54,9 @@ const migrations = [
 
   // R-003 — Grants explícitos e reforço RLS para barber_working_hours e dependências
   { version: '20260626_029', file: '20260626_029_fix_barber_working_hours_grants.sql' },
+
+  // Sessões de refresh token — rotação + revogação server-side no logout
+  { version: '20260702_030', file: '20260702_030_refresh_tokens.sql' },
 ];
 
 async function ensureMigrationsTable() {

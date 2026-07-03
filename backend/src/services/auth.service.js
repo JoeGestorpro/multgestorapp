@@ -55,18 +55,55 @@ const REFRESH_COOKIE_OPTIONS = {
   path: '/'
 };
 
-function generateRefreshToken(userId, role, companyId, authScope) {
+const REFRESH_TOKEN_TTL = '7d';
+
+function generateRefreshToken(userId, role, companyId, authScope, jti = null) {
   return jwt.sign(
     {
       id: userId,
       role,
       company_id: companyId,
       auth_scope: authScope,
-      token_type: 'refresh'
+      token_type: 'refresh',
+      ...(jti ? { jti } : {})
     },
     process.env.JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: REFRESH_TOKEN_TTL }
   );
+}
+
+// Emissão com sessão server-side: persiste o jti em refresh_tokens para
+// permitir rotação e revogação no logout. Sempre chamado fora de contexto
+// tenant (rotas /auth não passam por requireCompany) — usa o pool privilegiado.
+async function issueRefreshToken(userId, role, companyId, authScope, { replacesJti = null } = {}) {
+  const jti = crypto.randomUUID();
+  await pool.query(
+    `INSERT INTO refresh_tokens (jti, subject_id, auth_scope, expires_at)
+     VALUES ($1, $2, $3, NOW() + interval '7 days')`,
+    [jti, userId, authScope]
+  );
+  if (replacesJti) {
+    await revokeRefreshToken(replacesJti, jti);
+  }
+  return generateRefreshToken(userId, role, companyId, authScope, jti);
+}
+
+async function revokeRefreshToken(jti, replacedBy = null) {
+  await pool.query(
+    `UPDATE refresh_tokens
+     SET revoked_at = NOW(), replaced_by = COALESCE($2, replaced_by)
+     WHERE jti = $1 AND revoked_at IS NULL`,
+    [jti, replacedBy]
+  );
+}
+
+async function isRefreshTokenActive(jti) {
+  const result = await pool.query(
+    `SELECT 1 FROM refresh_tokens
+     WHERE jti = $1 AND revoked_at IS NULL AND expires_at > NOW()`,
+    [jti]
+  );
+  return result.rowCount > 0;
 }
 
 function sanitizeUser(row) {
@@ -792,6 +829,9 @@ module.exports = {
   requestPasswordReset,
   resetPassword,
   generateRefreshToken,
+  issueRefreshToken,
+  revokeRefreshToken,
+  isRefreshTokenActive,
   REFRESH_COOKIE_OPTIONS,
   sanitizeUser,
   sanitizeBookingCustomer

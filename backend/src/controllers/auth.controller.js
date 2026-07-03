@@ -1,7 +1,20 @@
 const authService = require('../services/auth.service');
 const { asyncHandler, success } = require('../shared');
-const { generateRefreshToken, REFRESH_COOKIE_OPTIONS } = require('../services/auth.service');
+const {
+  issueRefreshToken,
+  revokeRefreshToken,
+  isRefreshTokenActive,
+  REFRESH_COOKIE_OPTIONS
+} = require('../services/auth.service');
 const jwt = require('jsonwebtoken');
+
+const REFRESH_COOKIE_NAMES = ['mg_refresh_barber', 'mg_refresh_master', 'mg_refresh_booking'];
+
+function refreshCookieNameForScope(authScope) {
+  if (authScope === 'master') return 'mg_refresh_master';
+  if (authScope === 'booking_customer') return 'mg_refresh_booking';
+  return 'mg_refresh_barber';
+}
 
 function getRequestMeta(req) {
   return {
@@ -21,7 +34,7 @@ const login = asyncHandler(async (req, res) => {
     authScope: 'barber_admin'
   });
 
-  const refreshToken = generateRefreshToken(
+  const refreshToken = await issueRefreshToken(
     result.user.id,
     result.user.role,
     result.user.company_id,
@@ -38,7 +51,7 @@ const masterLogin = asyncHandler(async (req, res) => {
     authScope: 'master'
   });
 
-  const refreshToken = generateRefreshToken(
+  const refreshToken = await issueRefreshToken(
     result.user.id,
     result.user.role,
     result.user.company_id,
@@ -53,7 +66,7 @@ const masterLogin = asyncHandler(async (req, res) => {
 const bookingLogin = asyncHandler(async (req, res) => {
   const result = await authService.loginBookingCustomer(req.body);
 
-  const refreshToken = generateRefreshToken(
+  const refreshToken = await issueRefreshToken(
     result.user.id,
     result.user.role,
     result.user.company_id,
@@ -134,6 +147,19 @@ const refresh = asyncHandler(async (req, res) => {
       });
     }
 
+    // Revogação server-side: token com jti precisa de sessão ativa.
+    // Tokens legados (sem jti, emitidos antes da migração 030) são aceitos
+    // até expirarem e migram para sessão server-side na rotação abaixo.
+    if (payload.jti) {
+      const active = await isRefreshTokenActive(payload.jti);
+      if (!active) {
+        return res.status(401).json({
+          success: false,
+          error: 'Sessao expirada. Faca login novamente.'
+        });
+      }
+    }
+
     const pool = require('../config/database');
 
     // Booking customer refresh
@@ -188,6 +214,16 @@ const refresh = asyncHandler(async (req, res) => {
         { expiresIn: '1h' }
       );
 
+      // Rotação: novo refresh com sessão server-side; o anterior é revogado.
+      const rotatedToken = await issueRefreshToken(
+        customer.id,
+        'booking_customer',
+        customer.company_id,
+        'booking_customer',
+        { replacesJti: payload.jti || null }
+      );
+      res.cookie('mg_refresh_booking', rotatedToken, REFRESH_COOKIE_OPTIONS);
+
       return res.json({
         success: true,
         data: {
@@ -235,6 +271,16 @@ const refresh = asyncHandler(async (req, res) => {
       { expiresIn: '1h' }
     );
 
+    // Rotação: novo refresh com sessão server-side; o anterior é revogado.
+    const rotatedToken = await issueRefreshToken(
+      user.id,
+      user.role,
+      user.company_id,
+      payload.auth_scope,
+      { replacesJti: payload.jti || null }
+    );
+    res.cookie(refreshCookieNameForScope(payload.auth_scope), rotatedToken, REFRESH_COOKIE_OPTIONS);
+
     return res.json({
       success: true,
       data: {
@@ -251,8 +297,22 @@ const refresh = asyncHandler(async (req, res) => {
 });
 
 const logout = asyncHandler(async (req, res) => {
-  res.clearCookie('mg_refresh_barber', { ...REFRESH_COOKIE_OPTIONS, maxAge: 0 });
-  res.clearCookie('mg_refresh_master', { ...REFRESH_COOKIE_OPTIONS, maxAge: 0 });
+  // Revoga as sessões server-side dos cookies apresentados (best effort)
+  // e limpa os três cookies de refresh, incluindo o de booking.
+  for (const cookieName of REFRESH_COOKIE_NAMES) {
+    const token = req.cookies?.[cookieName];
+    if (token) {
+      try {
+        const payload = jwt.verify(token, process.env.JWT_SECRET);
+        if (payload.token_type === 'refresh' && payload.jti) {
+          await revokeRefreshToken(payload.jti);
+        }
+      } catch (_) {
+        // Token inválido/expirado: nada a revogar, cookie é limpo mesmo assim.
+      }
+    }
+    res.clearCookie(cookieName, { ...REFRESH_COOKIE_OPTIONS, maxAge: 0 });
+  }
 
   return res.json({ success: true });
 });
