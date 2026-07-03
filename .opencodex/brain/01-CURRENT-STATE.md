@@ -33,6 +33,32 @@ locais em `main` sem push** (`ace2d05`..`f2de9fe`):
   deleção de artefatos · produtos Kiwify.
 - 📌 **Decisões pendentes:** aprovar P0 comercial da due diligence (circuito de receita, ~1 semana).
 
+## 🔄 Atualização pós-auditoria Core×Nicho — 2026-07-03
+
+> Fonte: [[../audits/2026-07-03-core-vs-nicho-audit]] — auditoria separada, mede "pronto para
+> virar plataforma multi-nicho" (não confundir com o Maturity Index de produto acima).
+
+**MultGestor Core Completion Index: 52/100.** O Core hoje é, na prática, o BarberGestor com uma
+plataforma em construção por baixo. Achado central: 4 pontos de acoplamento indevido em arquivos
+que já se declaram genéricos (`company.service.js` importa `barber-helpers` e tem defaults
+`'Barbearia'` hardcoded; `clima.routes.js` usa `requireBarberAdminAuth` por engano — bug de
+segurança, não só de arquitetura; `ModuleRoute.jsx`/`AuthContext.jsx` têm scopes fixos
+`master`/`barber`). Nenhum é grande (~2 dias de correção), mas todos bloqueiam qualquer nicho novo.
+
+O ClimaGestor (único teste real de extensibilidade) prova o tamanho do problema: backend ~50%
+(schema+rotas existem, auth errada) e frontend ~1% (`Clima.jsx` é stub de 7 linhas), sem
+nenhuma empresa real usando após meses. `capabilities-map.md` foi corrigido: o "Booking Engine"
+compartilhado só é real nas funções puras (`scheduling-utils.js`) — os services com estado
+(`booking-appointments.service.js`) são 100% barber por dentro.
+
+Maior alavanca identificada: um **registry dinâmico de rotas por módulo** (hoje hardcoded em
+`server.js`/`App.jsx`) — sem isso, nenhum template de nicho elimina o "editar arquivo core à
+mão". Novo modelo reutilizável criado: [[runbooks/MODELO-AUDITORIA-NICHO]] para auditar
+qualquer nicho futuro sem repetir esta investigação inteira.
+
+**Isso não bloqueia a venda do BarberGestor** (due diligence de produto continua valendo) — é
+uma frente paralela sobre arquitetura de plataforma, não sobre prontidão comercial.
+
 ## Identificação
 
 | Campo | Valor |

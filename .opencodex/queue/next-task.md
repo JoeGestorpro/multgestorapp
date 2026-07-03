@@ -82,3 +82,18 @@ rodar a suíte completa e só então prosseguir com o push.
    `cs/faq-tutoriais-suporte` · `product/cancelamento-exclusao-conta` · `ops/restore-drill`
 7. ⏳ `chore/repo-artifact-cleanup` — P2 (lista aprovada item a item) ·
    `cleanup/fase-c-branches-worktrees` — P2 (HUMAN_APPROVAL_REQUIRED)
+
+## Trilha paralela — Core multi-nicho (não bloqueia a fila acima)
+
+> Fonte: `.opencodex/audits/2026-07-03-core-vs-nicho-audit.md` — Core Completion Index 52/100.
+> Não reordena o P0 comercial acima; roda em paralelo, sem dependência.
+
+8. ⏳ `core/fix-company-service-barber-coupling` — P0 do Core (IA): `company.service.js` importa
+   `barber-helpers`, tem defaults `'Barbearia'` e JOIN com `barber_collaborators` hardcoded
+9. ⏳ `core/fix-clima-auth-guard` — P0 do Core (IA): `clima.routes.js` usa `requireBarberAdminAuth`
+   por engano — bug de segurança, não só de arquitetura
+10. ⏳ `core/generalize-auth-scopes` — P0 do Core (IA): `ModuleRoute.jsx`/`AuthContext.jsx` têm
+    scopes hardcoded (`master`/`barber`), não derivados do módulo ativo
+11. ⏳ `core/dynamic-module-route-registry` — P1 do Core (IA): maior alavanca de extensibilidade;
+    hoje rotas são hardcoded em `server.js`/`App.jsx`
+12. ⏳ Decisão humana: ClimaGestor vira piloto real (corrigido) ou congela até o Core evoluir

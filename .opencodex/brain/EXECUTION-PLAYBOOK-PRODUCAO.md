@@ -4,7 +4,7 @@
 > um SaaS totalmente comercializável. Atualizar a cada release gate, não recriar do zero.
 > **Última sincronização:** 2026-07-03 · **state_version:** 23
 > **Fontes:** [[../01-CURRENT-STATE]] · [[../../audits/2026-07-03-due-diligence-enterprise]] ·
-> [[../roadmaps/ROADMAP-MESTRE-MULTGESTOR-2026]]
+> [[../../audits/2026-07-03-core-vs-nicho-audit]] · [[../roadmaps/ROADMAP-MESTRE-MULTGESTOR-2026]]
 > **Regra de honestidade:** nada aqui é aspiracional sem estar marcado. Ver escala de evidência
 > na due diligence. Este arquivo cita fatos; não reargumenta o diagnóstico.
 
@@ -12,8 +12,14 @@
 
 ## 1. Estado atual (sincronizado com a última auditoria)
 
-**Enterprise Maturity Index: 57/100** (2026-06-26 estava 44,5). Ver scorecard completo dos
-20 domínios em [[../../audits/2026-07-03-due-diligence-enterprise]].
+**Dois índices, dois propósitos — não somar nem confundir:**
+
+| Índice | Nota | Mede | Fonte |
+|---|---:|---|---|
+| Enterprise Maturity Index | 57/100 | Pronto para vender o produto (BarberGestor) hoje | [[../../audits/2026-07-03-due-diligence-enterprise]] |
+| Core Completion Index | 52/100 | Pronto para virar plataforma multi-nicho | [[../../audits/2026-07-03-core-vs-nicho-audit]] |
+
+(2026-06-26 o Maturity Index estava 44,5). Ver scorecards completos nas fontes.
 
 - Engenharia: 🟢 · Produto: 🟡 · Comercial: 🟡 · Self-Service: 🔴 · Compliance/LGPD: 🔴
 - 29 commits locais em `main` prontos e testados, **zero push** (`ace2d05`..`7038f89`)
@@ -90,6 +96,26 @@ Responsabilidades e §Roadmap Executivo (não duplicar aqui — citar).
 
 ---
 
+## 4b. Roadmap do Core (plataforma multi-nicho) — trilha paralela, não bloqueia venda
+
+Detalhe completo e critérios de aceite: [[../../audits/2026-07-03-core-vs-nicho-audit]] §10/§18.
+
+| Prio | Item | Bloqueia venda BarberGestor? | Bloqueia 2º nicho? | Esforço |
+|---|---|---|---|---|
+| P0 | Limpar `company.service.js` (barber-helpers/defaults/JOIN hardcoded) | Não | Sim | 3-4h |
+| P0 | Corrigir auth de `clima.routes.js` (usa guard do barber) | Não | Sim | 1-2h |
+| P0 | Generalizar scopes hardcoded (`ModuleRoute.jsx`, `AuthContext.jsx`) | Não | Sim | 2-3h |
+| P1 | Registry dinâmico de rotas por módulo (hoje hardcoded em server.js/App.jsx) | Não | **Sim — maior alavanca** | 1-2d |
+| P1 | Migration-template parametrizável para schema de nicho | Não | Sim | 1d |
+| P1 | Ativação automática de módulo por `niche_type` no registro orgânico | Não | Sim | 2h |
+| P2 | Contrato genérico Bookable/Provider (extrair de booking-appointments) | Não | Sim | 3-5d |
+| P2 | Unificar BarberUI → design-system com tema | Não | Não (ajuda) | 2-3d |
+| — | Decisão: ClimaGestor vira piloto real (corrigido) ou é congelado | — | Define prioridade | decisão humana |
+
+Esta trilha roda em paralelo à P0/P1 comercial de §4 — nenhuma depende da outra.
+
+---
+
 ## 5. Ordem exata de execução (próximos 30 dias)
 
 ```
@@ -138,12 +164,13 @@ dashboard · logout/login · isolamento entre empresas. Roteiro completo:
 
 ## 8. Histórico de auditorias
 
-| Data | Documento | Maturity Index |
+| Data | Documento | Índice |
 |---|---|---|
 | 2026-06-18 | `auditoria-completa-2026-06-18.md` | — (24 achados) |
-| 2026-06-26 | `2026-06-26-audit-completo.md` | 44,5/100 |
+| 2026-06-26 | `2026-06-26-audit-completo.md` | Maturity 44,5/100 |
 | 2026-07-02 | `2026-07-02-auditoria-completa-e-sprint-p0.md` | — (sprint técnico) |
-| 2026-07-03 | `2026-07-03-due-diligence-enterprise.md` | **57/100** |
+| 2026-07-03 | `2026-07-03-due-diligence-enterprise.md` | Maturity **57/100** |
+| 2026-07-03 | `2026-07-03-core-vs-nicho-audit.md` | Core Completion **52/100** |
 
 ---
 
@@ -158,6 +185,8 @@ O MultGestor será declarado **Enterprise Ready** quando, com evidência (não p
 4. Restore de backup tiver sido re-testado nos últimos 90 dias.
 5. Termos de Uso e Política de Privacidade estiverem publicados e linkados no registro.
 6. Maturity Index ultrapassar 75/100 no próximo ciclo de due diligence.
+7. Core Completion Index ultrapassar 75/100 — só então "Enterprise Ready" inclui a capacidade
+   real de lançar um segundo nicho sem reescrever a fundação (hoje 52/100, ver §1).
 
 Até lá, o estado correto é **"pronto para operação assistida"**, não "Enterprise Ready" —
 usar essa linguagem em qualquer comunicação externa (investidor, sócio, cliente grande).
