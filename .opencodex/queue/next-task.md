@@ -1,67 +1,79 @@
-# 📥 PRÓXIMA MISSÃO — CLEANUP/FASE-C-BRANCHES-WORKTREES (HUMAN_APPROVAL_REQUIRED)
+# 📥 PRÓXIMA MISSÃO — TEST/RLS-ENFORCEMENT-LOCAL-TESTDB (P0)
 
-> Fase C **oficialmente FECHADA** em 2026-06-23 (PRs #15/#16 mergeados). Próximo passo:
-> higiene dos branches e worktrees acumulados na Fase C. Operação sensível (deleção de
-> branch/worktree) — **HUMAN_APPROVAL_REQUIRED**, por fatia, com lista explícita antes de apagar.
-> **NÃO** deletar nada sem nova autorização humana e listagem/diff revisados.
+> Promovida pela auditoria completa de 2026-07-02 (achado **F-02**): os testes de isolamento
+> multi-tenant (`tenant-isolation-rls`, `gate0-*`, `outbox-durability`) existem mas estão entre
+> os **74 skip** — nunca executaram. São a rede de segurança obrigatória **antes** da missão
+> `security/tenant-writes-app-runtime-pool` (P0 central).
+> A anterior (`cleanup/fase-c-branches-worktrees`, P2) foi **despriorizada**, não cancelada —
+> ver fila em `current-task.md`.
 
 ---
 status: pending
-task_id: cleanup/fase-c-branches-worktrees
-title: Cleanup — higiene de branches e worktrees pós-Fase C
-type: governanca/cleanup
-priority: P2
-camada: governanca/fase-c
-mode: HUMAN_APPROVAL_REQUIRED
+task_id: test/rls-enforcement-local-testdb
+title: Executar suíte de enforcement RLS contra o TEST DB local
+type: test/security
+priority: P0
+camada: seguranca/rls
+mode: EXECUTE_WITH_REVIEW
 created_by: Claude Code
-created_at: 2026-06-23
-requires_human_approval: true
+created_at: 2026-07-02
+requires_human_approval: false
+human_local_steps: true
 ---
 
-## Contexto — Fase C FECHADA (2026-06-23)
+## 🤖 Model Capability Assessment (executor)
 
-Fase C encerrada oficialmente. Entregas finais:
-- **PR #16 MERGED (`bd13f69`)** — deploy disparou e terminou **success**.
-- **PR #15 MERGED (`af04618`)** — **não** disparou deploy (`paths-ignore` funcionou como esperado).
-- **`origin/main` head = `af04618`**. `state_version` 17 → 18.
-- PR #13 (`863d811`, testes do agente) e PR #14 (backup/B2) já tratados nas missões anteriores.
+- **Tarefa:** configurar env local + rodar testes. Sem alteração de produto, sem migration nova,
+  sem produção. Risco baixo, reversível.
+- **Passos humanos-locais obrigatórios:** obter/definir `TEST_DATABASE_URL` e `APP_RUNTIME_URL`
+  do banco de TESTE (secrets não ficam no repo; MCP não provisiona env local).
+- **Modo recomendado:** EXECUTE_WITH_REVIEW. Se os testes revelarem falha de policy/grant,
+  **não corrigir migration por conta própria** → reportar e ESCALATE.
+
+## Contexto
+
+- Migration + código A-001 já aplicados no TEST DB (2026-06-25).
+- RLS runtime ativo em prod para **leituras** (PR #20, `aeed31c`). Writes ainda bypassam
+  (pool privilegiado em `pool.connect()` — `backend/src/config/database.js:118`).
+- Provisionamento do TEST DB local documentado em `docs/` (commit `2c7248f`).
 
 ## Objetivo
 
-Inventariar e higienizar os branches locais (33+) e worktrees acumulados durante a Fase C,
-preservando backups e o que ainda não foi mergeado. Deleção apenas após lista explícita aprovada.
+Fazer os 74 testes skip executarem e passarem localmente contra o banco de TESTE,
+transformando-os em gate obrigatório antes da missão de writes.
 
-## ALLOWLIST (escopo)
+## Passos
 
-- Inventário read-only de branches/worktrees (`git branch -vv`, `git worktree list`).
-- Proposta de deleção com lista explícita (quais já estão em `main`, quais são obsoletos, quais preservar).
-- Deleção/limpeza **somente** após aprovação humana, item a item.
+1. Provisionar env local: `TEST_DATABASE_URL` + `APP_RUNTIME_URL` (banco de TESTE, **nunca** prod).
+2. `cd backend && npm run test:integration` — confirmar que os suites antes skip agora rodam:
+   `tenant-isolation-rls`, `tenant-isolation`, `gate0-runtime-check`, `gate0-pool-paths`,
+   `gate0-als-context-leak`, `outbox-durability`.
+3. Registrar evidência (contagem pass/fail, tempo) nesta fila e em `.opencodex/audits/`.
+4. Se houver falha: descrever policy/grant faltante + arquivos, **sem corrigir** — ESCALATE.
 
 ## Escopo proibido
 
-- ❌ Deletar branch/worktree sem lista explícita aprovada.
-- ❌ Tocar branches `backup/*` sem confirmação.
-- ❌ push / merge / rebase / deploy / migration.
-- ❌ Alterar código de produto, `.obsidian`, `vendas/`, `.opencodex/archive/`.
+- ❌ Apontar qualquer env para produção.
+- ❌ Migration nova, alteração de policy, push, merge, deploy.
+- ❌ Commitar `.env` ou secrets.
 
 ## Critérios de aceite
 
-- [ ] Inventário completo de branches/worktrees apresentado.
-- [ ] Lista de deleção explícita aprovada por humano antes de qualquer remoção.
-- [ ] Nenhum branch `backup/*` removido sem confirmação.
-- [ ] Nenhuma deleção sem autorização item a item.
+- [ ] Suites de enforcement executam (não-skip) contra o TEST DB.
+- [ ] 0 fail — ou relatório de falhas com ESCALATE (sem correção autônoma).
+- [ ] Evidência registrada na governança.
+- [ ] Nenhum secret commitado (`git status` limpo de `.env`).
 
-## Fila pós-cleanup
+## Fila pós-missão (auditoria 2026-07-02)
 
-1. 🔵 **`cleanup/fase-c-branches-worktrees`** (atual — HUMAN_APPROVAL_REQUIRED)
-2. ⏳ **`agent/joefelipe-consolidation`** — próxima missão **após o cleanup** (retomar consolidação do agente)
-3. ⏳ `security/rls-companies-users-policy` — P1 fundação segura
-4. ⏳ `infra/redis-production-config` — P1 (backbone técnico do R-003)
-5. ⏳ `cicd/migrations-fail-fast` — 🔴 BLOQUEADO por OPS-SUPAVISOR (A-005)
-
-## Histórico — Fase C (FECHADA 2026-06-23)
-
-- ✅ **PR #16 MERGED (`bd13f69`)** — deploy disparou → **success**.
-- ✅ **PR #15 MERGED (`af04618`)** — sem deploy (`paths-ignore` OK). `origin/main` head = `af04618`.
-- ✅ `fase-c/revisao-publicacao-opencodex` / publicação `.opencodex` — encerradas com a Fase C.
-- ✅ `fase-c/redacao-opencodex`, `decisao-opencodex` (D-014), PR-2 (backup/B2), PR-1 (PR #13 `863d811`) — concluídas.
+1. 🔵 **`test/rls-enforcement-local-testdb`** (atual)
+2. ⏳ `db/reconcile-untracked-feature-migrations` — P0: `mg_anamnese_v1.sql` (+loyalty/packages/prepaid)
+   untracked com código já deployado (`anamnesis.service.js`, rota LGPD) → drift ou endpoint quebrado.
+3. ⏳ `security/tenant-writes-app-runtime-pool` — **P0 central**: rotear `pool.connect()` (form
+   promise com tenant no ALS) para `poolTenant`; kill-switch validado = remover `APP_RUNTIME_URL`.
+4. ⏳ `security/db-tls-verify` — P1: `rejectUnauthorized: true` + CA Supabase (`database.js:43`).
+5. ⏳ `security/refresh-rotation-server-side-revoke` — P1: rotação de refresh + revogação no
+   logout + limpar cookie `mg_refresh_booking`.
+6. ⏳ `ops/whatsapp-real-provider-activation` — P1: provider real (hoje **mock em prod**).
+7. ⏳ `cleanup/fase-c-branches-worktrees` — P2 (HUMAN_APPROVAL_REQUIRED), card arquivado no
+   histórico do git (`git log -- .opencodex/queue/next-task.md`).

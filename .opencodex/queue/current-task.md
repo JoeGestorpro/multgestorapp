@@ -2,51 +2,56 @@
 
 ---
 status: idle
-updated_at: 2026-06-24
+updated_at: 2026-07-02
 note: >-
   Slot in-flight vazio (CHECK 4 do preflight passa). Nenhuma missão running/claimed.
-  KNOWLEDGE OS 3.0 CONCLUÍDO (2026-06-24): Second Brain V3 completo, ~60+ arquivos
-  em .opencodex/brain/. state_version 21. Lição L-11 registrada.
-  Próxima missão em next-task.md: cleanup/fase-c-branches-worktrees
-  (HUMAN_APPROVAL_REQUIRED).
+  Reconciliação de governança 2026-07-02: registradas as missões executadas entre
+  25/06 e 02/07 que não constavam na fila (RLS runtime em prod, backup automation,
+  auditoria completa). Próxima missão em next-task.md:
+  test/rls-enforcement-local-testdb (P0 — pré-requisito da missão de writes RLS).
 ---
 
-## ✅ Knowledge OS 3.0 — CONCLUÍDO (2026-06-24)
-- **`knowledge-os-v3`** — doc-only: 7 camadas lógicas, Constitution Knowledge OS, Digital Twin (6 módulos), Feature Genome (2 genomas), Impact Graph (3 análises), Simulation Center (3 cenários), AI Brain reescrito, Agent × Skill Matrix, Mission Builder, Planner, Providers, Knowledge DNA, Knowledge Health (15 scores), Knowledge Memory, Decision Graph, Digital Ops Center, Executive Intelligence, 4 integrações finais.
-- **state_version 20→21**
-- **Health Knowledge OS:** 72/100 🟡
+## ✅ Missões concluídas desde a última atualização (25/06 → 02/07)
 
-## ✅ Fase C — FECHADA (2026-06-23)
-- **PR #16 MERGED (`bd13f69`)** — deploy disparou e terminou **success**.
-- **PR #15 MERGED (`af04618`)** — **não** disparou deploy (`paths-ignore` funcionou). `origin/main` head = `af04618`.
-- PR-1 (PR #13, `863d811`, testes do agente) + PR-2 (backup/B2) + redação/decisão `.opencodex` (D-014) — concluídas.
+- **`fix/schedule-service-runtime-ddl-commit`** — ✅ 2026-07-02 (commit `ace2d05`, local, sem push).
+  Removido `ensureWorkingHoursSchema` (DDL em runtime a cada request) do `schedule.service.js`;
+  pré-requisito da migração de writes para `app_runtime`. Suíte completa: 678 pass / 0 fail.
+- **Auditoria completa (padrão canônico)** — ✅ 2026-07-02, PLAN_ONLY.
+  Veredito: **aprovado para operação própria; bloqueado para venda externa** por 4 P0:
+  F-01 writes bypassam RLS · F-02 testes de isolamento nunca executados (74 skip) ·
+  F-03 `mg_*.sql` untracked com código já deployado (drift) · F-04 fix não commitado (resolvido).
+  Evidências: health prod 200 (DB 178ms, Redis degraded/in-memory, WhatsApp **mock em prod**),
+  booking público 200, frontend 200 (barbergestor.com.br + multgestorapp.com.br),
+  lint frontend 13 errors/44 warnings.
+- **`security/rls-runtime-activation` (PR #20, `aeed31c`)** — ✅ 2026-07-01, deployado.
+  `requireCompany` → `poolTenant`/`app_runtime`; RLS **enforçado em leituras** nas rotas tenant.
+  Canário verde. Kill-switch: remover `APP_RUNTIME_URL`. Pendência P0: writes via
+  `pool.connect()` ainda usam pool privilegiado (missão `security/tenant-writes-app-runtime-pool`).
+- **`ops/backup-automation-repair` (PR #22)** — ✅ 2026-06-30.
+  Tooling de backup reapontado para worktree dedicado `C:\MultGestor-backup` + fix
+  anti-masking no `run-backup.ps1`. Backup local+B2 permanece validado (22/06).
+- **JoeFelipe → plano premium/active** — ✅ 2026-06-29 (prod). Trial expirado bloqueava
+  POST de vendas/colaboradores; promovida manualmente via master.
+- **`security/a001-rls-test-execute`** — ⚠️ parcial 2026-06-25. Migration+código no TEST DB;
+  testes de enforcement **nunca executaram** (dependem de `TEST_DATABASE_URL`+`APP_RUNTIME_URL`
+  locais) → promovidos a próxima missão.
 
-## ✅ Missão atual — CONSOLIDAÇÃO DO SEGUNDO CÉREBRO (2026-06-23)
-- **`fase-c/consolidar-segundo-cerebro-opencodex-safe-write-1`** — concluída.
-  - `.gitignore` atualizado: `docs/private/`, `vendas/`, `body-login.json`, `.opencodex/.obsidian/`, `.opencodex/segundo cerebro/` bloqueados.
-  - 12 arquivos do Living OS oficial adicionados ao git (00, 01, 03, 04, README, gates, scorecards).
-  - `[[living-os/...]]` corrigido para `[[brain/living-os/...]]` no `INDEX.md`.
-  - Decisão D-015 (`fonte-unica-segundo-cerebro`) criada.
-  - `state_version` bumpado para 19.
-  - Commit: `docs(governance): consolidate opencodex living os source of truth`
+## ✅ Histórico anterior (mantido)
 
-## ✅ Últimas missões concluídas
-- **`fase-c/consolidar-segundo-cerebro-opencodex-safe-write-1`** — living-os completo no git, secrets bloqueados, wikilinks corrigidos, D-015 criada. ✅ 2026-06-23.
-- **`fase-c` (encerramento)** — PRs #15/#16 mergeados; deploys conforme esperado; `origin/main` = `af04618`. ✅ 2026-06-23.
-- **`fase-c/redacao-opencodex`** — 9 arquivos redigidos, 20 substituições aplicadas. ✅ 2026-06-23.
-- **`fase-c/decisao-opencodex`** — D-014: publicar `.opencodex` com ressalvas/redação. ✅ 2026-06-23.
-- **`fase-c/pr-2-backup-b2-checklist`** — backup/B2 checklist READ_ONLY, veredito OK. ✅ 2026-06-23.
-- **`fase-c/pr-1 (PR #13)`** — JoeFelipe Agent safety tests mergeados (`863d811`), 23/23 verdes.
-- **`ops/reconcile-orphaned-outbox-messages`** — `outbox_messages.failed = 0`. Achado A-003 RESOLVIDO.
+- **Knowledge OS 3.0** — ✅ 2026-06-24. Second Brain V3, state_version 20→21, Health 72/100.
+- **Fase C — FECHADA** — ✅ 2026-06-23. PRs #15/#16 mergeados; `paths-ignore` validado.
+- **`fase-c/consolidar-segundo-cerebro-opencodex-safe-write-1`** — ✅ 2026-06-23 (D-015).
+- **`ops/reconcile-orphaned-outbox-messages`** — ✅ `outbox_messages.failed = 0` (A-003 resolvido).
 
 ## 🗺️ Planejamento estratégico
-Mapa-mãe oficial: [`../brain/roadmaps/ROADMAP-MESTRE-MULTGESTOR-2026.md`](../brain/roadmaps/ROADMAP-MESTRE-MULTGESTOR-2026.md). Princípio: fundação P1 antes de receita.
 
-## 🔜 Próxima missão (em next-task.md)
-**`cleanup/fase-c-branches-worktrees`** (P2 — HUMAN_APPROVAL_REQUIRED) — `status: pending`.
-Higiene dos branches/worktrees acumulados na Fase C; deleção só com lista explícita aprovada item a item.
-Card completo em [`next-task.md`](next-task.md).
+Mapa-mãe oficial: [`../brain/roadmaps/ROADMAP-MESTRE-MULTGESTOR-2026.md`](../brain/roadmaps/ROADMAP-MESTRE-MULTGESTOR-2026.md).
+Princípio: fundação P1 antes de receita. **Fila vigente (auditoria 2026-07-02):**
 
-## 🔓 Demais missões (após cleanup)
-- **`agent/joefelipe-consolidation`** — **próxima após o cleanup** (retomar consolidação do agente).
-- **`security/rls-companies-users-policy`** — policies para `companies` + `users` (A-001), P1.
+1. 🔜 **`test/rls-enforcement-local-testdb`** (P0) — em `next-task.md`
+2. ⏳ `db/reconcile-untracked-feature-migrations` (P0 — drift `mg_*.sql`)
+3. ⏳ `security/tenant-writes-app-runtime-pool` (P0 central — fecha bypass de RLS em writes)
+4. ⏳ `security/db-tls-verify` (P1)
+5. ⏳ `security/refresh-rotation-server-side-revoke` (P1)
+6. ⏳ `ops/whatsapp-real-provider-activation` (P1 — lembretes reais)
+7. ⏳ `cleanup/fase-c-branches-worktrees` (P2 — HUMAN_APPROVAL_REQUIRED, despriorizada em 02/07)
