@@ -1,8 +1,8 @@
 # 📊 Estado do Projeto — Current State
 
 > **Status:** OFICIAL • VIVO • ATUALIZADO A CADA MISSÃO
-> **Atualizado:** 2026-07-03
-> **state_version:** 24
+> **Atualizado:** 2026-07-04
+> **state_version:** 25
 > **Fonte canônica detalhada:** [[project-state]]
 > **Living OS:** [[living-os/02-painel-executivo]]
 > **Manual de execução (roadmap+gates vivos):** [[EXECUTION-PLAYBOOK-PRODUCAO]]
@@ -58,6 +58,17 @@ qualquer nicho futuro sem repetir esta investigação inteira.
 
 **Isso não bloqueia a venda do BarberGestor** (due diligence de produto continua valendo) — é
 uma frente paralela sobre arquitetura de plataforma, não sobre prontidão comercial.
+
+## 🔄 Atualização — Context Pack canônico — 2026-07-04
+
+> Missão `knowledge/context-pack-padrao`. Detalhe: [[../handoff/context-pack/PACK-00-LEIA-PRIMEIRO]]
+
+Criado `.opencodex/handoff/context-pack/` — 6 arquivos enxutos (~350 linhas) derivados deste
+documento + `EXECUTION-PLAYBOOK-PRODUCAO.md` + `MULTGESTOR-PLATFORM-SPECIFICATION.md` +
+`decisions/` + `BRIEFING-CLAUDE-CODE.md`, para alimentar os "Arquivos do Projeto" do Claude
+Project (cache entre conversas, sem colar documento a cada sessão nova). Regenerado por
+`node scripts/generate-context-pack.js`, agora passo obrigatório 11 do Mission Closing
+Protocol. Pack é **derivado**, nunca fonte (D-015) — ninguém edita os `PACK-0X.md` à mão.
 
 ## 🔄 Atualização Pós-Implementação — Core P0 — 2026-07-03
 
