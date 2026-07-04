@@ -2,14 +2,22 @@
 
 ---
 status: idle
-updated_at: 2026-07-02
+updated_at: 2026-07-04
 note: >-
-  Slot in-flight vazio. Sprint autônomo 2026-07-02 concluído: 7 commits locais
-  em main (ace2d05..d262676), NENHUM push. Todas as missões P0 que não exigiam
-  passo humano foram executadas e validadas. Próxima missão em next-task.md:
-  release/push-p0-batch (HUMAN_APPROVAL_REQUIRED — push dispara deploy +
-  migrations 018-021/030 em produção).
+  Slot in-flight vazio. `knowledge/context-pack-padrao` CONCLUÍDA (2026-07-04, doc-only,
+  sem push necessário). GATE HUMANO 1 de `release/push-p0-batch` segue aberto e é o
+  bloqueador real de tudo: aguardando a frase exata "APROVADO PUSH" para enviar o
+  commit `e661259` (merge local já feito e validado). Próxima missão em next-task.md.
 ---
+
+## ✅ `knowledge/context-pack-padrao` — CONCLUÍDA (2026-07-04)
+
+Pack canônico criado em `.opencodex/handoff/context-pack/` (6 arquivos, ~350 linhas) +
+`scripts/generate-context-pack.js` (metadados + checagem de sensíveis + detecção de deriva) +
+Mission Closing Protocol atualizado (passo 11). Commit local, sem push (doc-only). Ver
+`.opencodex/brain/03-TIMELINE.md` 2026-07-04 para o resumo completo.
+**Ação pendente do Joe:** subir os 6 arquivos de `PACK-00` a `PACK-05` em "Arquivos do
+Projeto" no Claude Project.
 
 ## ✅ Sprint autônomo pós-auditoria — CONCLUÍDO (2026-07-02)
 

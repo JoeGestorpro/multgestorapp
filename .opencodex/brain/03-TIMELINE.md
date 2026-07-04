@@ -1,10 +1,75 @@
 # 📅 Timeline — MultGestor
 
 > **Status:** OFICIAL • VIVO • ATUALIZADO A CADA MISSÃO
-> **Atualizado:** 2026-06-29
+> **Atualizado:** 2026-07-04
 > **Propósito:** Registro cronológico permanente de eventos, missões, deploys e decisões.
 > **Fonte primária:** [[implementation-log]]
 > **Formato:** Mais recente primeiro.
+
+---
+
+## 2026-07-04
+
+### `knowledge/context-pack-padrao` — Context Pack canônico para o Claude Project
+- **Resumo:** Criado `.opencodex/handoff/context-pack/` (6 arquivos, ~350 linhas totais) —
+  pacote enxuto derivado do Segundo Cérebro para alimentar os "Arquivos do Projeto" do Claude
+  Project, evitando colar documentos a cada conversa nova. Script `scripts/generate-context-pack.js`
+  regenera metadados (data/state_version/commit) e checa conteúdo sensível a cada fechamento de
+  missão — desenho deliberado: o script NÃO tenta auto-sumarizar prosa (exigiria julgamento
+  editorial), só detecta deriva das fontes canônicas e sinaliza quais packs precisam de revisão.
+  Mission Closing Protocol V3 ganhou o passo 11 (regenerar pack + avisar o Joe), obrigatório
+  daqui em diante. Princípio D-015 preservado: pack é derivado, nunca fonte.
+- **Commits:** local, sem push
+- **PR:** —
+- **Deploy:** N/A (doc-only + automação leve)
+- **Resultado:** Pack gerado, checagem de sensíveis passou (0 achados), Mission Closing
+  Protocol atualizado.
+
+### `atualizacao-vault-obsidian` — Sincronização do vault com estado real do projeto
+- **Resumo:** Atualização completa do Knowledge OS vault (.opencodex/) — 25+ arquivos tocados. Limpeza de boilerplate Obsidian, atualização de 00-HOME, Timeline, Dashboard, project-state, production-readiness, commercial-readiness, knowledge-health, lessons-learned. Preenchimento de arquivos vazios (ops/playbooks, agents/joefelipe-agent, prompts/frontend). Resolução de duplicidade de fontes de estado.
+- **Commits:** —
+- **PR:** —
+- **Deploy:** —
+- **Resultado:** Vault sincronizado com o estado real do projeto em 2026-07-04.
+
+---
+
+## 2026-07-03
+
+### `core/p0-sync` — Platform Specification + Core×Nicho audit + Due Diligence
+- **Resumo:** Três entregas do Core P0: (1) **MULTGESTOR-PLATFORM-SPECIFICATION.md** — documento constitucional definindo Core vs Nicho, com princípios invioláveis, contrato Core×Nicho, catálogo de capacidades, release gates. (2) **Core×Nicho Audit** — investigação de 4 paralelas (backend, dados/módulos, frontend, onboarding) revelando 4 pontos de acoplamento indevido em arquivos genéricos. Core Completion Index: **52/100** — "não é plataforma multi-nicho, é BarberGestor com plataforma por baixo". (3) **Due Diligence Enterprise** — avaliação de maturity para venda em escala: Engineering 🟢, Product 🟡, Commercial 🟡, Self-Service 🔴, Compliance/LGPD 🔴. Enterprise Maturity Index: **57/100** (era 44,5 em 26/06).
+- **Achados corrigidos no mesmo dia:** `company.service.js` limpo de acoplamento barber; `clima.routes.js` corrigido para `requireTenantAdminAuth`; `ModuleRoute.jsx`/`AuthContext.jsx` generalizados com `constants/authScopes.js`.
+- **Decisão:** [[decisions/D-017]]
+- **Commits:** `e34c0b9` · `ae31b65` · `7046bd4` · `08b0fb9` (+ merge `e661259`)
+- **PR:** —
+- **Deploy:** —
+- **Resultado:** Core P0 auditado, corrigido e documentado. Gap central: webhook de pagamento não seta `companies.plan_type` (D-016).
+
+### Sprint P0 autônomo — Batch 2 (validação e fechamento)
+- **Resumo:** Smoke local **20/20 PASS** (backend real, banco de teste `multgestor_test`): registro, login, serviço, colaborador, working-hours, caixa, venda sob `app_runtime`, dashboard, rotação de refresh + revogação ao vivo, isolamento cross-tenant A/B.
+- **Fixes adicionais:** `24d7497` fallback `sale_date_local` (bug exposto pelo smoke) · `57619bd` unwrap pool client · `fa5ffc8` purga diária refresh_tokens · `f3ea68e` módulo fantasma "terra" removido · `f8e1813` docs audit.
+- **Commits:** +7 commits locais (total 29 commits do sprint)
+- **Pre-release gate:** workflows OK, testes OK, lint OK. **Bloqueado** por working tree sujo + divergência `origin/main`.
+
+---
+
+## 2026-07-02
+
+### Sprint P0 autônomo — Batch 1 (execução)
+- **Resumo:** Sprint autônomo pós-auditoria — resolução de 4 P0 de código + validação. Nenhum push/deploy/migration em produção.
+- **Commits locais (8):**
+  - `ace2d05` fix(barber): remove runtime DDL de schedule service
+  - `e906039` docs(governance): reconciliação da fila
+  - `8056831` fix(db): migrations 018-021 (mg_prepaid, packages, loyalty, anamnese)
+  - `02c5396` **P0 CENTRAL FEITO**: writes tenant → `app_runtime` (NOBYPASSRLS)
+  - `d112950` feat(security): TLS certificate verification (inerte sem CA)
+  - `f03af4d` feat(security): rotação/revogação de refresh tokens + migração 030
+  - `d7f2fd1` fix(frontend): zero eslint errors (antes 13)
+  - `d262676` fix(security): helmet Content Security Policy ativo
+- **Testes:** 678 unit pass · 97/97 integração (tenant-isolation-rls, gate0-*, outbox-durability)
+- **Auditoria:** smoke prod → health 200, booking 200, Redis degraded, WhatsApp mock. 17 achados (F-01..F-17), P0 resolvidos.
+- **Resultado:** 4 P0 de código resolvidos localmente. Pendências humanas: merge origin/main, push/deploy, CA TLS, WhatsApp real.
+- **Fonte:** [[../audits/2026-07-02-auditoria-completa-e-sprint-p0]]
 
 ---
 
