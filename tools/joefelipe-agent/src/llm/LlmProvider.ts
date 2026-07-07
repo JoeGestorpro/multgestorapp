@@ -13,6 +13,7 @@ export type LlmMode =
 export type LlmProviderName =
   | "mock"
   | "openrouter"
+  | "nvidia"
   | "openai"
   | "anthropic"
   | "local";
@@ -22,6 +23,10 @@ export interface LlmRequest {
   task: string;
   context?: Record<string, unknown>;
   maxTokens?: number;
+  /** Identifica a sessao/conversa de origem — usado pelo RateLimitProvider
+   * para isolar a janela deslizante por sessao (Fase 10). Opcional; sem ele,
+   * todas as chamadas caem no mesmo bucket "default". */
+  sessionId?: string;
 }
 
 export interface LlmSafety {
