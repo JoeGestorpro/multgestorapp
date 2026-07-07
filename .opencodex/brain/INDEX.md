@@ -26,23 +26,24 @@
 
 Documentação, PRDs, Runbooks, ADRs, Arquitetura, Digital Twin, Feature Genome.
 
-| Documento | Descrição |
-|---|---|
-| [[product/prds/README\|📋 PRD Library]] | Biblioteca de PRDs |
-| [[product/prds/TEMPLATE-PRD\|Template PRD]] | Template para novos PRDs |
-| [[runbooks/README\|📖 Runbooks]] | Runbooks operacionais |
-| [[runbooks/auditoria-completa-padrao\|Auditoria Padrão]] | Runbook de auditoria |
-| [[runbooks/backup-restore-plan\|Backup e Restore]] | Runbook de backup |
-| [[runbooks/reconciliation-plan\|Reconciliação]] | Runbook de reconciliação |
-| [[runbooks/runbook-integration-branch\|Integration Branch]] | Runbook de branch |
-| [[architecture-decisions\|🏛️ ADRs Consolidados]] | Decisões arquiteturais vinculantes |
-| [[capabilities-map\|🧩 Capabilities Map]] | Mapa de capacidades do Core |
-| [[product/digital-twin/README\|🪞 Digital Twin]] | Gêmeo digital dos módulos |
-| `product/feature-genome/README` | 🧬 Feature Genome |
-| `product/impact-graph/README` | ⚡ Impact Graph |
-| `product/simulation-center/README` | 🧪 Simulation Center |
-| [[maps/multgestor-core/MAPA-MULTGESTOR-CORE\|🗺️ Mapa Vivo Core]] | Mapa arquitetural do Core |
-| [[maps/multgestor-core/STATUS-GERAL\|Status Geral]] | Status dos módulos do Core |
+| Documento                                                         | Descrição                          |
+| ----------------------------------------------------------------- | ---------------------------------- |
+| [[product/prds/README\|📋 PRD Library]]                           | Biblioteca de PRDs                 |
+| [[product/prds/TEMPLATE-PRD\|Template PRD]]                       | Template para novos PRDs           |
+| [[runbooks/README\|📖 Runbooks]]                                  | Runbooks operacionais              |
+| [[runbooks/auditoria-completa-padrao\|Auditoria Padrão]]          | Runbook de auditoria               |
+| [[runbooks/backup-restore-plan\|Backup e Restore]]                | Runbook de backup                  |
+| [[runbooks/reconciliation-plan\|Reconciliação]]                   | Runbook de reconciliação           |
+| [[runbooks/runbook-integration-branch\|Integration Branch]]       | Runbook de branch                  |
+| [[architecture-decisions\|🏛️ ADRs Consolidados]]                 | Decisões arquiteturais vinculantes |
+| [[capabilities-map\|🧩 Capabilities Map]]                         | Mapa de capacidades do Core        |
+| [[product/digital-twin/README\|🪞 Digital Twin]]                  | Gêmeo digital dos módulos          |
+| `product/feature-genome/README`                                   | 🧬 Feature Genome                  |
+| `product/impact-graph/README`                                     | ⚡ Impact Graph                     |
+| `product/simulation-center/README`                                | 🧪 Simulation Center               |
+| [[maps/multgestor-core/MAPA-MULTGESTOR-CORE\|🗺️ Mapa Vivo Core]] | Mapa arquitetural do Core          |
+| [[maps/multgestor-core/STATUS-GERAL\|Status Geral]]               | Status dos módulos do Core         |
+|                                                                   |                                    |
 
 ---
 
