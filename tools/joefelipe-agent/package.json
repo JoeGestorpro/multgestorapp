@@ -9,6 +9,8 @@
     "morning": "tsx src/index.ts morning",
     "close": "tsx src/index.ts close",
     "mission": "tsx src/index.ts mission",
+    "plan": "tsx src/index.ts plan",
+    "llm": "tsx src/index.ts llm",
     "build": "tsc --noEmit",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "start": "tsx src/index.ts dev"
