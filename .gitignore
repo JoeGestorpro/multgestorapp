@@ -95,4 +95,10 @@ docs/private/
 vendas/
 body-login.json
 .opencodex/.obsidian/
-.opencodex/segundo cerebro/
+.opencodex/_inbox/antigos/segundo cerebro/
+.aider*
+
+# Scripts de scratch/diagnostico — nao versionar (auditoria PR #25)
+**/_tmp_*
+.opencodex/_inbox/revisar/check-rls.js
+.opencodex/_inbox/revisar/check-rls2.js
