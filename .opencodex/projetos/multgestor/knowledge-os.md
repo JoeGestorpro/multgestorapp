@@ -1,3 +1,8 @@
+> ⚠️ **Legado** — o conhecimento técnico permanente deste documento foi migrado
+> para [[Base de Conhecimento]]. O que resta aqui é sobretudo estado volátil
+> (sprint atual, scores, riscos do momento) — prefira [[projetos/multgestor/status-atual|Status Atual]]
+> e [[projetos/multgestor/status-dinamico|Status Dinâmico]] para isso.
+
 # 💡 Knowledge OS — Sistema Operacional de Conhecimento
 
 > **Status:** OFICIAL • VIVO

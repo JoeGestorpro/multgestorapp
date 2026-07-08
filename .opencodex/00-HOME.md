@@ -1,27 +1,41 @@
-# 00-HOME — Novo ponto de entrada por estrutura
+# Open Codex — Painel Central
 
-> Este arquivo é o ponto de entrada da **reorganização por projetos e áreas** do `.opencodex/`.
-> O [`HOME.md`](HOME.md) original continua sendo a porta de entrada histórica — este arquivo não o substitui, complementa.
-
-## Comece aqui
-
-| Você quer... | Vá para |
-|---|---|
-| Entender a nova estrutura de pastas | [[01-MAPA-GERAL]] |
-| Saber onde colocar um arquivo novo | [[02-COMO-USAR]] |
-| Ver o estado de um projeto especifico | `projetos/<nome-do-projeto>/HOME.md` |
-| Conhecimento que atravessa projetos (banco, segurança, deploy) | `areas/` |
-| Auditorias já realizadas | `auditorias/` |
-| Decisões registradas (ADRs) | `decisoes/` |
-| Prompts prontos para IA | `prompts/` |
-| Algo que ainda não foi classificado | `_inbox/revisar/` |
-| Material antigo, mantido só por histórico | `_inbox/antigos/` |
+> Porta de entrada para todo o conhecimento do vault.
+> Navegue por projetos, áreas técnicas ou operação.
+> Regras de governança destes documentos: [[Governanca-Documental]].
 
 ## Projetos
 
 - [[projetos/multgestor/HOME|MultGestor]]
 - [[projetos/joefelipe-agent/HOME|JoeFelipe Agent]]
+- [[BarberGestor - HOME]]
+- [[MultCriativos - HOME]]
 
-## O que NÃO mudou de lugar
+## Navegação
 
-`queue/`, `rules/`, `handoff/`, `templates/`, `chatJoe/`, `automation/`, `ops/playbooks.md` e os arquivos-raiz clássicos (`HOME.md`, `MAPA-DAS-PASTAS.md`, `CONVENCOES.md`, `FLUXOS.md`, `GLOSSARIO.md`, `ATLAS.md`) continuam exatamente onde estavam.
+- [[01-MAPA-GERAL|Índice Geral]]
+- [[MAPA-DAS-PASTAS|Mapa do Projeto]]
+
+## Conhecimento
+
+- [[Base de Conhecimento]]
+- [[projetos/multgestor/arquitetura|Arquitetura]]
+- [[decisoes/README|Decisões — Índice]]
+
+## Pensamento
+
+- [[Segundo Cérebro]]
+- [[Diário do Projeto]]
+
+## Áreas técnicas
+
+- [[Segurança - Índice]] · [[Banco de Dados - Índice]]
+- [[Frontend - Índice]] · [[Backend - Índice]]
+- [[Deploy e Produção - Índice]]
+- [[Billing e Pagamentos - Índice]]
+
+## Operação
+
+- [[chatJoe/README|chatJoe — Planejamento]]
+- [[decisoes/README|Visão Geral — Decisões (ADRs)]]
+- [[areas/operacao/runbooks/README|Runbooks Operacionais]]
