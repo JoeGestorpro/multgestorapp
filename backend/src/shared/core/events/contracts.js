@@ -114,6 +114,18 @@ const FASE2_EVENTS = {
   ANAMNESIS_DATA_DELETED: AnamnesisDataDeleted
 }
 
+const AiSuggestionGenerated = {
+  event_name: 'AI.SuggestionGenerated',
+  description: 'Sugestao de IA operacional gerada (previsao de demanda, alerta de churn, etc.)',
+  aggregate_type: 'ai_suggestion',
+  required_fields: ['suggestion_id', 'company_id', 'type', 'source'],
+  optional_fields: []
+}
+
+const AI_EVENTS = {
+  SUGGESTION_GENERATED: AiSuggestionGenerated
+}
+
 function validateEventPayload(contract, payload) {
   const missing = contract.required_fields.filter(field => payload[field] === undefined || payload[field] === null)
   if (missing.length > 0) {
@@ -137,5 +149,7 @@ module.exports = {
   AnamnesisResponseSaved,
   AnamnesisDataExported,
   AnamnesisDataDeleted,
+  AI_EVENTS,
+  AiSuggestionGenerated,
   validateEventPayload
 }

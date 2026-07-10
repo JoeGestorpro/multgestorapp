@@ -5,7 +5,8 @@ const {
   AppointmentConfirmed,
   AppointmentCanceled,
   AppointmentCompleted,
-  AppointmentRescheduled
+  AppointmentRescheduled,
+  AiSuggestionGenerated
 } = require('./contracts')
 
 function auditLogConsumer(event) {
@@ -45,6 +46,8 @@ function registerDefaultConsumers() {
   eventBus.subscribe(AppointmentCanceled.event_name, eventLoggerConsumer, { consumer_name: 'EventLogger' })
   eventBus.subscribe(AppointmentCompleted.event_name, eventLoggerConsumer, { consumer_name: 'EventLogger' })
   eventBus.subscribe(AppointmentRescheduled.event_name, eventLoggerConsumer, { consumer_name: 'EventLogger' })
+
+  eventBus.subscribe(AiSuggestionGenerated.event_name, auditLogConsumer, { consumer_name: 'AuditLog' })
 }
 
 function handleAppointmentCreated(payload, context) {
