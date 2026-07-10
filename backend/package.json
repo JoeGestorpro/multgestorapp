@@ -15,7 +15,8 @@
     "test:coverage": "jest --coverage --testPathPatterns=tests",
     "test:auth": "node tests/auth-flows.test.js",
     "test:email": "node tests/email-flows.test.js",
-    "pre-release": "node scripts/pre-release.js"
+    "pre-release": "node scripts/pre-release.js",
+    "backup-restore-check": "node scripts/backup-restore-check.js"
   },
   "keywords": [],
   "author": "",
