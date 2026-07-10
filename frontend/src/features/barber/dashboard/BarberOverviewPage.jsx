@@ -12,6 +12,7 @@ import RecoveryClientsCard from './components/RecoveryClientsCard'
 import ExtraSalesCard from './components/ExtraSalesCard'
 import PaymentsSummaryCard from './components/PaymentsSummaryCard'
 import RevenueChartCard from './components/RevenueChartCard'
+import AiInsightsCard from './components/AiInsightsCard'
 
 export default function BarberOverviewPage({ user, onNewSale }) {
   const {
@@ -42,6 +43,9 @@ export default function BarberOverviewPage({ user, onNewSale }) {
 
       {/* 4 — Alertas Inteligentes */}
       <SmartAlertsPanel alerts={alerts} loading={loading} />
+
+      {/* 4.5 — Insights de IA (previsão de demanda + churn) */}
+      <AiInsightsCard />
 
       {/* 5 — KPIs Principais */}
       <KPIGrid kpis={kpis} loading={loading} />
