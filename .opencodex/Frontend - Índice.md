@@ -5,5 +5,5 @@
 ## Documentos
 
 - [[projetos/multgestor/frontend]] — frontend do MultGestor
-- [[prompts/frontend/README]] — prompts de frontend
-- [[projetos/multgestor/INDEX|Índice do MultGestor]] — contém seção frontend
+- [[prompts/frontend/visao-geral]] — prompts de frontend
+- [[projetos/multgestor/indice|Índice do MultGestor]] — contém seção frontend

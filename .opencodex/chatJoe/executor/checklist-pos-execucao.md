@@ -1,4 +1,4 @@
-﻿# Checklist Pós-Execução
+# Checklist Pós-Execução
 
 > Verificações obrigatórias APÓS receber o relatório do Executor.
 

@@ -3,7 +3,7 @@
 > **Status:** OFICIAL • VIVO
 > **Camada:** 7 — Memória
 > **Propósito:** Mapa completo de decisões do MultGestor com contexto, alternativas, justificativa, consequências, arquivos, PRs, deploys e decisões derivadas.
-> **Relacionamentos:** [[decisions/README]] · [[architecture-decisions]] · [[linha-do-tempo]] · [[memoria]]
+> **Relacionamentos:** [[decisions/README]] · [[decisoes-arquiteturais]] · [[linha-do-tempo]] · [[memoria]]
 
 ---
 
@@ -137,7 +137,7 @@ D-002 (Redis) [PENDENTE]
 ## Referências
 
 - [[decisions/README]] — Decision Center (índice)
-- [[architecture-decisions]] — ADRs completas
+- [[decisoes-arquiteturais]] — ADRs completas
 - [[strategy/strategic-decision-log]] — Decisões estratégicas
 - [[living-os/decisoes/decisoes-executivas]] — Decisões executivas pendentes
 - [[linha-do-tempo]] — Timeline (quando cada decisão foi tomada)

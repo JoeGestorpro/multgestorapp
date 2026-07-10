@@ -32,7 +32,7 @@ Fechar fundação P1 e itens de venda ([[SISTEMA-VENDAVEL]]) para o primeiro cli
 ### Bloqueia
 —
 ### Usa
-[[agenda]] · [[clientes]] · [[financeiro]] · [[servicos]] · [[colaboradores]] · [[billing]]
+[[agenda]] · [[clientes]] · [[financeiro]] · [[servicos]] · [[colaboradores]] · [[faturamento]]
 ### É usado por
 clientes barbearia
 

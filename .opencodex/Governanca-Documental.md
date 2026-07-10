@@ -43,7 +43,7 @@ só precisava ser reconhecida como a fonte única daquele papel.
 | Base de Conhecimento | [[Base de Conhecimento]] | Novo (Entrega 3 desta missão) |
 | Segundo Cérebro | [[Segundo Cérebro]] | Novo (Entrega 4 desta missão) |
 | Diário do Projeto | [[Diário do Projeto]] | Novo (Entrega 5 desta missão) |
-| Decisões | [[decisoes/README\|Decisões — Índice]] | Já existia como hub de ADRs |
+| Decisões | [[decisoes/visao-geral\|Decisões — Índice]] | Já existia como hub de ADRs |
 | Arquitetura | [[projetos/multgestor/arquitetura\|Arquitetura]] | Documento técnico de arquitetura já existente (ex-`brain/technical/arquitetura.md`) |
 | Mapa do Projeto | `MAPA-DAS-PASTAS.md` (arquivo protegido, na raiz) | **Não editado** — é o documento que já responde "onde cada coisa fica" na estrutura de pastas, mas está na lista de arquivos protegidos desta e de missões anteriores. Linkado no [[00-HOME\|Início]] só como referência de leitura, sem alterar o arquivo |
 

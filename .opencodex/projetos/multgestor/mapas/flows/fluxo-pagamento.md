@@ -15,7 +15,7 @@ ultima_revisao: 2026-06-19
 Jornada de cobrança: trial → assinatura → webhook → ativação de plano → liberação de features.
 
 ## Estado atual
-Providers integrados ([[billing]]: Kiwify, AbacatePay), mas fluxo não testado E2E (A-022).
+Providers integrados ([[faturamento]]: Kiwify, AbacatePay), mas fluxo não testado E2E (A-022).
 
 ## O que já existe
 Webhooks de billing; feature gates (`requireActivePlan`); tabelas de assinatura.
@@ -28,7 +28,7 @@ Cobrar e não liberar acesso; eventos de billing sem RLS (A-006). Ver [[RISCOS-M
 
 ## Relações
 ### Depende de
-[[billing]] · [[auth]]
+[[faturamento]] · [[auth]]
 ### Bloqueia
 [[SISTEMA-VENDAVEL]]
 ### Usa
@@ -40,4 +40,4 @@ Cobrar e não liberar acesso; eventos de billing sem RLS (A-006). Ver [[RISCOS-M
 `billing-trial-to-paid-flow`; `kiwify-webhook-e2e`.
 
 ## Links
-- [[billing]] · [[SISTEMA-VENDAVEL]]
+- [[faturamento]] · [[SISTEMA-VENDAVEL]]

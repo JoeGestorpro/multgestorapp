@@ -3,7 +3,7 @@
 > **Status:** OFICIAL • VIVO
 > **Atualizado:** 2026-06-24
 > **Propósito:** Biblioteca de conhecimento — lições aprendidas organizadas para não repetir erros.
-> **Fonte canônica:** [[lessons-learned]] (consolidado)
+> **Fonte canônica:** [[licoes-aprendidas]] (consolidado)
 
 ---
 
@@ -36,7 +36,7 @@ Cada lição segue o modelo [[lessons/TEMPLATE-LESSON|TEMPLATE-LESSON]]:
 
 ## Referências
 
-- [[lessons-learned]] — Fonte canônica consolidada
+- [[licoes-aprendidas]] — Fonte canônica consolidada
 - [[incidents/README]] — Incident Library
 - [[linha-do-tempo]] — Timeline
 - [[00-HOME]] — Homepage

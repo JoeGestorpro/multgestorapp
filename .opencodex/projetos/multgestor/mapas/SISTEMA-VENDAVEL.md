@@ -27,7 +27,7 @@ O que falta para vender o [[barbergestor]] para um cliente pagante. Volta para [
 Canal de suporte básico; documentação de uso; FAQ.
 
 ## O que falta em cobrança
-[[billing]] trial→pago E2E; [[fluxo-pagamento]] (Kiwify/AbacatePay); feature gates por plano; bloqueio de inadimplente.
+[[faturamento]] trial→pago E2E; [[fluxo-pagamento]] (Kiwify/AbacatePay); feature gates por plano; bloqueio de inadimplente.
 
 ## O que falta em documentação comercial
 Precificação, planos Starter/Pro, material de venda.
@@ -42,4 +42,4 @@ Ver [[RISCOS-MULTGESTOR]] (categoria Comercial).
 Fundação primeiro ([[PROXIMA-MELHOR-ACAO]]), depois [[fluxo-pagamento]] e [[fluxo-onboarding-cliente]].
 
 ## Links
-- [[PRODUCAO]] · [[barbergestor]] · [[billing]]
+- [[PRODUCAO]] · [[barbergestor]] · [[faturamento]]

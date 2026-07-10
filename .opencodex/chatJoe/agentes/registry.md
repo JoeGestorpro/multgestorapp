@@ -1,4 +1,4 @@
-﻿# Registry de Agentes — chatJoe
+# Registry de Agentes — chatJoe
 
 > Catálogo completo de agentes disponíveis.
 > Cada agente registra: função, quando usar, perguntas que deve responder e como aparece no prompt.

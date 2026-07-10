@@ -4,7 +4,7 @@
 > **Data:** 2026-06-14
 > **Severidade:** ALTA
 > **Responsável:** — (detectado em auditoria)
-> **Relacionamentos:** [[incidents/README]] · [[lessons-learned]] · [[technical/seguranca]]
+> **Relacionamentos:** [[incidents/README]] · [[licoes-aprendidas]] · [[technical/seguranca]]
 
 ---
 

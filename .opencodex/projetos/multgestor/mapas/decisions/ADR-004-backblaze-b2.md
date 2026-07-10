@@ -28,7 +28,7 @@ Até ligar, backup segue só local (A-002). Ver [[RISCOS-MULTGESTOR]].
 
 ## Relações
 ### Depende de
-[[backup-restore-check]]
+[[verificacao-restauracao-backup]]
 ### Bloqueia
 [[backblaze-b2]]
 ### Usa

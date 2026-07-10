@@ -6,8 +6,8 @@
 
 ## Projetos
 
-- [[projetos/multgestor/HOME|MultGestor]]
-- [[projetos/joefelipe-agent/HOME|JoeFelipe Agent]]
+- [[projetos/multgestor/inicio|MultGestor]]
+- [[projetos/joefelipe-agent/inicio|JoeFelipe Agent]]
 - [[BarberGestor - HOME]]
 - [[MultCriativos - HOME]]
 
@@ -20,7 +20,7 @@
 
 - [[Base de Conhecimento]]
 - [[projetos/multgestor/arquitetura|Arquitetura]]
-- [[decisoes/README|Decisões — Índice]]
+- [[decisoes/visao-geral|Decisões — Índice]]
 
 ## Pensamento
 
@@ -37,5 +37,5 @@
 ## Operação
 
 - [[chatJoe/README|chatJoe — Planejamento]]
-- [[decisoes/README|Visão Geral — Decisões (ADRs)]]
-- [[areas/operacao/runbooks/README|Runbooks Operacionais]]
+- [[decisoes/visao-geral|Visão Geral — Decisões (ADRs)]]
+- [[areas/operacao/runbooks/visao-geral|Runbooks Operacionais]]

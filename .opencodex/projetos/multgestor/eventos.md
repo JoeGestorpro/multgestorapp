@@ -2,7 +2,7 @@
 
 > **Status:** VIVO
 > **Atualizado:** 2026-06-24
-> **Relacionamentos:** [[technical/workers]] · [[technical/integracoes]] · [[technical/README]] · [[architecture-decisions#ADR-03]]
+> **Relacionamentos:** [[technical/workers]] · [[technical/integracoes]] · [[technical/README]] · [[decisoes-arquiteturais#ADR-03]]
 
 ---
 
@@ -48,7 +48,7 @@ Ver regra: `.opencodex/rules/event-contracts.md`
 
 ## Referências
 
-- [[architecture-decisions#ADR-03]] — ADR Event Bus + Outbox
+- [[decisoes-arquiteturais#ADR-03]] — ADR Event Bus + Outbox
 - [[technical/workers]] — OutboxWorker
 - [[technical/integracoes]] — Integrações via eventos
 - [[maps/multgestor-core/core/backend]] — Backend

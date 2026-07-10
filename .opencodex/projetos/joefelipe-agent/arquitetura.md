@@ -138,4 +138,4 @@ Próximo passo: revisar next-task.md antes de autorizar.
 
 - Corpo executável: [`../../../tools/joefelipe-agent/README.md`](../../../tools/joefelipe-agent/README.md)
 - Living OS: [[../living-os/README|Living OS]] · [[../living-os/05-proxima-melhor-acao|Próxima Melhor Ação]] · [[../living-os/riscos/riscos-ativos|Riscos Ativos]]
-- Governança: [[../source-of-truth|Source of Truth]] · [[../constitution|Constituição]] · [[global-vision-architect|Global Vision Architect]]
+- Governança: [[../source-of-truth|Source of Truth]] · [[../constitution|Constituição]] · [[arquiteto-visao-global|Global Vision Architect]]

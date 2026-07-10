@@ -3,7 +3,7 @@
 > Responde: **"O que pensei/planejei?"**
 > Pensamento em andamento, ideias soltas e material histórico — não é
 > conhecimento técnico validado (isso é a [[Base de Conhecimento]]) nem
-> decisão tomada (isso são as [[decisoes/README|Decisões]]).
+> decisão tomada (isso são as [[decisoes/visao-geral|Decisões]]).
 
 ## Ideias em aberto
 

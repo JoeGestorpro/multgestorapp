@@ -3,13 +3,13 @@
 > **Status:** OFICIAL • VIVO
 > **Camada:** 7 — Memória
 > **Propósito:** Registro evolutivo do conhecimento do MultGestor — lições, problemas recorrentes, padrões, anti-patterns, evolução do conhecimento.
-> **Relacionamentos:** [[dna]] · [[saude]] · [[lessons-learned]] · [[incidents/README]] · [[linha-do-tempo]] · [[decisions/README]]
+> **Relacionamentos:** [[dna]] · [[saude]] · [[licoes-aprendidas]] · [[incidents/README]] · [[linha-do-tempo]] · [[decisions/README]]
 
 ---
 
 ## Lições Aprendidas (Consolidadas)
 
-Fonte primária: [[lessons-learned]]
+Fonte primária: [[licoes-aprendidas]]
 
 | ID | Lição | Área | Data |
 |---|---|---|---|
@@ -89,7 +89,7 @@ Fonte primária: [[lessons-learned]]
 
 ## Referências
 
-- [[lessons-learned]] — Fonte primária de lições
+- [[licoes-aprendidas]] — Fonte primária de lições
 - [[incidents/README]] — Biblioteca de incidentes
 - [[linha-do-tempo]] — Timeline cronológica
 - [[decisions/README]] — Decision Center

@@ -2,7 +2,7 @@
 
 > **Status:** VIVO
 > **Atualizado:** 2026-06-24
-> **Relacionamentos:** [[technical/ci-cd]] · [[technical/infra]] · [[ops/playbooks/README]]
+> **Relacionamentos:** [[technical/ci-cd]] · [[technical/infra]] · [[areas/operacao/ops/playbooks/visao-geral]]
 
 ---
 

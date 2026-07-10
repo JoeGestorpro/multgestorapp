@@ -10,6 +10,6 @@
 - [[projetos/multgestor/observabilidade]] — observabilidade
 - [[projetos/multgestor/performance]] — performance
 - [[projetos/multgestor/saude]] — saúde do sistema
-- [[areas/operacao/production-readiness]] — production readiness
-- [[areas/operacao/runbooks/README|Runbooks Operacionais]]
+- [[areas/operacao/prontidao-producao]] — production readiness
+- [[areas/operacao/runbooks/visao-geral|Runbooks Operacionais]]
 - [[projetos/multgestor/execucao-producao]] — execução em produção

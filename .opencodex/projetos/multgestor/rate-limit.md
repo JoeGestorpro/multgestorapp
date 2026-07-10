@@ -2,7 +2,7 @@
 
 > **Status:** VIVO
 > **Atualizado:** 2026-06-24
-> **Relacionamentos:** [[technical/README]] · [[technical/seguranca]] · [[architecture-decisions#ADR-09]] · [[constituicao#7. Proteção de rotas]]
+> **Relacionamentos:** [[technical/README]] · [[technical/seguranca]] · [[decisoes-arquiteturais#ADR-09]] · [[constituicao#7. Proteção de rotas]]
 
 ---
 
@@ -43,5 +43,5 @@ Ver [[constituicao#7. Proteção de rotas e controle de abuso]]
 ## Referências
 
 - [[constituicao#7. Proteção de rotas e controle de abuso]] — Regra vinculante
-- [[architecture-decisions#ADR-09]] — ADR controle de abuso
+- [[decisoes-arquiteturais#ADR-09]] — ADR controle de abuso
 - [[technical/seguranca]] — Segurança

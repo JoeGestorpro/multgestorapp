@@ -3,7 +3,7 @@
 > **Status:** 🟢 Produção · Completo
 > **URL:** `barbergestor.com.br`
 > **Camada:** 1 — Conhecimento
-> **Relacionamentos:** [[nichos/barbergestor/README]] · [[product/README]] · [[technical/README]] · [[digital-twin/README]]
+> **Relacionamentos:** [[nichos/barbergestor/README]] · [[product/README]] · [[technical/README]] · [[areas/produto-roadmap/digital-twin/visao-geral]]
 
 ---
 

@@ -47,6 +47,6 @@ Ver [[constituicao#3. Regras críticas de segurança]] para regras invioláveis:
 - [[technical/rls]] — RLS detalhado
 - [[technical/rate-limit]] — Rate limit
 - [[constituicao]] — Regras invioláveis
-- [[lessons-learned]] — Lições de incidentes
+- [[licoes-aprendidas]] — Lições de incidentes
 - [[incidents/README]] — Biblioteca de incidentes
 - [[maps/multgestor-core/seguranca/README]] — Segurança detalhada

@@ -20,11 +20,11 @@ Template pronto. Primeira revisão pendente.
 ## Modelo de revisão semanal (copiar e datar)
 
 ### Semana de <AAAA-MM-DD>
-- **Segurança:** _(mudanças em [[rls-seguranca]], [[secrets-rotation]], [[politicas-producao]])_
+- **Segurança:** _(mudanças em [[rls-seguranca]], [[projetos/multgestor/mapas/seguranca/rotacao-segredos]], [[politicas-producao]])_
 - **Banco:** _(migrations, drift, [[supabase]])_
 - **Deploy:** _([[ci-cd]], [[render-backend]], [[vercel-frontend]])_
 - **Produto:** _([[agenda]], [[frontend]], fluxos)_
-- **Comercial:** _([[SISTEMA-VENDAVEL]], [[billing]], onboarding)_
+- **Comercial:** _([[SISTEMA-VENDAVEL]], [[faturamento]], onboarding)_
 - **IA/agentes:** _([[ia-operacional]], Autopilot Runner)_
 - **Riscos novos:** _(adicionar a [[RISCOS-MULTGESTOR]])_
 - **Decisões tomadas:** _(registrar ADR em decisions/)_

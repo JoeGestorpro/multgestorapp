@@ -46,5 +46,5 @@ Merge em main → Deploy Backend (Render) → Deploy Frontend (Vercel)
 ## Referências
 
 - [[technical/deploy]] — Deploy detalhado
-- [[security-secrets-rotation]] — Rotação de segredos
+- [[areas/seguranca/rotacao-segredos]] — Rotação de segredos
 - [[maps/multgestor-core/infra/ci-cd]] — CI/CD detalhado

@@ -6,6 +6,6 @@
 
 - [[projetos/multgestor/seguranca]] — segurança do MultGestor
 - [[projetos/multgestor/rls]] — políticas Row Level Security
-- [[areas/seguranca/security-secrets-rotation]] — rotação de segredos
+- [[areas/seguranca/rotacao-segredos]] — rotação de segredos
 - [[projetos/multgestor/rate-limit]] — rate limiting
 - [[projetos/multgestor/confianca-contexto]] — confiança e contexto multi-tenant

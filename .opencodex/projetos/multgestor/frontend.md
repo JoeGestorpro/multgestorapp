@@ -4,7 +4,7 @@
 > **Atualizado:** 2026-06-24
 > **Stack:** React 19 + Vite
 > **Deploy:** Vercel
-> **Relacionamentos:** [[technical/README]] · [[architecture-decisions]] · [[maps/multgestor-core/core/frontend]]
+> **Relacionamentos:** [[technical/README]] · [[decisoes-arquiteturais]] · [[maps/multgestor-core/core/frontend]]
 
 ---
 

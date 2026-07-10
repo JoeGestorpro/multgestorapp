@@ -284,8 +284,8 @@ ClimaGestor), para não generalizar sem um segundo caso de uso real.
 ## Relacionamentos
 
 - [[status-atual]] — Estado detalhado (fonte canônica)
-- [[production-readiness]] — Critérios de produção
-- [[commercial-readiness]] — Critérios comerciais
+- [[prontidao-producao]] — Critérios de produção
+- [[prontidao-comercial]] — Critérios comerciais
 - [[living-os/02-painel-executivo]] — Painel executivo Living OS
 - [[living-os/03-producao]] — Produção segura Living OS
 - [[living-os/gates/gate-producao]] — Gate de produção

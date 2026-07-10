@@ -34,10 +34,10 @@ Sem PITR; Supavisor bloqueia CI. Ver [[RISCOS-MULTGESTOR]].
 ### Usa
 —
 ### É usado por
-[[backend]] · [[backup-restore-check]]
+[[backend]] · [[verificacao-restauracao-backup]]
 
 ## Próximas ações
 Resolver OPS-SUPAVISOR; avaliar plano pago para PITR.
 
 ## Links
-- [[ADR-001-supabase]] · [[banco-de-dados]] · [[backup-restore-check]]
+- [[ADR-001-supabase]] · [[banco-de-dados]] · [[verificacao-restauracao-backup]]

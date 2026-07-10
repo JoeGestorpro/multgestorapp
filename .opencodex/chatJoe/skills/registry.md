@@ -152,3 +152,16 @@
 - **Riscos comuns:** revisar só superficialmente, não testar a mudança
 - **No prompt executor:** checklist de code review, áreas para focar
 
+
+### instrutor-gerador-de-nichos
+- **Quando usar:** planejar novo nicho vertical do MultGestor ou adicionar IA operacional a nicho existente
+- **Tipo de missão compatível:** PLAN, PRD, IMP_CTRL
+- **Skills carregadas junto:** create-vertical, multi-tenant-patterns, backend-seguro-multgestor
+- **Agentes sugeridos:** Platform Architect, Senior Fullstack, Database Architect
+- **Documentos de referência obrigatórios:**
+  - Nichos/00-INSTRUTOR-GERADOR-DE-NICHOS.md
+  - Nichos/01-TEMPLATE-ARQUITETURA-DE-NICHO.md
+  - Nichos/02-PROMPTS-PARA-CODE-NICHO.md
+  - brain/plans/PLANO-IA-OPERACIONAL-NICHOS.md
+- **O que verificar:** template 01 preenchido? IA gerou plano? Contrato respeitado? Nível de confianca = Pronto?
+- **Riscos comuns:** pular o instrutor, mandar prompt generico, duplicar core, IA alucinar fora do MVP

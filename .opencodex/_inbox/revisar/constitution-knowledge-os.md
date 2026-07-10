@@ -30,7 +30,7 @@
 |---|---|---|
 | [[constituicao]] | Vinculante | Produto, engenharia, segurança |
 | **constitution-knowledge-os** (este) | **Vinculante** | **Knowledge OS, documentação, conhecimento** |
-| [[source-of-truth]] | Vinculante | Hierarquia entre fontes |
+| [[fonte-unica-verdade]] | Vinculante | Hierarquia entre fontes |
 | [[rules/README]] | Vinculante | Regras operacionais e de segurança |
 | [[00-HOME]] | Navegação | Homepage do Second Brain |
 
@@ -67,7 +67,7 @@ Toda missão **deve** terminar executando o [[ops/mission-closing-protocol|Missi
 
 ## 3. Estrutura de 7 Camadas
 
-O Knowledge OS organiza-se em **7 camadas lógicas**. A estrutura de diretórios física permanece inalterada; as camadas são representadas no [[INDEX]].
+O Knowledge OS organiza-se em **7 camadas lógicas**. A estrutura de diretórios física permanece inalterada; as camadas são representadas no [[indice]].
 
 | Camada | Nome | Conteúdo |
 |---|---|---|
@@ -79,7 +79,7 @@ O Knowledge OS organiza-se em **7 camadas lógicas**. A estrutura de diretórios
 | 6 | **Operações** | Playbooks, Auditorias, Incidentes, Checklists, Rotinas |
 | 7 | **Memória** | Timeline, Lições, Decisões, DNA, Histórico, Knowledge Graph, Knowledge Health |
 
-A navegação entre camadas é feita via [[INDEX]], que organiza todos os documentos por camada.
+A navegação entre camadas é feita via [[indice]], que organiza todos os documentos por camada.
 
 ---
 
@@ -200,13 +200,13 @@ layer: 1-7
 | Documento | Relação |
 |---|---|
 | [[constituicao]] | Constituição do produto (supercede em regras de engenharia/segurança) |
-| [[source-of-truth]] | Hierarquia de fontes |
+| [[fonte-unica-verdade]] | Hierarquia de fontes |
 | [[saude]] | Scorecards de saúde do conhecimento |
 | [[dna]] | Identidade do projeto (princípios, padrões, valores) |
 | [[memoria]] | Memória evolutiva do projeto |
 | [[grafo-conhecimento]] | Mapa de relacionamentos entre documentos |
 | [[knowledge-os]] | Knowledge OS — respostas rápidas |
-| [[INDEX]] | Navegação por camadas |
+| [[indice]] | Navegação por camadas |
 | [[00-HOME]] | Homepage do Second Brain |
 | [[ops/mission-closing-protocol]] | Protocolo de encerramento de missões |
 

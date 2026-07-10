@@ -36,16 +36,16 @@ Fase 1 do mapa criada (estrutura navegável). Valores de status refletem a audit
 [[supabase]] · [[render-backend]] · [[vercel-frontend]] · [[backblaze-b2]] · [[ci-cd]] · [[ambientes]]
 
 ## Segurança
-[[rls-seguranca]] · [[secrets-rotation]] · [[backup-restore-check]] · [[politicas-producao]]
+[[rls-seguranca]] · [[projetos/multgestor/mapas/seguranca/rotacao-segredos]] · [[verificacao-restauracao-backup]] · [[politicas-producao]]
 
 ## Core (componentes)
-[[backend]] · [[frontend]] · [[banco-de-dados]] · [[auth]] · [[billing]] · [[multi-tenant]]
+[[backend]] · [[frontend]] · [[banco-de-dados]] · [[auth]] · [[faturamento]] · [[multi-tenant]]
 
 ## Capabilities
 [[agenda]] · [[clientes]] · [[colaboradores]] · [[servicos]] · [[financeiro]] · [[estoque]] · [[notificacoes]] · [[relatorios]] · [[ia-operacional]]
 
 ## Nichos
-[[barbergestor]] · [[climagestor]] · [[agrogestor]] · [[autogestor]] · [[petgestor]] · [[barber-store]]
+[[barbergestor]] · [[climagestor]] · [[agrogestor]] · [[autogestor]] · [[petgestor]] · [[barbearia]]
 
 ## Fluxos
 [[fluxo-agendamento-publico]] · [[fluxo-login-cadastro]] · [[fluxo-pagamento]] · [[fluxo-whatsapp]] · [[fluxo-backup-restore]] · [[fluxo-onboarding-cliente]]

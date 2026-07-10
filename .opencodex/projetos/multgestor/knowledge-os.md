@@ -10,7 +10,7 @@
 > **Knowledge OS Version:** 3.0.0
 > **Atualizado:** 2026-07-04
 > **Propósito:** Responder rapidamente às perguntas certas sobre o MultGestor — sem precisar navegar por dezenas de documentos.
-> **Relacionamentos:** [[constitution-knowledge-os]] · [[grafo-conhecimento]] · [[00-HOME]] · [[INDEX]]
+> **Relacionamentos:** [[constitution-knowledge-os]] · [[grafo-conhecimento]] · [[00-HOME]] · [[indice]]
 
 ---
 
@@ -39,8 +39,8 @@
 - **Gates:** Produção 🔴 · Segurança 🔴 · Vendável 🔴
 
 **Fontes:**
-- [[production-readiness]]
-- [[commercial-readiness]]
+- [[prontidao-producao]]
+- [[prontidao-comercial]]
 - [[saude]]
 - [[living-os/gates/]]
 
@@ -53,7 +53,7 @@
 
 **Fontes:**
 - [[decisions/DECISION-GRAPH]]
-- [[architecture-decisions]]
+- [[decisoes-arquiteturais]]
 - [[decisions/README]]
 
 ### 4. "Qual PR mudou isso?"
@@ -78,8 +78,8 @@
 
 **Resposta rápida:**
 - Consulte [[technical/DEPENDENCY-MAP]] — mapa completo de dependências
-- Ou [[digital-twin/README]] — gêmeo digital de cada módulo
-- Ou [[impact-graph/README]] — matriz de impacto
+- Ou [[areas/produto-roadmap/digital-twin/visao-geral]] — gêmeo digital de cada módulo
+- Ou [[areas/produto-roadmap/impact-graph/visao-geral]] — matriz de impacto
 
 ### 8. "Qual risco existe?"
 
@@ -123,13 +123,13 @@
 ### 11. "Qual o impacto de alterar X?"
 
 **Resposta rápida:**
-- Consulte [[impact-graph/README]] — Impact Graph com análises de impacto
-- Consulte [[simulation-center/README]] — simulações de cenários
+- Consulte [[areas/produto-roadmap/impact-graph/visao-geral]] — Impact Graph com análises de impacto
+- Consulte [[areas/produto-roadmap/simulation-center/visao-geral]] — simulações de cenários
 
 ### 12. "Qual o DNA desta funcionalidade?"
 
 **Resposta rápida:**
-- Consulte [[feature-genome/README]] — Feature Genome com DNA completo
+- Consulte [[areas/produto-roadmap/feature-genome/visao-geral]] — Feature Genome com DNA completo
 - Exemplos: [[feature-genome/GENOME-agendamento]], [[feature-genome/GENOME-gestao-caixa]]
 
 ### 13. "Qual o estado do conhecimento?"
@@ -158,7 +158,7 @@
 ### 15. "O que acontece se removermos X?"
 
 **Resposta rápida:**
-- Consulte [[simulation-center/README]] — simulações documentadas
+- Consulte [[areas/produto-roadmap/simulation-center/visao-geral]] — simulações documentadas
 - [[simulation-center/SIMULATION-remove-tabela-x]] — impacto de remover `appointments`
 - [[simulation-center/SIMULATION-migra-banco]] — impacto de migrar banco
 - [[simulation-center/SIMULATION-adiciona-recorrencia]] — impacto de adicionar recorrência
@@ -179,11 +179,11 @@
 | Qual risco existe? | P0 release + billing · P1 RLS, Redis, migration | [[saude]] |
 | Quem é responsável? | Ver [[agents/agent-skill-matrix]] | [[agents/agent-skill-matrix]] |
 | O que vem depois? | `release/push-p0-batch` (HUMAN_REQUIRED) | [[../queue/next-task]] |
-| Impacto de alterar X? | Ver [[impact-graph/README]] | [[impact-graph/README]] |
-| DNA da funcionalidade? | Ver [[feature-genome/README]] | [[feature-genome/README]] |
+| Impacto de alterar X? | Ver [[areas/produto-roadmap/impact-graph/visao-geral]] | [[areas/produto-roadmap/impact-graph/visao-geral]] |
+| DNA da funcionalidade? | Ver [[areas/produto-roadmap/feature-genome/visao-geral]] | [[areas/produto-roadmap/feature-genome/visao-geral]] |
 | Estado do conhecimento? | Health 74/100 🟡 | [[saude]] |
 | Qual agente usar? | Ver [[agents/agent-skill-matrix]] | [[agents/agent-skill-matrix]] |
-| O que acontece se...? | Ver [[simulation-center/README]] | [[simulation-center/README]] |
+| O que acontece se...? | Ver [[areas/produto-roadmap/simulation-center/visao-geral]] | [[areas/produto-roadmap/simulation-center/visao-geral]] |
 
 ---
 
@@ -227,7 +227,7 @@
 
 - [[constitution-knowledge-os]] — Constituição do Knowledge OS
 - [[00-HOME]] — Homepage (porta de entrada)
-- [[INDEX]] — Índice geral (7 camadas)
+- [[indice]] — Índice geral (7 camadas)
 - [[grafo-conhecimento]] — Grafo de relacionamentos
 - [[saude]] — Scorecards de saúde
 - [[dna]] — DNA do conhecimento

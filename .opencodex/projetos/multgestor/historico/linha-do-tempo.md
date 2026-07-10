@@ -332,7 +332,7 @@
 - [[00-HOME]] — Homepage
 - [[status-dinamico]] — Estado atual
 - [[status-atual]] — Estado detalhado
-- [[lessons-learned]] — Lições aprendidas
+- [[licoes-aprendidas]] — Lições aprendidas
 - [[incidents/README]] — Biblioteca de incidentes
 - [[living-os/02-painel-executivo]] — O que mudou (Living OS)
 - [[archive-index/agent-archive-index]] — Histórico anterior a 06-05

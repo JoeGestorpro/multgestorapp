@@ -32,7 +32,7 @@ CSP off; Redis ausente. Ver [[RISCOS-MULTGESTOR]].
 ### Bloqueia
 [[fluxo-agendamento-publico]] · [[fluxo-pagamento]]
 ### Usa
-[[auth]] · [[multi-tenant]] · [[billing]]
+[[auth]] · [[multi-tenant]] · [[faturamento]]
 ### É usado por
 [[frontend]] · [[notificacoes]]
 

@@ -40,4 +40,4 @@ RLS inerte em companies/users (A-001); drift por migrations manuais. Ver [[RISCO
 Fechar [[rls-seguranca]] em companies/users.
 
 ## Links
-- [[supabase]] · [[backup-restore-check]]
+- [[supabase]] · [[verificacao-restauracao-backup]]

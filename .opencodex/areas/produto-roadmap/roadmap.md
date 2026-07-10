@@ -50,4 +50,4 @@
 - [[strategy/strategic-decision-log]] — Decisões estratégicas
 - [[strategy/product-futurist-engine]] — Ideias futuras
 - [[strategy/niche-radar]] — Ranking de nichos
-- [[commercial-readiness]] — Prontidão comercial
+- [[prontidao-comercial]] — Prontidão comercial

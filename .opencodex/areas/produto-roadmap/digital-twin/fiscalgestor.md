@@ -2,7 +2,7 @@
 
 > **Status:** ⚪ Visão · Não iniciado
 > **Camada:** 1 — Conhecimento
-> **Relacionamentos:** [[nichos/fiscalgestor/README]] · [[digital-twin/README]]
+> **Relacionamentos:** [[nichos/fiscalgestor/README]] · [[areas/produto-roadmap/digital-twin/visao-geral]]
 
 ---
 

@@ -34,10 +34,10 @@ Baixo no curto prazo. Ver [[RISCOS-MULTGESTOR]].
 ### Usa
 [[financeiro]]
 ### É usado por
-[[barber-store]]
+[[barbearia]]
 
 ## Próximas ações
 `stock-basic-flow-validation`.
 
 ## Links
-- [[financeiro]] · [[barber-store]]
+- [[financeiro]] · [[barbearia]]

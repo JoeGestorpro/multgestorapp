@@ -15,7 +15,7 @@ ultima_revisao: 2026-06-19
 Visão de uma página para decisão: onde estamos, o que falta, riscos e próxima ação. Volta para [[MAPA-MULTGESTOR-CORE]].
 
 ## Onde estamos
-Produção saudável, governança coerente (`state_version 13`), [[fluxo-agendamento-publico]] (GET) validado, [[backup-restore-check]] local ativo. Achado A-003 (outbox orphaned) resolvido. Restam bloqueios P1.
+Produção saudável, governança coerente (`state_version 13`), [[fluxo-agendamento-publico]] (GET) validado, [[verificacao-restauracao-backup]] local ativo. Achado A-003 (outbox orphaned) resolvido. Restam bloqueios P1.
 
 ## O que falta para produção
 Ver [[PRODUCAO]]. Pontos P1: [[backblaze-b2]] (cópia externa), [[rls-seguranca]] (companies/users sem policy), Redis em produção, [[ci-cd]] (migrations fail-fast).
@@ -33,7 +33,7 @@ Ver [[PROXIMA-MELHOR-ACAO]] → fechar [[backblaze-b2]] (cópia externa, missão
 [[barbergestor]] (vertical completo) · [[agenda]] · [[servicos]] · [[colaboradores]] · [[auth]].
 
 ## Áreas que precisam de fechamento
-[[ia-operacional]] (planejado) · [[estoque]] · [[fluxo-whatsapp]] · [[fluxo-pagamento]] · nichos [[agrogestor]]/[[autogestor]]/[[petgestor]]/[[barber-store]] (não iniciados).
+[[ia-operacional]] (planejado) · [[estoque]] · [[fluxo-whatsapp]] · [[fluxo-pagamento]] · nichos [[agrogestor]]/[[autogestor]]/[[petgestor]]/[[barbearia]] (não iniciados).
 
 ## Links
 - [[STATUS-GERAL]] · [[DEPENDENCIAS-MULTGESTOR]] · [[ROADMAP-MESTRE-MULTGESTOR-2026]]

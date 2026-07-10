@@ -15,7 +15,7 @@ ultima_revisao: 2026-06-19
 Separa o que é necessário, o que bloqueia, o que está em validação e o que já é funcional em produção. Volta para [[MAPA-MULTGESTOR-CORE]].
 
 ## Necessário para produção técnica
-- [[backup-restore-check]] com cópia externa ([[backblaze-b2]])
+- [[verificacao-restauracao-backup]] com cópia externa ([[backblaze-b2]])
 - [[rls-seguranca]] efetivo em companies/users
 - Redis em produção ([[render-backend]])
 - [[ci-cd]] com migrations fail-fast
@@ -34,7 +34,7 @@ Separa o que é necessário, o que bloqueia, o que está em validação e o que 
 ## Já funcional
 - Backend healthy ([[render-backend]]) · DB em sync ([[supabase]])
 - [[fluxo-login-cadastro]] (XSS endurecido) · [[fluxo-agendamento-publico]] (GET)
-- [[backup-restore-check]] local diário (RPO ~24h)
+- [[verificacao-restauracao-backup]] local diário (RPO ~24h)
 
 ## Riscos
 Ver [[RISCOS-MULTGESTOR]].

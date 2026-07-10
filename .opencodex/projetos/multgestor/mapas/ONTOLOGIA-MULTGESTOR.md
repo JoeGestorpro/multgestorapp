@@ -18,7 +18,7 @@ Define os tipos oficiais usados no campo `tipo:` das notas do mapa. Volta para [
 Tipos oficiais da Fase 1.
 
 ## Tipos oficiais
-- **componente** — peça do Core (ex.: [[backend]], [[frontend]], [[auth]], [[banco-de-dados]], [[multi-tenant]], [[billing]])
+- **componente** — peça do Core (ex.: [[backend]], [[frontend]], [[auth]], [[banco-de-dados]], [[multi-tenant]], [[faturamento]])
 - **integracao** — serviço externo/integração (ex.: [[supabase]], [[backblaze-b2]], [[render-backend]], [[vercel-frontend]])
 - **capability** — bloco de domínio reutilizável (ex.: [[agenda]], [[clientes]], [[financeiro]])
 - **nicho** — vertical de mercado (ex.: [[barbergestor]], [[petgestor]])

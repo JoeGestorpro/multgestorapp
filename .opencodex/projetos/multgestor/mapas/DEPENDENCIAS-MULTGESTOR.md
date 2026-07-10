@@ -15,14 +15,14 @@ ultima_revisao: 2026-06-19
 Mapa de dependências para produção, venda, escala e entre capabilities/nichos. Volta para [[MAPA-MULTGESTOR-CORE]].
 
 ## Dependências para produção
-- [[backblaze-b2]] depende de [[backup-restore-check]] (cópia externa do dump local)
+- [[backblaze-b2]] depende de [[verificacao-restauracao-backup]] (cópia externa do dump local)
 - [[rls-seguranca]] depende de [[banco-de-dados]] + [[multi-tenant]]
-- [[ci-cd]] (fail-fast) depende de OPS-SUPAVISOR resolvido + [[secrets-rotation]]
+- [[ci-cd]] (fail-fast) depende de OPS-SUPAVISOR resolvido + [[projetos/multgestor/mapas/seguranca/rotacao-segredos]]
 - Redis depende de decisão de custo em [[render-backend]]
 
 ## Dependências para venda
 - [[SISTEMA-VENDAVEL]] depende de [[PRODUCAO]] fechada
-- [[fluxo-pagamento]] depende de [[billing]] + feature gates
+- [[fluxo-pagamento]] depende de [[faturamento]] + feature gates
 - [[fluxo-onboarding-cliente]] depende de [[frontend]] + [[notificacoes]]
 
 ## Dependências para escala
@@ -36,7 +36,7 @@ Mapa de dependências para produção, venda, escala e entre capabilities/nichos
 - [[relatorios]] usa [[financeiro]] e [[clientes]]
 
 ## Dependências entre nichos
-- [[barbergestor]] é a referência; [[barber-store]], [[petgestor]], [[autogestor]], [[agrogestor]] dependem do Core ([[multgestor-core]]) e do template de vertical (não existe ainda)
+- [[barbergestor]] é a referência; [[barbearia]], [[petgestor]], [[autogestor]], [[agrogestor]] dependem do Core ([[multgestor-core]]) e do template de vertical (não existe ainda)
 
 ## Riscos
 Dependência circular se nichos forem criados antes do boundary-map. Ver [[RISCOS-MULTGESTOR]].

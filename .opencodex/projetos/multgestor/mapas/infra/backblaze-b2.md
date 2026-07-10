@@ -28,16 +28,16 @@ Sem cópia externa, backup é single point of failure local (A-002). Ver [[RISCO
 
 ## Relações
 ### Depende de
-[[backup-restore-check]]
+[[verificacao-restauracao-backup]]
 ### Bloqueia
 [[PRODUCAO]]
 ### Usa
 [[fluxo-backup-restore]]
 ### É usado por
-[[backup-restore-check]]
+[[verificacao-restauracao-backup]]
 
 ## Próximas ações
 Validar primeiro upload (ver [[PROXIMA-MELHOR-ACAO]]); depois ativar a flag.
 
 ## Links
-- [[ADR-004-backblaze-b2]] · [[fluxo-backup-restore]] · [[backup-restore-check]]
+- [[ADR-004-backblaze-b2]] · [[fluxo-backup-restore]] · [[verificacao-restauracao-backup]]

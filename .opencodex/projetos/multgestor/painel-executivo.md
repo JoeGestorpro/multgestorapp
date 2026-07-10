@@ -1,4 +1,4 @@
-# 📈 Executive Dashboard
+oque # 📈 Executive Dashboard
 
 > **Status:** OFICIAL • VIVO
 > **Atualizado:** 2026-06-24
@@ -15,7 +15,7 @@
 | **Frontend** | 🟢 Ativo | Vercel, SPA React 19 |
 | **Banco** | 🟢 Conectado | Supabase PostgreSQL 17 (sa-east-1) |
 | **Performance** | 🟡 Sem métricas | Sem monitoramento de performance |
-| **Produção Segura** | 🔴 7/14 critérios | [[production-readiness]] |
+| **Produção Segura** | 🔴 7/14 critérios | [[prontidao-producao]] |
 
 ---
 
@@ -73,7 +73,7 @@
 | **WITH CHECK** | 🔴 Todas sem | Escrita cross-tenant não bloqueada |
 | **Runtime role** | 🔴 BYPASSRLS | Role `postgres` bypassa RLS |
 
-**Links:** [[technical/rls]] · [[maps/multgestor-core/seguranca/rls-seguranca]] · [[architecture-decisions#ADR-06]]
+**Links:** [[technical/rls]] · [[maps/multgestor-core/seguranca/rls-seguranca]] · [[decisoes-arquiteturais#ADR-06]]
 
 ---
 
@@ -182,7 +182,7 @@
 | **Planos definidos** | 🟡 Starter/Pro | Tabelas existem |
 | **Precificação** | 🟡 Definida | Não testada |
 
-**Links:** [[commercial-readiness]] · [[strategy/product-futurist-engine]] · [[strategy/niche-radar]]
+**Links:** [[prontidao-comercial]] · [[strategy/product-futurist-engine]] · [[strategy/niche-radar]]
 
 ---
 

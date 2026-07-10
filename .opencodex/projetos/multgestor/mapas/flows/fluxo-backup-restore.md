@@ -34,10 +34,10 @@ Backup só local até a flag ligar (A-002). Ver [[RISCOS-MULTGESTOR]].
 ### Usa
 [[backblaze-b2]]
 ### É usado por
-[[backup-restore-check]]
+[[verificacao-restauracao-backup]]
 
 ## Próximas ações
 Pré-teste de upload (Método A) → ativar `BRCHK_EXTERNAL_ENABLED=1` ([[PROXIMA-MELHOR-ACAO]]).
 
 ## Links
-- [[backup-restore-check]] · [[backblaze-b2]]
+- [[verificacao-restauracao-backup]] · [[backblaze-b2]]

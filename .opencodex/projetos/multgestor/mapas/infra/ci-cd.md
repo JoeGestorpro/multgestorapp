@@ -21,14 +21,14 @@ Testes verdes; deploy funcional. Migrations com `continue-on-error: true` (A-005
 Jobs de teste (Postgres+Redis reais), lint/build, deploy automático em main.
 
 ## O que falta
-Migrations fail-fast (gated por OPS-SUPAVISOR + [[secrets-rotation]]); gates E2E/RLS/backup.
+Migrations fail-fast (gated por OPS-SUPAVISOR + [[projetos/multgestor/mapas/seguranca/rotacao-segredos]]); gates E2E/RLS/backup.
 
 ## Riscos
 Deploy com schema drift silencioso. Ver [[RISCOS-MULTGESTOR]].
 
 ## Relações
 ### Depende de
-[[supabase]] · [[secrets-rotation]]
+[[supabase]] · [[projetos/multgestor/mapas/seguranca/rotacao-segredos]]
 ### Bloqueia
 [[render-backend]] · [[vercel-frontend]]
 ### Usa

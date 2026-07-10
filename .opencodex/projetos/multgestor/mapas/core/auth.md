@@ -34,7 +34,7 @@ CSP desativado; brute-force não auditado. Ver [[RISCOS-MULTGESTOR]].
 ### Usa
 [[multi-tenant]]
 ### É usado por
-[[fluxo-onboarding-cliente]] · [[billing]]
+[[fluxo-onboarding-cliente]] · [[faturamento]]
 
 ## Próximas ações
 Ativar CSP; auditar refresh token e rate limit de login.

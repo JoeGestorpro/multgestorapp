@@ -1,4 +1,4 @@
-﻿# Modelo de Prompt para Executor
+# Modelo de Prompt para Executor
 
 > Template completo para gerar prompts que serão executados pelo Executor.
 > Preencha todas as seções obrigatórias antes de entregar ao Executor.

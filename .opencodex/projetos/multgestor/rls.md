@@ -2,7 +2,7 @@
 
 > **Status:** VIVO
 > **Atualizado:** 2026-06-24
-> **Relacionamentos:** [[technical/seguranca]] · [[technical/banco]] · [[architecture-decisions#ADR-06]] · [[maps/multgestor-core/seguranca/rls-seguranca]]
+> **Relacionamentos:** [[technical/seguranca]] · [[technical/banco]] · [[decisoes-arquiteturais#ADR-06]] · [[maps/multgestor-core/seguranca/rls-seguranca]]
 
 ---
 
@@ -41,7 +41,7 @@ Recomendação: Criar policies formais (defesa em profundidade).
 
 ## Referências
 
-- [[architecture-decisions#ADR-06]] — ADR RLS
+- [[decisoes-arquiteturais#ADR-06]] — ADR RLS
 - [[technical/seguranca]] — Segurança
 - [[technical/banco]] — Banco de dados
 - [[maps/multgestor-core/seguranca/rls-seguranca]] — RLS detalhado

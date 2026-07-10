@@ -37,13 +37,13 @@ O Atlas é o mapa — não o território. Ele não contém o conhecimento em si,
 
 O OpenCodex não é uma árvore de pastas — é um conjunto de capacidades.
 
-| Capacidade | Pastas envolvidas | O que faz |
-|---|---|---|
-| Conhecimento | [[brain/]], [[GLOSSARIO.md]] | Todo o conhecimento do sistema em 7 camadas + glossário |
-| Governança | [[rules/]], [[audits/]], [[CONVENCOES.md]] | Regras, auditorias e convenções que mantêm o sistema íntegro |
-| Execução | [[queue/]], [[prompts/]], [[templates/]], [[agents/]] | Missões, comandos prontos, modelos e definições de agentes |
-| Operação | [[ops/]], [[automation/]] | Operação, deploy, automações e rotinas |
-| Memória | [[archive/]], [[handoff/]], [[state/]] | Histórico congelado, passagem de contexto e estado legado |
+| Capacidade   | Pastas envolvidas                                     | O que faz                                                    |
+| ------------ | ----------------------------------------------------- | ------------------------------------------------------------ |
+| Conhecimento | [[brain/]], [[GLOSSARIO.md]]                          | Todo o conhecimento do sistema em 7 camadas + glossário      |
+| Governança   | [[rules/]], [[audits/]], [[CONVENCOES.md]]            | Regras, auditorias e convenções que mantêm o sistema íntegro |
+| Execução     | [[queue/]], [[prompts/]], [[templates/]], [[agents/]] | Missões, comandos prontos, modelos e definições de agentes   |
+| Operação     | [[ops/]], [[automation/]]                             | Operação, deploy, automações e rotinas                       |
+| Memória      | [[archive/]], [[handoff/]], [[state/]]                | Histórico congelado, passagem de contexto e estado legado    |
 
 ## As 6 fases do Projeto Atlas
 

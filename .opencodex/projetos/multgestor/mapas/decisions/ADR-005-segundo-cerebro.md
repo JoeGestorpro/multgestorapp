@@ -40,4 +40,4 @@ Memória que não se atualiza no fechamento "morre" (L-02). Ver [[RISCOS-MULTGES
 Evoluir o mapa por fases; ritual semanal de revisão.
 
 ## Links
-- [[MAPA-MULTGESTOR-CORE]] · [[source-of-truth]]
+- [[MAPA-MULTGESTOR-CORE]] · [[fonte-unica-verdade]]

@@ -47,4 +47,4 @@ PRD → Plano de Teste → Execução → Relatório → Aprovação/Reprova
 - [[technical/ci-cd]] — CI/CD e testes
 - [[product/prds/TEMPLATE-PRD]] — Critérios de aceite
 - [[incidents/README]] — Incidentes para regressão
-- [[lessons-learned#L-09]] — Mocks escondiam bug
+- [[licoes-aprendidas#L-09]] — Mocks escondiam bug

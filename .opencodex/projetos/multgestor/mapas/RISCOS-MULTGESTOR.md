@@ -22,14 +22,14 @@ A-003 (outbox orphaned) RESOLVIDO. Restam 4 P1 abertos.
 ### Segurança
 - RLS inerte em companies/users (A-001, P1) → [[rls-seguranca]]
 - CSP desativado no Helmet (A-007, P2) → [[politicas-producao]]
-- Rotação de secrets pausada (deferred) → [[secrets-rotation]]
+- Rotação de secrets pausada (deferred) → [[projetos/multgestor/mapas/seguranca/rotacao-segredos]]
 
 ### Banco de dados
 - Free tier sem PITR/auto-backup (A-014) → [[supabase]]
 - Drift recorrente por migrations manuais → [[ci-cd]]
 
 ### Backup/restore
-- Backup só local — single point of failure (A-002, P1) → [[backblaze-b2]] / [[backup-restore-check]]
+- Backup só local — single point of failure (A-002, P1) → [[backblaze-b2]] / [[verificacao-restauracao-backup]]
 
 ### Deploy
 - Migrations `continue-on-error` — deploy prossegue com falha (A-005, P1) → [[ci-cd]]
@@ -41,7 +41,7 @@ A-003 (outbox orphaned) RESOLVIDO. Restam 4 P1 abertos.
 - [[fluxo-whatsapp]] em mock (A-010, P2)
 
 ### Comercial
-- [[billing]] não testado E2E (A-022) → [[fluxo-pagamento]]
+- [[faturamento]] não testado E2E (A-022) → [[fluxo-pagamento]]
 - Onboarding/suporte mínimos ausentes → [[SISTEMA-VENDAVEL]]
 
 ### Operação

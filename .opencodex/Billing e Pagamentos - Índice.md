@@ -4,7 +4,7 @@
 
 ## Documentos
 
-- [[projetos/multgestor/mapas/core/billing]] — billing no mapa de arquitetura do core
+- [[projetos/multgestor/mapas/core/faturamento]] — billing no mapa de arquitetura do core
 - [[projetos/multgestor/mapas/flows/fluxo-pagamento]] — fluxo de pagamento
 
 ## Nota sobre esta busca

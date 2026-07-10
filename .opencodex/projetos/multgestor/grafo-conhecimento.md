@@ -270,7 +270,7 @@ Mission Builder (agents/mission-builder)
 ## Referências
 
 - [[00-HOME]] — Homepage
-- [[INDEX]] — Índice geral (7 camadas)
+- [[indice]] — Índice geral (7 camadas)
 - [[constitution-knowledge-os]] — Constituição do Knowledge OS
 - [[dna]] — DNA do conhecimento
 - [[saude]] — Saúde do conhecimento

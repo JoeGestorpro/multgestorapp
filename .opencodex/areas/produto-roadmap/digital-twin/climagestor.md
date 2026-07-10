@@ -2,7 +2,7 @@
 
 > **Status:** 🟡 Scaffold · Em desenvolvimento inicial
 > **Camada:** 1 — Conhecimento
-> **Relacionamentos:** [[nichos/climagestor/README]] · [[digital-twin/README]]
+> **Relacionamentos:** [[nichos/climagestor/README]] · [[areas/produto-roadmap/digital-twin/visao-geral]]
 
 ---
 

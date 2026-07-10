@@ -1,4 +1,4 @@
-﻿# Mapa das Pastas — Inventário do OpenCodex
+# Mapa das Pastas — Inventário do OpenCodex
 
 > Consulte [[ATLAS.md]] para a visão completa do **Atlas Engineering OS** e as 5 capacidades.
 
@@ -25,6 +25,7 @@ Cada pasta responde **uma pergunta**. Se sua resposta não está ali, você est�
 | [[state/]] | Qual é o estado do projeto? (legado) | Memória | Fotografia antiga do estado | Consulta (prefira brain/) | Não | 🟠 Obsoleto — usar [[brain/01-CURRENT-STATE.md]] |
 | [[segundo cerebro/]] | Onde é o Obsidian? (legado) | Conhecimento | Entrada humana, boas-vindas | Humanos | Não | 🟠 Obsoleto — usar [[HOME.md]] |
 | [[.obsidian/]] | Como o Obsidian aparece? | — | Configuração visual, workspace, plugins | Obsidian | Não | ✅ Único |
+| [[Nichos/]] | Como criar um novo nicho? | Produto | Templates, instrutor, prompts, checklists, kanban de nichos | Joe, IA | Sim | 🆕 Novo |
 
 ---
 
@@ -51,4 +52,5 @@ Pastas que existem **tanto em [[brain/]] quanto na raiz**:
 | ✅ Único | Responsabilidade clara, sem duplicação |
 | 🟡 Parcial | Conteúdo sobreposto com outra pasta — definir fonte oficial |
 | 🟠 Obsoleto | Substituído por outra fonte — manter só como histórico |
+
 

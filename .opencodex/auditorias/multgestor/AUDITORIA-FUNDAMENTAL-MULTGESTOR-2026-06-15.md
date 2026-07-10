@@ -199,4 +199,4 @@ server.js → [CORS, helmet, cookieParser, correlationId, metrics, requestLogger
 - **Auditoria APROVADA** pelo humano em 2026-06-15.
 - Antes de executar `e2e-public-booking-validation`, o humano quer avaliar um mini-gate **`BACKUP-RESTORE-CHECK`** em modo **PLAN_ONLY** (backup/restore é P0 operacional — item #1 da matriz). Ver §10 e §15.
 
-Relacionado: [[status-atual]] · [[capacidades]] · [[lessons-learned]] · [[security-secrets-rotation]]
+Relacionado: [[status-atual]] · [[capacidades]] · [[licoes-aprendidas]] · [[areas/seguranca/rotacao-segredos]]

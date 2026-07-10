@@ -2,7 +2,7 @@
 
 > **Status:** ⚪ Visão · Não iniciado
 > **Camada:** 1 — Conhecimento
-> **Relacionamentos:** [[nichos/petgestor/README]] · [[digital-twin/README]]
+> **Relacionamentos:** [[nichos/petgestor/README]] · [[areas/produto-roadmap/digital-twin/visao-geral]]
 
 ---
 

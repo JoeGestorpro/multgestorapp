@@ -28,7 +28,7 @@ Falhas silenciosas sem alerta; vetor XSS residual sem CSP. Ver [[RISCOS-MULTGEST
 
 ## Relações
 ### Depende de
-[[auth]] · [[secrets-rotation]]
+[[auth]] · [[projetos/multgestor/mapas/seguranca/rotacao-segredos]]
 ### Bloqueia
 [[PRODUCAO]]
 ### Usa

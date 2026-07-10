@@ -8,7 +8,7 @@
 ## Arquitetura
 
 - [[projetos/multgestor/arquitetura|Arquitetura]] — visão geral do sistema
-- [[projetos/multgestor/DEPENDENCY-MAP]] — mapa de dependências entre módulos
+- [[projetos/multgestor/mapa-dependencias]] — mapa de dependências entre módulos
 - [[projetos/multgestor/mapas/MAPA-MULTGESTOR-CORE|Mapa técnico do core]]
 - [[projetos/multgestor/capacidades|Capacidades (capabilities)]]
 
@@ -23,21 +23,21 @@
 
 ## Produto
 
-- [[areas/produto-roadmap/README|Roadmap — Visão Geral]]
-- [[areas/produto-roadmap/digital-twin/README|Digital Twin]] — gêmeo digital de cada nicho
-- [[areas/produto-roadmap/feature-genome/README|Feature Genome]] — DNA de funcionalidades
-- [[areas/produto-roadmap/impact-graph/README|Impact Graph]] — análise de impacto de mudanças
-- [[areas/produto-roadmap/simulation-center/README|Simulation Center]] — simulação de cenários
+- [[areas/produto-roadmap/visao-geral|Roadmap — Visão Geral]]
+- [[areas/produto-roadmap/digital-twin/visao-geral|Digital Twin]] — gêmeo digital de cada nicho
+- [[areas/produto-roadmap/feature-genome/visao-geral|Feature Genome]] — DNA de funcionalidades
+- [[areas/produto-roadmap/impact-graph/visao-geral|Impact Graph]] — análise de impacto de mudanças
+- [[areas/produto-roadmap/simulation-center/visao-geral|Simulation Center]] — simulação de cenários
 
 ## Nichos
 
-- [[projetos/multgestor/nichos/README|Nichos]] — barbergestor, autogestor, climagestor, fiscalgestor, petgestor, academygestor
+- [[projetos/multgestor/nichos/visao-geral|Nichos]] — barbergestor, autogestor, climagestor, fiscalgestor, petgestor, academygestor
 
 ## Fora daqui, de propósito
 
 Isto NÃO é o lugar para:
 - Estado atual do sprint/missão → [[projetos/multgestor/status-atual|Status Atual]] / [[projetos/multgestor/status-dinamico|Status Dinâmico]]
-- Por que uma decisão foi tomada → [[decisoes/README|Decisões — Índice]]
+- Por que uma decisão foi tomada → [[decisoes/visao-geral|Decisões — Índice]]
 - O que aconteceu numa data específica → [[Diário do Projeto]]
 
 Isso é exatamente o que estava misturado em `knowledge-os.md` — ver aviso de

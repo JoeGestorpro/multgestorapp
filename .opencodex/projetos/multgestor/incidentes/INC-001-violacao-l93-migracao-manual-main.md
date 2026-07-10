@@ -4,7 +4,7 @@
 > **Data:** 2026-06-23
 > **Severidade:** CRÍTICA
 > **Responsável:** — (detectado em auditoria)
-> **Relacionamentos:** [[incidents/README]] · [[lessons-learned#L-93]]
+> **Relacionamentos:** [[incidents/README]] · [[licoes-aprendidas#L-93]]
 
 ---
 
@@ -28,7 +28,7 @@ Migração parcial aplicada manualmente em `main` com alterações experimentais
 
 - Incidente documentado em auditoria ([[audits/AUDITORIA-INCIDENTE-2026-06-23-violacao-l93]])
 - Reforço da regra: migrations são aplicadas exclusivamente via CI ou MCP com autorização
-- L-93 registrada em [[lessons-learned]]
+- L-93 registrada em [[licoes-aprendidas]]
 
 ## Prevenção
 

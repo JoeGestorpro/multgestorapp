@@ -2,7 +2,7 @@
 
 > **Status:** VIVO
 > **Atualizado:** 2026-06-24
-> **Relacionamentos:** [[technical/DEPENDENCY-MAP]] · [[architecture-decisions]] · [[maps/multgestor-core/MAPA-MULTGESTOR-CORE]]
+> **Relacionamentos:** [[technical/DEPENDENCY-MAP]] · [[decisoes-arquiteturais]] · [[maps/multgestor-core/MAPA-MULTGESTOR-CORE]]
 
 ---
 
@@ -34,7 +34,7 @@ Arquitetura monolítica modular com separação de responsabilidades:
 
 ## Decisões Arquiteturais
 
-Ver [[architecture-decisions]] para ADRs detalhadas:
+Ver [[decisoes-arquiteturais]] para ADRs detalhadas:
 - ADR-01: Multi-tenant por `company_id`
 - ADR-02: Sem ORM
 - ADR-03: Event Bus volátil + Outbox durável
@@ -47,7 +47,7 @@ Ver [[architecture-decisions]] para ADRs detalhadas:
 
 ## Referências
 
-- [[architecture-decisions]] — ADRs completas
+- [[decisoes-arquiteturais]] — ADRs completas
 - [[technical/DEPENDENCY-MAP]] — Mapa de dependências
 - [[technical/backend]] — Backend detalhado
 - [[technical/frontend]] — Frontend detalhado

@@ -1,4 +1,4 @@
-﻿# Checklist Pré-Execução
+# Checklist Pré-Execução
 
 > Verificações obrigatórias ANTES de enviar um prompt para o Executor.
 
