@@ -45,6 +45,17 @@ describeIntegration('Fase C — Integration', () => {
   beforeEach(async () => {
     companyId = uuidv4();
     customerId = uuidv4();
+    // FKs: as tabelas Fase 2 referenciam companies e booking_customers.
+    // O teste original não criava essas linhas (schema antigo era permissivo).
+    await pool.query(
+      `INSERT INTO companies (id, name) VALUES ($1, $2)`,
+      [companyId, 'Fase C Test Co']
+    );
+    await pool.query(
+      `INSERT INTO booking_customers (id, company_id, name, email, password_hash)
+       VALUES ($1, $2, 'Cliente Teste', $3, 'x')`,
+      [customerId, companyId, `cliente+${customerId}@test.local`]
+    );
   });
 
   afterEach(async () => {
@@ -66,12 +77,12 @@ describeIntegration('Fase C — Integration', () => {
   describe('Wallet — Topup', () => {
     const gateway = 'abacatepay';
     const gatewayTransactionId = 'gwi-' + uuidv4();
-    const topupRequestId = 'tp-' + uuidv4();
+    const topupRequestId = uuidv4();
 
     it('handleWalletTopup credita wallet e atualiza topup_request', async () => {
       await pool.query(
-        `INSERT INTO topup_requests (id, company_id, amount, gateway, status)
-         VALUES ($1, $2, $3, $4, 'pending')`,
+        `INSERT INTO topup_requests (id, company_id, amount, gateway, status, purpose, expires_at)
+         VALUES ($1, $2, $3, $4, 'pending', 'deposit', NOW() + INTERVAL '1 hour')`,
         [topupRequestId, companyId, 1000, gateway]
       );
 
@@ -107,8 +118,8 @@ describeIntegration('Fase C — Integration', () => {
 
     it('handleWalletTopup é idempotente (gateway_transaction_id duplicado)', async () => {
       await pool.query(
-        `INSERT INTO topup_requests (id, company_id, amount, gateway, status)
-         VALUES ($1, $2, $3, $4, 'pending')`,
+        `INSERT INTO topup_requests (id, company_id, amount, gateway, status, purpose, expires_at)
+         VALUES ($1, $2, $3, $4, 'pending', 'deposit', NOW() + INTERVAL '1 hour')`,
         [topupRequestId, companyId, 1000, gateway]
       );
 
@@ -138,8 +149,8 @@ describeIntegration('Fase C — Integration', () => {
 
     it('handleWalletTopupFailed marca topup_request como failed', async () => {
       await pool.query(
-        `INSERT INTO topup_requests (id, company_id, amount, gateway, status)
-         VALUES ($1, $2, $3, $4, 'pending')`,
+        `INSERT INTO topup_requests (id, company_id, amount, gateway, status, purpose, expires_at)
+         VALUES ($1, $2, $3, $4, 'pending', 'deposit', NOW() + INTERVAL '1 hour')`,
         [topupRequestId, companyId, 1000, gateway]
       );
 
@@ -172,19 +183,18 @@ describeIntegration('Fase C — Integration', () => {
       packageId = pkg.rows[0].id;
 
       const cp = await pool.query(
-        `INSERT INTO customer_packages (company_id, package_id, customer_id, credits_remaining, status)
-         VALUES ($1, $2, $3, $4, 'active')
+        `INSERT INTO customer_packages (company_id, package_id, customer_id, credits_remaining, status, purchase_amount)
+         VALUES ($1, $2, $3, $4, 'active', $5)
          RETURNING id`,
-        [companyId, packageId, customerId, 5]
+        [companyId, packageId, customerId, 5, 10000]
       );
       customerPackageId = cp.rows[0].id;
     });
 
     it('redeemCredit decrementa credits_remaining', async () => {
-      const result = await packageService.redeemCredit(companyId, customerId, uuidv4(), {
-        saleId: uuidv4(),
-        redeemedBy: 'test',
-      });
+      // serviceId/saleId/redeemedBy são FKs (barber_services/barber_sales/users)
+      // e opcionais; passamos null para focar no decremento de créditos.
+      const result = await packageService.redeemCredit(companyId, customerId, null, {});
 
       expect(result.credits_remaining).toBe(4);
 
@@ -200,9 +210,9 @@ describeIntegration('Fase C — Integration', () => {
 
     it('redeemCredit com FOR UPDATE evita race condition', async () => {
       const results = await Promise.allSettled([
-        packageService.redeemCredit(companyId, customerId, uuidv4(), { saleId: uuidv4(), redeemedBy: 'race1' }),
-        packageService.redeemCredit(companyId, customerId, uuidv4(), { saleId: uuidv4(), redeemedBy: 'race2' }),
-        packageService.redeemCredit(companyId, customerId, uuidv4(), { saleId: uuidv4(), redeemedBy: 'race3' }),
+        packageService.redeemCredit(companyId, customerId, null, {}),
+        packageService.redeemCredit(companyId, customerId, null, {}),
+        packageService.redeemCredit(companyId, customerId, null, {}),
       ]);
 
       const fulfilled = results.filter(r => r.status === 'fulfilled');
@@ -218,10 +228,7 @@ describeIntegration('Fase C — Integration', () => {
 
     it('exhausted quando credits_remaining chega a 0', async () => {
       for (let i = 0; i < 5; i++) {
-        await packageService.redeemCredit(companyId, customerId, uuidv4(), {
-          saleId: uuidv4(),
-          redeemedBy: 'test',
-        });
+        await packageService.redeemCredit(companyId, customerId, null, {});
       }
 
       const cp = await pool.query(
@@ -295,8 +302,10 @@ describeIntegration('Fase C — Integration', () => {
         referenceId: uuidv4(),
       });
 
+      // min_redeem_points = 10; resgatar ABAIXO do mínimo deve rejeitar.
+      // (o teste original resgatava 1000 ≥ 10 e esperava rejeição — expectativa stale)
       await expect(
-        loyaltyService.redeemPoints(companyId, customerId, 1000)
+        loyaltyService.redeemPoints(companyId, customerId, 5)
       ).rejects.toThrow('Mínimo para resgate é 10 pontos');
     });
 
