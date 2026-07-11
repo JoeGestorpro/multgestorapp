@@ -5,6 +5,8 @@ module.exports = {
   ...require('./company'),
   ...require('./dashboard'),
   ...require('./cash'),
+  ...require('./financial'),
+  ...require('./wallet'),
   ...require('./public'),
   ...require('./services'),
   ...require('./products'),
@@ -16,5 +18,7 @@ module.exports = {
   ...require('./sales'),
   ...require('./customers'),
   ...require('./crm'),
+  ...require('./package'),
+  ...require('./loyalty'),
   ...require('./anamnesis')
 };

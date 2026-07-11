@@ -40,6 +40,22 @@ function extractCompany(rawPayload, customer) {
   }
 }
 
+function extractWalletMetadata(rawPayload) {
+  const metadata =
+    rawPayload?.data?.checkout?.metadata ||
+    rawPayload?.data?.subscription?.metadata ||
+    rawPayload?.metadata ||
+    null
+  if (metadata?.topup_request_id) {
+    return {
+      topup_request_id: metadata.topup_request_id,
+      company_id: metadata.company_id,
+      purpose: metadata.purpose || 'deposit'
+    }
+  }
+  return null
+}
+
 function extractFinance(rawPayload) {
   const checkout = rawPayload.data?.checkout || {}
   const subscription = rawPayload.data?.subscription || {}
@@ -138,9 +154,10 @@ class AbacatePayProvider extends PaymentProvider {
       company,
       customer,
       finance,
+      wallet_meta: extractWalletMetadata(rawPayload),
       raw: rawPayload
     }
   }
 }
 
-module.exports = { AbacatePayProvider, ABACATEPAY_PUBLIC_KEY, extractEventId, extractCustomer, extractCompany, extractFinance }
+module.exports = { AbacatePayProvider, ABACATEPAY_PUBLIC_KEY, extractEventId, extractCustomer, extractCompany, extractFinance, extractWalletMetadata }

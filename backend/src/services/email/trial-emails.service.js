@@ -4,6 +4,15 @@ const { sendMail } = require('./email.service');
 
 const TRIAL_EMAILS_ENABLED = process.env.TRIAL_EMAILS_ENABLED === 'true';
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function getAppBaseUrl() {
   return String(
     process.env.APP_BASE_URL ||
@@ -15,7 +24,7 @@ function getAppBaseUrl() {
 
 function buildTemplate(type, company) {
   const appUrl = getAppBaseUrl();
-  const companyName = company.name || 'Sua empresa';
+  const companyName = escapeHtml(company.name || 'Sua empresa');
   const dashboardLink = `${appUrl}/barber/dashboard`;
   const choosePlanLink = `${appUrl}/escolher-plano`;
 

@@ -216,7 +216,8 @@ class SaleService {
           commission_rate_snapshot: toNumber(sourceItem?.commission_value),
           quantity,
           unit_price: unitPrice,
-          total_price: totalPrice
+          total_price: totalPrice,
+          use_package: Boolean(item.use_package)
         }
 
         preparedItem.commission_amount = calculateCommission(preparedItem, sourceItem, collaboratorRecord)
@@ -243,8 +244,7 @@ class SaleService {
         ? amountReceived
         : (isBarterPayment(paymentMethod) ? 0 : totalAmount)
 
-      const sale = await repo.insertSale({
-        companyId,
+      const sale = await repo.insertSale(companyId, {
         collaboratorId,
         customerId,
         clientName,
@@ -264,11 +264,10 @@ class SaleService {
 
       const savedItems = []
       for (const item of preparedItems) {
-        const savedItem = await repo.insertSaleItem({
+        const savedItem = await repo.insertSaleItem(companyId, {
           saleId: sale.id,
           itemType: item.item_type,
           itemId: item.item_id,
-          companyId,
           collaboratorId,
           serviceId: item.service_id,
           productId: item.product_id,
@@ -310,7 +309,8 @@ class SaleService {
           quantity: i.quantity,
           unit_price: i.unit_price,
           total_price: i.total_price,
-          commission_amount: i.commission_amount
+          commission_amount: i.commission_amount,
+          use_package: i.use_package
         }))
       }, {
         traceId: meta?.traceId || crypto.randomUUID(),
