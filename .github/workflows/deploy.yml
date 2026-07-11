@@ -48,7 +48,6 @@ jobs:
             echo "::error title=migrate-timeout::run-migrations excedeu 3min (exit $code) — possivel hang intermitente; ver fix/ci-migrate-hang."
           fi
           exit $code
-        continue-on-error: true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
