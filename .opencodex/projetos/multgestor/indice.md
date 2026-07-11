@@ -30,13 +30,13 @@ Documentação, PRDs, Runbooks, ADRs, Arquitetura, Digital Twin, Feature Genome.
 | ----------------------------------------------------------------- | ---------------------------------- |
 | [[product/prds/README\|📋 PRD Library]]                           | Biblioteca de PRDs                 |
 | [[product/prds/TEMPLATE-PRD\|Template PRD]]                       | Template para novos PRDs           |
-| [[areas/operacao/runbooks/visao-geral\|📖 Runbooks]]                                  | Runbooks operacionais              |
+| [[areas/operacao/runbooks/visao-geral\|📖 Runbooks]]              | Runbooks operacionais              |
 | [[runbooks/auditoria-completa-padrao\|Auditoria Padrão]]          | Runbook de auditoria               |
 | [[runbooks/backup-restore-plan\|Backup e Restore]]                | Runbook de backup                  |
 | [[runbooks/reconciliation-plan\|Reconciliação]]                   | Runbook de reconciliação           |
 | [[runbooks/runbook-integration-branch\|Integration Branch]]       | Runbook de branch                  |
 | [[decisoes-arquiteturais\|🏛️ ADRs Consolidados]]                 | Decisões arquiteturais vinculantes |
-| [[capacidades\|🧩 Capabilities Map]]                         | Mapa de capacidades do Core        |
+| [[capacidades\|🧩 Capabilities Map]]                              | Mapa de capacidades do Core        |
 | [[product/digital-twin/README\|🪞 Digital Twin]]                  | Gêmeo digital dos módulos          |
 | `product/feature-genome/README`                                   | 🧬 Feature Genome                  |
 | `product/impact-graph/README`                                     | ⚡ Impact Graph                     |
@@ -53,6 +53,7 @@ Roadmap, Backlog, Estado Atual, Produção, Riscos.
 
 | Documento                                            | Descrição                   |
 | ---------------------------------------------------- | --------------------------- |
+| [[00-MAPA-MESTRE-CONCLUSAO-MULTGESTOR\|🧭 Mapa Mestre de Conclusão]] | **Autoridade da sequência de conclusão** (16 fases, dependências, critérios) |
 | [[product/roadmap\|🗺️ Roadmap]]                     | Roadmap do produto          |
 | [[status-atual\|📌 Estado do Projeto]]               | Estado detalhado do projeto |
 | [[prontidao-producao\|✅ Production Readiness]]       | Readiness de produção       |
@@ -180,6 +181,7 @@ Playbooks, Auditorias, Incidentes, Checklists, Rotinas.
 | [[incidents/INC-002-stored-xss-companies\|INC-002]] | Stored XSS Companies |
 | [[incidents/INC-003-stored-xss-users\|INC-003]] | Stored XSS Users |
 | [[audits/README\|🔍 Auditorias]] | Índice de auditorias |
+| [[2026-07-10-auditoria-readonly-mapa-mestre\|Auditoria READ_ONLY Mapa Mestre]] | Diagnóstico READ_ONLY das 16 fases (2026-07-10) |
 | [[audits/AUDITORIA-FUNDAMENTAL-MULTGESTOR-2026-06-15\|Auditoria Fundamental]] | Auditoria base |
 | [[audits/AUDITORIA-ROADMAP-MULTGESTOR-2026-06-19\|Auditoria Roadmap]] | Auditoria de roadmap |
 | [[audits/AUDITORIA-AGENTE-JOEFELIPE-V1-LLM-CORE-2026-06-19\|Auditoria JoeFelipe]] | Auditoria de agente |
