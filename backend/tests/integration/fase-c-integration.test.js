@@ -1,7 +1,8 @@
 'use strict';
 
 const { Pool } = require('pg');
-const { v4: uuidv4 } = require('uuid');
+// crypto.randomUUID nativo — evita dependência 'uuid' (não presente no package.json)
+const { randomUUID: uuidv4 } = require('crypto');
 const { createUnitOfWork } = require('../../src/shared');
 
 const TEST_DB_URL = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || '';
