@@ -1,0 +1,12 @@
+{
+  "generatedAt": "2026-07-04",
+  "stateVersion": "25",
+  "gitRef": "e661259",
+  "sources": {
+    ".opencodex/brain/01-CURRENT-STATE.md": "3844a0a8735e1afa",
+    ".opencodex/brain/EXECUTION-PLAYBOOK-PRODUCAO.md": "36f7b5beaf3825a2",
+    ".opencodex/brain/MULTGESTOR-PLATFORM-SPECIFICATION.md": "a850a51147798b48",
+    ".opencodex/brain/decisions/DECISION-GRAPH.md": "5c4ce2d2f5787b1b",
+    "BRIEFING-CLAUDE-CODE.md": "5ff8001f97ad2494"
+  }
+}

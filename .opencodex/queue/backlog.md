@@ -9,6 +9,44 @@
 
 ---
 
+## 📋 Auditoria Mestre MultGestor v2 — pronta, aguardando prioridade humana
+
+---
+status: ready
+task_id: audit/auditoria-mestre-v2
+title: Executar Auditoria Mestre completa (28 seções, 4 camadas) — inventário, código morto, arquitetura, segurança, produto, IA, docs e evolução
+type: audit
+executor: Claude Code (NÃO é missão OpenCode — não promover para next-task.md/OpenCode)
+created_by: Claude Code
+created_at: 2026-07-08
+depends_on: null
+unblock_condition: decisão humana de prioridade (não há dependência técnica bloqueando)
+mission_source: .opencodex/areas/operacao/runbooks/auditoria-completa-padrao.md (v2, fundida 2026-07-08)
+---
+
+### Contexto
+Metodologia formalizada em 2026-07-08 (fusão do padrão v1 de 20 seções com a proposta "Auditoria
+Mestre do MultGestor" do dono do projeto — inventário geral, código morto/lixo, arquitetura,
+IA, sincronização de documentação e Auditoria de Evolução comparando com auditorias anteriores).
+Última auditoria completa executada: 2026-07-02 (`.opencodex/auditorias/multgestor/
+2026-07-02-auditoria-completa-e-sprint-p0.md`) — veredito "APROVADO PARA OPERAÇÃO PRÓPRIA —
+BLOQUEADO PARA VENDA EXTERNA".
+
+### Como executar
+Seguir `.opencodex/areas/operacao/runbooks/auditoria-completa-padrao.md` seção "Como executar
+esta auditoria": ler a auditoria de 2026-07-02 primeiro (para a seção 27, Evolução), rodar a
+Camada 0 (inventário) com sub-agentes em paralelo por área, depois Camadas 1-3, e produzir
+`.opencodex/auditorias/multgestor/YYYY-MM-DD-auditoria-mestre.md` com as 31 seções do modelo.
+Sem push/merge/deploy/migration durante a auditoria — só leitura + evidência.
+
+### Critério de aceite
+- [ ] Relatório único cobrindo as 31 seções do modelo canônico.
+- [ ] Auditoria de Evolução (seção 27) comparando com a de 2026-07-02.
+- [ ] Changelog de documentação (o que foi atualizado automaticamente vs. o que precisa decisão humana).
+- [ ] Lista de achados com ID/severidade/área/evidência + missões recomendadas na fila.
+
+---
+
 ## 🛡️ DIRETRIZ PERMANENTE — Proteção de Rotas e Controle de Abuso
 
 > **ATIVA E OBRIGATÓRIA — NÃO é missão consumível. NÃO promover, NÃO executar, NÃO marcar como concluída.**
