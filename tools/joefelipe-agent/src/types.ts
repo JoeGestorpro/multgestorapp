@@ -1,5 +1,5 @@
-// Tipos compartilhados do Agente JoeFelipe (V1, read-only).
-// Sem código de runtime aqui — apenas tipos (apagáveis pelo type-stripping do Node).
+import type { KernelStatus } from './kernel/types.ts'
+import type { ApprovalRequest } from './approval/types.ts'
 
 export interface SourceStatus {
   role: string;
@@ -85,6 +85,11 @@ export interface AgentState {
   recommendedPrompt: string;
   warnings: string[];
   llm: LlmInfo;
+  kernel?: KernelStatus;
+  events?: { total: number; pending: number };
+  pendingApprovals?: ApprovalRequest[]
+  orchestrator?: { steps: number; completed: number; failed: number; status: string }
+  execution?: { running: boolean; abortRequested: boolean; currentStepId: string | null; lastResult: { success: boolean } | null; executors: string[] }
 }
 
 export interface WatchEvent {
