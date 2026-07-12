@@ -102,3 +102,31 @@ body-login.json
 **/_tmp_*
 .opencodex/_inbox/revisar/check-rls.js
 .opencodex/_inbox/revisar/check-rls2.js
+# Ferramentas de agente / preview (config local)
+.claude/
+.playwright-mcp/
+
+# Scripts de debug/scratch avulsos (não fazem parte do produto)
+backend/_audit*.js
+backend/_fix.js
+backend/check-rls*.js
+backend/inspect-columns.js
+backend/query-outbox.js
+backend/scripts/_audit.js
+query-outbox.js
+
+# Saídas de smoke-test / capturas manuais na raiz (scratch)
+barber-dashboard.png
+barber-dashboard.txt
+barber-login
+barber-login.txt
+barbergestor-landing.txt
+barbergestor-smoke-test-*.md
+current-page.yml
+login-page
+login-page.yml
+P2
+auditoria
+Recomendações
+BRIEFING-CLAUDE-CODE.md
+PROMPT-FASE1-VALIDACAO.md
