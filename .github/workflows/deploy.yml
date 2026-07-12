@@ -21,6 +21,7 @@ jobs:
     name: Run Database Migrations
     needs: ci
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: backend
@@ -37,8 +38,16 @@ jobs:
         run: npm ci
 
       - name: Run database migrations
-        run: npm run migrate
-        continue-on-error: true
+        # Contencao de hang (debito fix/ci-migrate-hang; causa-raiz DESCONHECIDA).
+        # migrate normalmente conclui em <1min; o teto de 3min mata um processo travado.
+        # timeout retorna 124 ao exceder -> step falha VISIVELMENTE (nunca sucesso silencioso).
+        run: |
+          code=0
+          timeout --signal=TERM --kill-after=30s 3m npm run migrate || code=$?
+          if [ "$code" -eq 124 ] || [ "$code" -eq 137 ]; then
+            echo "::error title=migrate-timeout::run-migrations excedeu 3min (exit $code) — possivel hang intermitente; ver fix/ci-migrate-hang."
+          fi
+          exit $code
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
