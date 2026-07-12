@@ -1,3 +1,4 @@
+const crypto = require('crypto')
 const { eventBus } = require('../../shared/core/events')
 const { appLogger } = require('../../shared/core/logger')
 const { INTEGRATION_CHANNELS, INTEGRATION_DIRECTIONS } = require('../contracts')
@@ -7,6 +8,7 @@ class WhatsAppWebhook {
     this.config = config
     this.logger = appLogger.child({ module: 'WhatsAppWebhook' })
     this.verifyToken = config.verifyToken || process.env.WHATSAPP_VERIFY_TOKEN || ''
+    this.metaAppSecret = config.metaAppSecret || process.env.META_APP_SECRET || ''
   }
 
   async handleVerification(req, res) {
@@ -25,8 +27,46 @@ class WhatsAppWebhook {
     return false
   }
 
+  _validateSignature(req) {
+    const signature = req.headers['x-hub-signature-256']
+    if (!signature) {
+      this.logger.warn('Missing x-hub-signature-256 header')
+      return false
+    }
+
+    if (!this.metaAppSecret) {
+      this.logger.warn('META_APP_SECRET not configured — cannot validate webhook signature')
+      return false
+    }
+
+    const rawBody = req.rawBody
+    if (!rawBody || rawBody.length === 0) {
+      this.logger.warn('Missing rawBody for signature validation')
+      return false
+    }
+
+    const expectedSig = crypto
+      .createHmac('sha256', this.metaAppSecret)
+      .update(Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody, 'utf8'))
+      .digest('hex')
+
+    const receivedSig = signature.replace('sha256=', '')
+
+    if (receivedSig.length !== expectedSig.length) {
+      return false
+    }
+
+    return crypto.timingSafeEqual(Buffer.from(receivedSig), Buffer.from(expectedSig))
+  }
+
   async handleIncoming(req, res) {
     try {
+      if (!this._validateSignature(req)) {
+        this.logger.warn('Invalid webhook signature — rejecting request')
+        res.status(403).json({ error: 'Invalid signature' })
+        return
+      }
+
       const body = req.body
 
       if (!body || !body.object) {

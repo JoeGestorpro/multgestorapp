@@ -102,7 +102,10 @@ class SaleRepository {
     return result.rows[0] || null
   }
 
-  async insertSale(values) {
+  async insertSale(companyId, values) {
+    if (!companyId) {
+      throw new Error('companyId é obrigatório para criar venda')
+    }
     const result = await this.db.query(
       `INSERT INTO barber_sales (
          company_id, collaborator_id, customer_id, customer_name,
@@ -114,7 +117,7 @@ class SaleRepository {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'active', $16, $17, NOW())
        RETURNING ${SALE_COLS}`,
       [
-        values.companyId, values.collaboratorId, values.customerId,
+        companyId, values.collaboratorId, values.customerId,
         values.clientName, values.customerPhone, values.paymentMethod,
         values.subtotal, values.discount, values.totalAmount,
         values.totalCommission, values.amountReceived, values.changeAmount,
@@ -125,7 +128,10 @@ class SaleRepository {
     return result.rows[0]
   }
 
-  async insertSaleItem(values) {
+  async insertSaleItem(companyId, values) {
+    if (!companyId) {
+      throw new Error('companyId é obrigatório para criar item de venda')
+    }
     const result = await this.db.query(
       `INSERT INTO barber_sale_items (
          sale_id, item_type, item_id, company_id, collaborator_id,
@@ -138,7 +144,7 @@ class SaleRepository {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $10, $11, $12, $13, $14, $15, $16, $17, $18)
        RETURNING ${ITEM_COLS}`,
       [
-        values.saleId, values.itemType, values.itemId, values.companyId,
+        values.saleId, values.itemType, values.itemId, companyId,
         values.collaboratorId, values.serviceId, values.productId,
         values.description, values.itemNameSnapshot,
         values.commissionTypeSnapshot, values.commissionRateSnapshot,

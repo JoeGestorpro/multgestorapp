@@ -107,6 +107,22 @@ const ChargebackReceived = {
   optional_fields: ['reason', 'dispute_id', 'invoice_id']
 }
 
+const WalletTopupApproved = {
+  event_name: 'wallet.topup.approved',
+  description: 'Recarga de wallet aprovada',
+  aggregate_type: 'wallet',
+  required_fields: ['company_id', 'amount', 'gateway', 'gateway_transaction_id'],
+  optional_fields: ['topup_request_id', 'customer_id']
+}
+
+const WalletTopupFailed = {
+  event_name: 'wallet.topup.failed',
+  description: 'Recarga de wallet falhou',
+  aggregate_type: 'wallet',
+  required_fields: ['company_id', 'gateway'],
+  optional_fields: ['topup_request_id', 'failure_reason', 'amount']
+}
+
 const BILLING_EVENTS = {
   PAYMENT_APPROVED: PaymentApproved,
   PAYMENT_FAILED: PaymentFailed,
@@ -116,7 +132,9 @@ const BILLING_EVENTS = {
   SUBSCRIPTION_CANCELED: SubscriptionCanceled,
   SUBSCRIPTION_REFUNDED: SubscriptionRefunded,
   SUBSCRIPTION_PAST_DUE: SubscriptionPastDue,
-  CHARGEBACK_RECEIVED: ChargebackReceived
+  CHARGEBACK_RECEIVED: ChargebackReceived,
+  WALLET_TOPUP_APPROVED: WalletTopupApproved,
+  WALLET_TOPUP_FAILED: WalletTopupFailed
 }
 
 function validateEventPayload(contract, payload) {
@@ -223,6 +241,8 @@ module.exports = {
   SubscriptionRefunded,
   SubscriptionPastDue,
   ChargebackReceived,
+  WalletTopupApproved,
+  WalletTopupFailed,
   validateEventPayload,
   normalizeBillingStatus,
   eventTypeToDomainEvent

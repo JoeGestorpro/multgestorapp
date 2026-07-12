@@ -159,6 +159,17 @@ router.get('/customers/:id/history', barberController.getCustomerHistory);
 router.post('/customers/:id/notes', barberController.createCustomerNote);
 router.put('/customers/:id', validateRequest(updateCustomerSchema), barberController.updateCustomerData);
 router.patch('/customers/:id/status', validateRequest(updateCustomerStatusSchema), barberController.updateCustomerStatus);
+router.get('/financial/summary', requirePlanFeature('financial_dashboard'), barberController.getSummary);
+router.get('/financial/dre', requirePlanFeature('advanced_reports'), barberController.getDre);
+router.get('/financial/by-payment-method', requirePlanFeature('financial_dashboard'), barberController.getByPaymentMethod);
+router.get('/financial/by-collaborator', requirePlanFeature('advanced_reports'), barberController.getByCollaborator);
+
+router.get('/wallet/balance', requirePlanFeature('financial_dashboard'), barberController.getWalletBalance);
+router.get('/wallet/transactions', requirePlanFeature('financial_dashboard'), barberController.getTransactions);
+router.post('/wallet/topup', requirePlanFeature('financial_dashboard'), barberController.createTopup);
+router.get('/deposit-config', requirePlanFeature('financial_dashboard'), barberController.getDepositConfig);
+router.put('/deposit-config', requirePlanFeature('financial_dashboard'), barberController.updateDepositConfig);
+
 router.get('/sales', barberController.listSales);
 router.get('/sales/summary', barberController.getSalesSummary);
 router.post('/sales', requireActivePlan, validateRequest(createSaleSchema), barberController.createSale);
@@ -178,7 +189,29 @@ router.put('/availability', barberController.updateAvailability);
 router.get('/crm/summary', barberController.getCrmSummary);
 router.get('/agenda/crm', barberController.getAgendaCrm);
 
-// Anamnese — exclusão LGPD (M3)
+// Pacotes — PRD-009
+router.get('/packages', requirePlanFeature('advanced_reports'), barberController.list);
+router.post('/packages', requirePlanFeature('advanced_reports'), barberController.create);
+router.put('/packages/:id', requirePlanFeature('advanced_reports'), barberController.update);
+router.delete('/packages/:id', requirePlanFeature('advanced_reports'), barberController.remove);
+router.post('/packages/:id/purchase', requirePlanFeature('financial_dashboard'), barberController.purchase);
+router.get('/customers/:id/packages', requirePlanFeature('advanced_reports'), barberController.customerPackages);
+
+// Fidelidade — PRD-010
+router.get('/loyalty/program', requirePlanFeature('advanced_reports'), barberController.getProgram);
+router.put('/loyalty/program', requirePlanFeature('advanced_reports'), barberController.updateProgram);
+router.get('/customers/:id/loyalty', requirePlanFeature('advanced_reports'), barberController.getBalance);
+router.get('/customers/:id/loyalty/transactions', requirePlanFeature('advanced_reports'), barberController.listTransactions);
+router.post('/customers/:id/loyalty/redeem', requirePlanFeature('financial_dashboard'), barberController.redeem);
+
+// Anamnese — PRD-011
+router.get('/anamnesis/templates', requirePlanFeature('advanced_reports'), barberController.listTemplates);
+router.post('/anamnesis/templates', requirePlanFeature('advanced_reports'), barberController.createTemplate);
+router.put('/anamnesis/templates/:id', requirePlanFeature('advanced_reports'), barberController.updateTemplate);
+router.delete('/anamnesis/templates/:id', requirePlanFeature('advanced_reports'), barberController.removeTemplate);
+router.get('/customers/:id/anamnesis', requirePlanFeature('advanced_reports'), barberController.getResponse);
+router.put('/customers/:id/anamnesis', requirePlanFeature('advanced_reports'), barberController.updateResponse);
+router.post('/customers/:id/anamnesis/export', requirePlanFeature('advanced_reports'), barberController.exportData);
 router.delete('/customers/:id/anamnesis', requirePlanFeature('advanced_reports'), barberController.requestDelete);
 
 const integrationRoutes = require('./integration.routes');

@@ -79,22 +79,75 @@ class BillingManager {
       }
 
       const paymentEventId = inserted.rows[0].id
-      const domainEventType = eventTypeToDomainEvent(normalized.event_type)
 
-      uow.addEvent(domainEventType, {
-        payment_gateway_event_id: paymentEventId,
-        provider: normalized.provider,
-        event_id: normalized.event_id,
-        event_type: normalized.event_type,
-        status: normalized.status,
-        company: normalized.company,
-        customer: normalized.customer,
-        finance: normalized.finance,
-        raw: normalized.raw
-      }, {
-        aggregateType: 'payment',
-        aggregateId: normalized.event_id
-      })
+      // Detectar se é wallet topup via metadata extraída pelo provider
+      const walletMeta = normalized.wallet_meta
+      const isWalletTopup = walletMeta?.topup_request_id
+
+      let domainEventType
+      let domainEventPayload
+      let domainEventMeta
+
+      if (isWalletTopup) {
+        const WALLET_APPROVED_EVENTS = ['checkout-completed', 'purchase-approved', 'purchase_approved', 'compra-aprovada', 'compra_aprovada', 'transparent-completed']
+        const WALLET_FAILED_EVENTS = ['checkout-refunded', 'refunded', 'compra-reembolsada', 'compra_reembolsada', 'chargeback']
+
+        const normalizedType = normalized.event_type
+
+        if (WALLET_APPROVED_EVENTS.includes(normalizedType)) {
+          domainEventType = 'wallet.topup.approved'
+          domainEventPayload = {
+            payment_gateway_event_id: paymentEventId,
+            company_id: walletMeta.company_id,
+            amount: normalized.finance.price,
+            gateway: 'abacatepay',
+            gateway_transaction_id: normalized.finance.invoiceId,
+            topup_request_id: walletMeta.topup_request_id
+          }
+          domainEventMeta = { aggregateType: 'wallet', aggregateId: walletMeta.topup_request_id }
+        } else if (WALLET_FAILED_EVENTS.includes(normalizedType)) {
+          domainEventType = 'wallet.topup.failed'
+          domainEventPayload = {
+            payment_gateway_event_id: paymentEventId,
+            company_id: walletMeta.company_id,
+            gateway: 'abacatepay',
+            topup_request_id: walletMeta.topup_request_id,
+            failure_reason: normalizedType
+          }
+          domainEventMeta = { aggregateType: 'wallet', aggregateId: walletMeta.topup_request_id }
+        } else {
+          // Evento não reconhecido para wallet — usar fluxo padrão
+          domainEventType = eventTypeToDomainEvent(normalized.event_type)
+          domainEventPayload = {
+            payment_gateway_event_id: paymentEventId,
+            provider: normalized.provider,
+            event_id: normalized.event_id,
+            event_type: normalized.event_type,
+            status: normalized.status,
+            company: normalized.company,
+            customer: normalized.customer,
+            finance: normalized.finance,
+            raw: normalized.raw
+          }
+          domainEventMeta = { aggregateType: 'payment', aggregateId: normalized.event_id }
+        }
+      } else {
+        domainEventType = eventTypeToDomainEvent(normalized.event_type)
+        domainEventPayload = {
+          payment_gateway_event_id: paymentEventId,
+          provider: normalized.provider,
+          event_id: normalized.event_id,
+          event_type: normalized.event_type,
+          status: normalized.status,
+          company: normalized.company,
+          customer: normalized.customer,
+          finance: normalized.finance,
+          raw: normalized.raw
+        }
+        domainEventMeta = { aggregateType: 'payment', aggregateId: normalized.event_id }
+      }
+
+      uow.addEvent(domainEventType, domainEventPayload, domainEventMeta)
 
       await uow.commit()
 

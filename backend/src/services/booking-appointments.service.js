@@ -5,6 +5,8 @@ const {
 } = require('../shared/capabilities/booking-engine/scheduling-utils');
 
 const { validateBookableSlot, getCompanyBySlug } = require('./booking-scheduling.service');
+const WalletService = require('./wallet.service')
+const walletService = new WalletService()
 
 function createError(message, statusCode) {
   const error = new Error(message);
@@ -630,6 +632,40 @@ async function createPublicAppointment(companySlug, data = {}) {
     await client.query('BEGIN');
 
     const settings = await getBookingSettings(company.id, client);
+
+    // Verificar configuração de depósito
+    let depositRequired = false
+    let depositAmount = 0
+    const depositConfig = await walletService.getDepositConfig(company.id)
+    if (depositConfig.deposit_enabled) {
+      const service = await ensureService(company.id, serviceId, client)
+      if (depositConfig.deposit_type === 'percentage') {
+        depositAmount = Math.round((Number(service.price) * depositConfig.deposit_value / 100) * 100) / 100
+      } else {
+        depositAmount = Number(depositConfig.deposit_value)
+      }
+      depositRequired = depositAmount > 0
+    }
+
+    // Se depósito obrigatório, verificar se pagamento já foi confirmado
+    if (depositRequired) {
+      const depositPaymentId = data.deposit_payment_id || data.depositPaymentId
+      if (!depositPaymentId) {
+        throw createError(`Depósito de R$ ${depositAmount.toFixed(2)} obrigatório para este agendamento. Inicie o pagamento antes de confirmar.`, 402)
+      }
+
+      // verificar se o topup_request foi completado
+      const topup = await client.query(
+        `SELECT id, status, amount FROM topup_requests
+         WHERE id = $1 AND company_id = $2 AND status = 'completed'
+         LIMIT 1`,
+        [depositPaymentId, company.id]
+      )
+      if (topup.rowCount === 0) {
+        throw createError('Pagamento do depósito ainda não confirmado. Aguarde ou tente novamente.', 402)
+      }
+    }
+
     let resolvedCollaboratorId = requestedCollaboratorId;
 
     if (requestedCollaboratorId && settings.allow_customer_select_collaborator === false) {
@@ -763,6 +799,18 @@ async function cancelClientAppointment(user, appointmentId) {
 
     const settings = await getBookingSettings(user.company_id, client);
     const minimumCancelDate = addMinutes(new Date(), Number(settings.cancellation_limit_hours || 0) * 60);
+
+    // Verificar taxa de cancelamento
+    const depositConfig = await walletService.getDepositConfig(user.company_id, client)
+    let cancelFee = 0
+    if (depositConfig.cancel_fee_enabled) {
+      const cancelWindowCutoff = addMinutes(new Date(), -(depositConfig.cancel_fee_window_hours * 60))
+      if (new Date(appointment.starts_at) <= cancelWindowCutoff) {
+        cancelFee = depositConfig.cancel_fee_percentage
+        // taxa registrada mas sem cobrança automática nesta versão
+        // (reembolso parcial requer integração com AbacatePay refund API)
+      }
+    }
 
     if (new Date(appointment.starts_at) < minimumCancelDate) {
       throw createError('Este agendamento nao pode mais ser cancelado dentro do prazo configurado pela empresa', 400);
