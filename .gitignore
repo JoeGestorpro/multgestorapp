@@ -130,3 +130,9 @@ auditoria
 Recomendações
 BRIEFING-CLAUDE-CODE.md
 PROMPT-FASE1-VALIDACAO.md
+
+# Config local de editor (Obsidian) — nunca versionar, em qualquer subpasta
+**/.obsidian/
+
+# Notas "Sem título" do Obsidian (rascunhos vazios) em qualquer pasta
+**/Sem título.md
