@@ -57,6 +57,9 @@ const migrations = [
 
   // Sessões de refresh token — rotação + revogação server-side no logout
   { version: '20260702_030', file: '20260702_030_refresh_tokens.sql' },
+
+  // Fase 1 — IA Operacional: tabela ai_suggestions (previsão de demanda + churn)
+  { version: '20260708_031', file: '20260708_031_ai_suggestions.sql' },
 ];
 
 async function ensureMigrationsTable() {

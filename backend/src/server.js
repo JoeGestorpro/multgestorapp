@@ -15,6 +15,7 @@ const pool = require('./config/database');
 const authRoutes = require('./routes/auth.routes');
 const bookingAuthRoutes = require('./routes/booking-auth.routes');
 const barberRoutes = require('./routes/barber.routes');
+const barberAiRoutes = require('./routes/barber-ai.routes');
 const climaRoutes = require('./routes/clima.routes');
 const masterRoutes = require('./routes/master.routes');
 const clientRoutes = require('./routes/client.routes');
@@ -378,6 +379,7 @@ app.use('/internal', internalRoutes);
 app.use('/api/master', masterRoutes);
 app.use('/api/client', clientRoutes);
 app.use('/api/barber', barberRoutes);
+app.use('/api/barber/ai', barberAiRoutes);
 app.use('/api/clima', climaRoutes);
 
 app.use((req, res) => {
