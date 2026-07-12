@@ -38,6 +38,14 @@ jobs:
         run: npm ci
 
       - name: Run database migrations
+        # continue-on-error RESTAURADO temporariamente (debito Supavisor/IPv6).
+        # A conexao direta db.<ref>.supabase.co so expoe IPv6 -> o runner do GitHub
+        # Actions nao alcanca (ENETUNREACH) -> migrate falha 100% (visto em 883e516).
+        # O Render aplica migrations em runtime pela propria DATABASE_URL do dashboard.
+        # Sem este continue-on-error, o gate bloqueia TODO deploy de backend.
+        # Remover SOMENTE quando o Supabase resolver o tenant/IPv6 (ver PR #26).
+        # Wrapper timeout 3m mantido: mata hang e emite ::error visivel (124/137).
+        continue-on-error: true
         # Contencao de hang (debito fix/ci-migrate-hang; causa-raiz DESCONHECIDA).
         # migrate normalmente conclui em <1min; o teto de 3min mata um processo travado.
         # timeout retorna 124 ao exceder -> step falha VISIVELMENTE (nunca sucesso silencioso).
