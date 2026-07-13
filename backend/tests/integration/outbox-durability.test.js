@@ -13,6 +13,9 @@ const {
   shutdownTestPool,
 } = require('./helpers/test-database')
 const { createCompanyA, createUserForCompany, createCollaboratorPayload, createServicePayload } = require('../helpers/tenant-factories')
+// Pool global da app: aberto por service.create → createUnitOfWork. Precisa ser
+// fechado no teardown (senão fica handle vazado → "worker failed to exit gracefully").
+const appDb = require('../../src/config/database')
 const {
   AppointmentConfirmed,
   AppointmentCanceled,
@@ -65,6 +68,18 @@ describeDb('Outbox Durability — Integration Tests', () => {
     await db.query('DELETE FROM outbox_messages WHERE company_id = $1', [companyId])
     await cleanupTestData(TEST_COMPANY_IDS)
     await shutdownTestPool()
+    // Fecha o pool global da app (aberto pelo caminho service.create → UoW).
+    // Sem isto o processo do worker não encerra ("worker failed to exit gracefully")
+    // e o force-exit do Jest, sob execução paralela, produzia leituras 0-row
+    // intermitentes no outbox (issue #35). Fechamento idempotente e defensivo.
+    try {
+      if (appDb.poolTenant && appDb.poolTenant !== appDb) {
+        await appDb.poolTenant.end()
+      }
+    } catch { /* pool já encerrado */ }
+    try {
+      await appDb.end()
+    } catch { /* pool já encerrado */ }
   })
 
   it('writes appointment.created event to outbox_messages via UoW', async () => {
