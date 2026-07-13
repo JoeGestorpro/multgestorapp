@@ -16,6 +16,11 @@ const { createCompanyA, createUserForCompany, createCollaboratorPayload, createS
 // Pool global da app: aberto por service.create → createUnitOfWork. Precisa ser
 // fechado no teardown (senão fica handle vazado → "worker failed to exit gracefully").
 const appDb = require('../../src/config/database')
+// Cliente Redis singleton: instanciado no require-time quando REDIS_URL existe
+// (caso do CI). Sem quit() no teardown, o socket/reconnect fica vazado no worker
+// → "worker failed to exit gracefully" → force-exit do Jest → leituras 0-row
+// intermitentes. Localmente (sem REDIS_URL) é no-op.
+const redisClient = require('../../src/shared/core/cache/redis-client')
 const {
   AppointmentConfirmed,
   AppointmentCanceled,
@@ -80,6 +85,12 @@ describeDb('Outbox Durability — Integration Tests', () => {
     try {
       await appDb.end()
     } catch { /* pool já encerrado */ }
+    // Fecha o cliente Redis singleton (aberto quando REDIS_URL existe, ex.: CI).
+    // disconnect() é forçado e libera o socket/reconnect em qualquer estado
+    // (quit() é graceful e trava se nunca conectou). No-op local sem REDIS_URL.
+    try {
+      redisClient.disconnect()
+    } catch { /* redis ausente ou já encerrado */ }
   })
 
   it('writes appointment.created event to outbox_messages via UoW', async () => {
