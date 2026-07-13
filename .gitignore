@@ -136,3 +136,7 @@ PROMPT-FASE1-VALIDACAO.md
 
 # Notas "Sem título" do Obsidian (rascunhos vazios) em qualquer pasta
 **/Sem título.md
+
+# Skills de agente preparadas para upload (reutilizáveis, independentes do produto)
+# Destino: repositório separado (pendente). Mantidas locais até lá.
+.agent/skills-upload-ready/
