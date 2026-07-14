@@ -42,6 +42,10 @@ module.exports = {
   keys:   (pattern)        => client ? client.keys(pattern)                     : Promise.resolve([]),
   incr:   (key)            => client ? client.incr(key)                          : Promise.resolve(NaN),
   quit:   ()               => client ? client.quit()                             : Promise.resolve(),
+  // Encerramento FORÇADO e imediato do socket/reconnect. Usado por teardown de
+  // teste: quit() é graceful e trava se a conexão nunca estabeleceu; disconnect()
+  // libera o handle em qualquer estado (conectado ou reconectando). No-op sem client.
+  disconnect: ()           => { if (client) client.disconnect(); },
 
   // INCR atômico com TTL via Lua script — elimina race condition INCR + PEXPIRE
   incrWithTTL(key, ttlMs) {
