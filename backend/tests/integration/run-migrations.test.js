@@ -10,7 +10,9 @@ const {
   run,
   migrations,
   resolveMigrationConnectionString,
-  describeTarget,
+  describeEndpoint,
+  sanitizeError,
+  formatFatal,
   buildSslConfig,
   readMigrationSql,
   MIGRATION_LOCK_KEY,
@@ -38,15 +40,90 @@ describe('run-migrations — resolveMigrationConnectionString (Emenda 01)', () =
   });
 });
 
-describe('run-migrations — describeTarget (sem credenciais)', () => {
-  it('retorna host:porta/db sem usuário nem senha', () => {
-    const label = describeTarget('postgresql://usuario:senhaSecreta@meu-host:5432/meudb');
-    expect(label).toBe('meu-host:5432/meudb');
-    expect(label).not.toMatch(/usuario|senhaSecreta/);
+describe('run-migrations — describeEndpoint (não identifica ambiente)', () => {
+  it('retorna somente o booleano dedicado', () => {
+    expect(describeEndpoint(true)).toBe('dedicado=true');
+    expect(describeEndpoint(false)).toBe('dedicado=false');
   });
 
-  it('não lança em URL inválida', () => {
-    expect(describeTarget('nao-e-url')).toBe('(connection string inválida)');
+  it('não recebe nem revela nenhuma parte de URL', () => {
+    // A função nem aceita connection string — impossível vazar host/db/porta.
+    expect(describeEndpoint(true)).not.toMatch(/supabase|pooler|5432|6543|@|:\/\//);
+  });
+});
+
+describe('run-migrations — sanitizeError (nunca a mensagem crua)', () => {
+  it('devolve o código quando é seguro', () => {
+    expect(sanitizeError({ code: 'ENETUNREACH' })).toBe('ENETUNREACH');
+    expect(sanitizeError({ code: '28P01' })).toBe('28P01');
+    expect(sanitizeError({ code: 'LOCK_BUSY' })).toBe('LOCK_BUSY');
+  });
+
+  it('nunca vaza host/IP/URL da mensagem — código desconhecido vira genérico', () => {
+    const err = new Error('connect ENETUNREACH db.projeto-secreto.supabase.co 2600:1f1e:abcd::1:5432');
+    err.code = 'ZZZ_INESPERADO';
+    const out = sanitizeError(err);
+    expect(out).toBe('ERRO_NAO_MAPEADO');
+    expect(out).not.toMatch(/projeto-secreto|supabase|2600|5432/);
+  });
+
+  it('erro sem code vira DESCONHECIDO', () => {
+    expect(sanitizeError(new Error('qualquer coisa com host.interno:5432'))).toBe('ERRO_DESCONHECIDO');
+  });
+});
+
+describe('run-migrations — formatFatal (linha de erro segura)', () => {
+  it('não contém nenhuma parte de uma mensagem com host/IP/URL', () => {
+    const err = new Error('connect ENETUNREACH db.projeto-secreto.supabase.co:5432 - Local (:::0)');
+    err.code = 'ENETUNREACH';
+    const line = formatFatal(err);
+    expect(line).toContain('codigo=ENETUNREACH');
+    expect(line).not.toMatch(/projeto-secreto|supabase|:5432|2600|Local/);
+  });
+
+  it('inclui a versão da migration (identificador de migration, não de ambiente)', () => {
+    const err = new Error('x');
+    err.code = 'MIGRATION_APPLY_FAILED';
+    err.version = '20260708_031';
+    expect(formatFatal(err)).toBe('[migrate] falha — codigo=MIGRATION_APPLY_FAILED migration=20260708_031');
+  });
+});
+
+describe('run-migrations — log de run() não vaza a URL recebida (requisito 5)', () => {
+  it('nenhuma linha logada contém host, usuário, senha ou db da connection string', async () => {
+    const URL_SECRETA = 'postgresql://usuarioSecreto:senhaSecreta@db.ref-secreto-xyz.supabase.co:5432/prod_db';
+    const capturado = [];
+    const orig = {
+      log: console.log, warn: console.warn, error: console.error,
+    };
+    console.log = (...a) => capturado.push(a.join(' '));
+    console.warn = (...a) => capturado.push(a.join(' '));
+    console.error = (...a) => capturado.push(a.join(' '));
+
+    // Pool injetado que falha no connect com um erro contendo o host secreto —
+    // simula o ENETUNREACH real que vazava o IPv6/hostname.
+    class FakePool {
+      constructor() {}
+      async connect() {
+        const e = new Error(`connect ENETUNREACH db.ref-secreto-xyz.supabase.co:5432`);
+        e.code = 'ENETUNREACH';
+        throw e;
+      }
+      async end() {}
+    }
+
+    try {
+      await expect(
+        run({ PoolCtor: FakePool, env: { DATABASE_URL: URL_SECRETA, NODE_ENV: 'test' } })
+      ).rejects.toBeDefined();
+    } finally {
+      console.log = orig.log; console.warn = orig.warn; console.error = orig.error;
+    }
+
+    const todo = capturado.join('\n');
+    for (const parte of ['usuarioSecreto', 'senhaSecreta', 'ref-secreto-xyz', 'supabase.co', 'prod_db', ':5432']) {
+      expect(todo).not.toContain(parte);
+    }
   });
 });
 

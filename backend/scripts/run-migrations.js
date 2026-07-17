@@ -96,15 +96,43 @@ function resolveMigrationConnectionString(env = process.env) {
   return { connectionString: fallback, dedicated: false };
 }
 
-// Rótulo seguro do alvo: host:porta/db. NUNCA inclui usuário ou senha.
-function describeTarget(connectionString) {
-  try {
-    const u = new URL(connectionString);
-    const db = u.pathname.replace(/^\/+/, '') || '(sem nome)';
-    return `${u.hostname || '(sem host)'}:${u.port || '5432'}/${db}`;
-  } catch {
-    return '(connection string inválida)';
-  }
+// Descreve o endpoint SEM identificar o ambiente — nunca host, porta,
+// project ref, usuário, senha, IP, URL ou nome do banco (que revelaria prod x
+// test). Apenas o booleano "dedicado" (LOG_TARGET_DISCLOSURE_PRE_EXISTENTE).
+function describeEndpoint(dedicated) {
+  return `dedicado=${dedicated === true}`;
+}
+
+// Códigos de erro seguros de expor. Qualquer coisa fora desta lista vira um
+// rótulo genérico — a mensagem crua do pg/driver pode conter host, IP ou
+// connection string (ex.: "connect ENETUNREACH <IPv6>:5432") e NUNCA é logada.
+const SAFE_ERROR_CODES = new Set([
+  // rede / sistema
+  'ENOTFOUND', 'ENETUNREACH', 'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT',
+  'EAI_AGAIN', 'EHOSTUNREACH', 'EPIPE',
+  // TLS
+  'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN',
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  // postgres (SQLSTATE)
+  '28P01', '28000', '08P01', '08006', '08001', '3D000', '53300', '57P03',
+  '42501', '42P01', '42P07',
+  // internos do runner (sem detalhe de ambiente)
+  'NO_CONFIG', 'LOCK_BUSY', 'INTEGRITY_FAIL', 'MIGRATION_FILE_MISSING',
+  'MIGRATION_APPLY_FAILED',
+]);
+
+// Reduz um erro a um CÓDIGO seguro. Jamais retorna err.message.
+function sanitizeError(err) {
+  const code = err && err.code != null ? String(err.code) : '';
+  if (SAFE_ERROR_CODES.has(code)) return code;
+  return code ? 'ERRO_NAO_MAPEADO' : 'ERRO_DESCONHECIDO';
+}
+
+// Linha final de erro — só código sanitizado e, quando houver, a VERSÃO da
+// migration (identificador de migration, não de ambiente).
+function formatFatal(err) {
+  const mig = err && err.version ? ` migration=${err.version}` : '';
+  return `[migrate] falha — codigo=${sanitizeError(err)}${mig}`;
 }
 
 // TLS: espelha backend/src/config/database.js. Com CA configurado, verifica o
@@ -142,7 +170,9 @@ function readMigrationSql(file) {
   if (!fs.existsSync(filePath)) {
     // Arquivo ausente é ERRO — uma migration listada mas sumida jamais pode
     // passar silenciosamente (era o comportamento [warn]+continue anterior).
-    throw new Error(`arquivo de migration não encontrado: ${file}`);
+    const e = new Error('arquivo de migration não encontrado');
+    e.code = 'MIGRATION_FILE_MISSING';
+    throw e;
   }
   // Remove BOM UTF-8 — Postgres falha com "syntax error" se o BOM chegar
   // como primeiro caractere.
@@ -174,8 +204,12 @@ async function applyMigration(client, version, file, applied) {
     console.log(`[ok]    ${version} — ${file} (${duration}ms)`);
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
-    // Re-lança com o version para rastreio; a mensagem do pg não traz credenciais.
-    throw new Error(`falha na migration ${version} (${file}): ${err.message}`);
+    // Re-lança preservando o CÓDIGO do erro original (para diagnóstico) e a
+    // versão, mas NUNCA a mensagem crua — ela pode conter host/IP/URL.
+    const e = new Error('falha ao aplicar migration');
+    e.code = SAFE_ERROR_CODES.has(String(err && err.code)) ? String(err.code) : 'MIGRATION_APPLY_FAILED';
+    e.version = version;
+    throw e;
   }
 }
 
@@ -185,7 +219,9 @@ async function run({ PoolCtor = Pool, env = process.env } = {}) {
   const { connectionString, dedicated } = resolveMigrationConnectionString(env);
 
   if (!connectionString) {
-    throw new Error('nem MIGRATION_DATABASE_URL nem DATABASE_URL configuradas.');
+    const e = new Error('endpoint não configurado');
+    e.code = 'NO_CONFIG';
+    throw e;
   }
 
   if (!dedicated) {
@@ -195,7 +231,7 @@ async function run({ PoolCtor = Pool, env = process.env } = {}) {
     );
   }
 
-  console.log(`\n[migrate] alvo: ${describeTarget(connectionString)} (dedicado=${dedicated})\n`);
+  console.log(`\n[migrate] endpoint ${describeEndpoint(dedicated)}\n`);
 
   const pool = new PoolCtor({
     connectionString,
@@ -205,19 +241,28 @@ async function run({ PoolCtor = Pool, env = process.env } = {}) {
 
   // Um único client mantém a sessão viva durante toda a corrida — requisito da
   // trava: pg_advisory_lock é por SESSÃO, some se a conexão voltar ao pool.
-  const client = await pool.connect();
+  // client fica indefinido se o connect falhar; o finally trata os dois casos.
+  let client;
   let lockAcquired = false;
 
   try {
+    console.log('[migrate] conectando…');
+    client = await pool.connect();
+    console.log('[migrate] conexão estabelecida');
+
     const lock = await client.query('SELECT pg_try_advisory_lock($1) AS ok', [MIGRATION_LOCK_KEY]);
     lockAcquired = lock.rows[0].ok === true;
     if (!lockAcquired) {
       // Outra execução já detém a trava. Falha limpa — nunca aplica em paralelo.
-      throw new Error('outra execução de migrations em andamento (advisory lock ocupada).');
+      const e = new Error('outra execução de migrations em andamento');
+      e.code = 'LOCK_BUSY';
+      throw e;
     }
 
     await ensureMigrationsTable(client);
     const applied = await getAppliedMigrations(client);
+    const pendentes = migrations.filter((m) => !applied.has(m.version)).length;
+    console.log(`[migrate] migrations pendentes: ${pendentes}`);
 
     for (const { version, file } of migrations) {
       await applyMigration(client, version, file, applied);
@@ -229,15 +274,17 @@ async function run({ PoolCtor = Pool, env = process.env } = {}) {
        WHERE table_schema = 'public' AND table_name = 'pin_reset_tokens'`
     );
     if (check.rowCount === 0) {
-      throw new Error('verificação falhou: tabela pin_reset_tokens não encontrada.');
+      const e = new Error('verificação de integridade falhou');
+      e.code = 'INTEGRITY_FAIL';
+      throw e;
     }
 
-    console.log('\n[migrate] todas as migrations aplicadas com sucesso.\n');
+    console.log('[migrate] todas as migrations aplicadas com sucesso.');
   } finally {
-    if (lockAcquired) {
+    if (client && lockAcquired) {
       await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_KEY]).catch(() => {});
     }
-    client.release();
+    if (client) client.release();
     await pool.end().catch(() => {});
   }
 }
@@ -246,7 +293,7 @@ async function run({ PoolCtor = Pool, env = process.env } = {}) {
 if (require.main === module) {
   require('dotenv').config({ path: path.resolve(__dirname, '..', '.env'), quiet: true });
   run().catch((err) => {
-    console.error('[migrate] ERRO:', err.message);
+    console.error(formatFatal(err));
     process.exit(1);
   });
 }
@@ -255,7 +302,9 @@ module.exports = {
   run,
   migrations,
   resolveMigrationConnectionString,
-  describeTarget,
+  describeEndpoint,
+  sanitizeError,
+  formatFatal,
   buildSslConfig,
   readMigrationSql,
   applyMigration,
