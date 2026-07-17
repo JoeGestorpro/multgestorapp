@@ -1,7 +1,32 @@
+'use strict';
+
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '..', '.env'), quiet: true });
-const pool = require('../src/config/database');
+const { Pool } = require('pg');
+// NOTA: dotenv.config() é carregado SOMENTE na execução direta (bloco
+// require.main no fim). Sob require (testes), não há efeito colateral no
+// process.env — o backend/.env aponta para o pooler de PRODUÇÃO, e carregá-lo
+// em teste arriscaria conectar os testes à produção.
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Runner de migrations — OPS-MIGRATIONS-03C (ADR-006 + Emenda 01).
+//
+// Garantias:
+//   - trava de concorrência (pg_advisory_lock) numa SESSÃO estável;
+//   - cada migration + seu registro em schema_migrations são ATÔMICOS
+//     (uma transação: aplica e registra, ou nada);
+//   - arquivo .sql ausente é ERRO (não warning) — interrompe;
+//   - exit code ≠ 0 em qualquer falha → bloqueia o start do backend;
+//   - idempotente (schema_migrations controla o que já foi aplicado);
+//   - nunca imprime usuário, senha ou connection string.
+//
+// Endpoint (Emenda 01): usa MIGRATION_DATABASE_URL (pooler modo SESSION, 5432)
+// se presente; senão cai em DATABASE_URL com aviso. A app NÃO é afetada — este
+// runner tem pool próprio, dedicado, fora do wrapper tenant-aware da aplicação.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Chave da trava de concorrência (advisory lock). Constante estável do runner.
+const MIGRATION_LOCK_KEY = 947110031;
 
 // Ordem de execução. Adicionar novas migrations SEMPRE ao final.
 // Formato do nome: YYYYMMDD_NNN_descricao.sql
@@ -62,8 +87,42 @@ const migrations = [
   { version: '20260708_031', file: '20260708_031_ai_suggestions.sql' },
 ];
 
-async function ensureMigrationsTable() {
-  await pool.query(`
+// Resolve o endpoint do runner. MIGRATION_DATABASE_URL tem precedência
+// (Emenda 01: pooler modo session, 5432). Fallback: DATABASE_URL.
+function resolveMigrationConnectionString(env = process.env) {
+  const dedicated = String(env.MIGRATION_DATABASE_URL || '').trim();
+  if (dedicated) return { connectionString: dedicated, dedicated: true };
+  const fallback = String(env.DATABASE_URL || '').trim();
+  return { connectionString: fallback, dedicated: false };
+}
+
+// Rótulo seguro do alvo: host:porta/db. NUNCA inclui usuário ou senha.
+function describeTarget(connectionString) {
+  try {
+    const u = new URL(connectionString);
+    const db = u.pathname.replace(/^\/+/, '') || '(sem nome)';
+    return `${u.hostname || '(sem host)'}:${u.port || '5432'}/${db}`;
+  } catch {
+    return '(connection string inválida)';
+  }
+}
+
+// TLS: espelha backend/src/config/database.js. Com CA configurado, verifica o
+// certificado; em teste, desliga; senão, cifra sem verificar (ver
+// SEC-DATABASE-TLS-001). Injetável para permitir teste sem TLS.
+function buildSslConfig(env = process.env) {
+  if (env.NODE_ENV === 'test') return false;
+  if (env.DATABASE_SSL_CA) {
+    return { ca: env.DATABASE_SSL_CA.replace(/\\n/g, '\n'), rejectUnauthorized: true };
+  }
+  if (env.DATABASE_SSL_CA_PATH) {
+    return { ca: fs.readFileSync(env.DATABASE_SSL_CA_PATH, 'utf8'), rejectUnauthorized: true };
+  }
+  return { rejectUnauthorized: false };
+}
+
+async function ensureMigrationsTable(client) {
+  await client.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version     TEXT PRIMARY KEY,
       name        TEXT NOT NULL,
@@ -73,77 +132,132 @@ async function ensureMigrationsTable() {
   `);
 }
 
-async function getAppliedMigrations() {
-  const result = await pool.query('SELECT version FROM schema_migrations');
-  return new Set(result.rows.map(r => r.version));
+async function getAppliedMigrations(client) {
+  const result = await client.query('SELECT version FROM schema_migrations');
+  return new Set(result.rows.map((r) => r.version));
 }
 
-async function applyMigration(version, file, applied) {
+function readMigrationSql(file) {
+  const filePath = path.resolve(__dirname, '..', 'src', 'database', file);
+  if (!fs.existsSync(filePath)) {
+    // Arquivo ausente é ERRO — uma migration listada mas sumida jamais pode
+    // passar silenciosamente (era o comportamento [warn]+continue anterior).
+    throw new Error(`arquivo de migration não encontrado: ${file}`);
+  }
+  // Remove BOM UTF-8 — Postgres falha com "syntax error" se o BOM chegar
+  // como primeiro caractere.
+  return fs.readFileSync(filePath, 'utf8').replace(/^﻿/, '');
+}
+
+// Aplica UMA migration atomicamente: DDL + registro na MESMA transação.
+// Crash entre aplicar e registrar é impossível — ou ambos, ou nenhum.
+async function applyMigration(client, version, file, applied) {
   if (applied.has(version)) {
     console.log(`[skip]  ${version} — ${file} (já aplicada)`);
     return;
   }
 
-  const filePath = path.resolve(__dirname, '..', 'src', 'database', file);
-
-  if (!fs.existsSync(filePath)) {
-    console.warn(`[warn]  ${version} — arquivo não encontrado: ${filePath}`);
-    return;
-  }
-
-  // Remove BOM UTF-8 — Postgres falha com "syntax error" se o BOM (﻿)
-  // chegar como primeiro caractere da query.
-  const sql = fs.readFileSync(filePath, 'utf8').replace(/^﻿/, '');
+  const sql = readMigrationSql(file);
   const start = Date.now();
 
-  await pool.query(sql);
-
-  const duration = Date.now() - start;
-
-  await pool.query(
-    `INSERT INTO schema_migrations (version, name, duration_ms)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (version) DO NOTHING`,
-    [version, file.replace('.sql', ''), duration]
-  );
-
-  console.log(`[ok]    ${version} — ${file} (${duration}ms)`);
+  try {
+    await client.query('BEGIN');
+    await client.query(sql);
+    const duration = Date.now() - start;
+    await client.query(
+      `INSERT INTO schema_migrations (version, name, duration_ms)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (version) DO NOTHING`,
+      [version, file.replace('.sql', ''), duration]
+    );
+    await client.query('COMMIT');
+    console.log(`[ok]    ${version} — ${file} (${duration}ms)`);
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    // Re-lança com o version para rastreio; a mensagem do pg não traz credenciais.
+    throw new Error(`falha na migration ${version} (${file}): ${err.message}`);
+  }
 }
 
-(async () => {
-  const target = typeof pool.getDatabaseTargetSummary === 'function'
-    ? pool.getDatabaseTargetSummary()
-    : { label: 'banco desconhecido' };
+// Executa todas as migrations pendentes sob trava de concorrência, num único
+// client de sessão. Recebe o Pool por injeção (testável).
+async function run({ PoolCtor = Pool, env = process.env } = {}) {
+  const { connectionString, dedicated } = resolveMigrationConnectionString(env);
 
-  console.log(`\n[migrate] banco alvo: ${target.label}\n`);
-
-  await ensureMigrationsTable();
-  const applied = await getAppliedMigrations();
-
-  for (const { version, file } of migrations) {
-    await applyMigration(version, file, applied);
+  if (!connectionString) {
+    throw new Error('nem MIGRATION_DATABASE_URL nem DATABASE_URL configuradas.');
   }
 
-  // Verificação de integridade pós-migration
-  const result = await pool.query(
-    `SELECT table_name FROM information_schema.tables
-     WHERE table_schema = 'public' AND table_name = 'pin_reset_tokens'`
-  );
-
-  if (result.rowCount === 0) {
-    throw new Error('Verificação falhou: tabela pin_reset_tokens não encontrada.');
+  if (!dedicated) {
+    console.warn(
+      '[migrate] MIGRATION_DATABASE_URL não configurada — usando DATABASE_URL. '
+      + 'Em produção, a trava exige endpoint de SESSÃO estável (pooler 5432).'
+    );
   }
 
-  console.log('\n[migrate] todas as migrations aplicadas com sucesso.\n');
-  await pool.end();
-  if (typeof pool.poolTenant?.end === 'function') {
-    await pool.poolTenant.end();
+  console.log(`\n[migrate] alvo: ${describeTarget(connectionString)} (dedicado=${dedicated})\n`);
+
+  const pool = new PoolCtor({
+    connectionString,
+    ssl: buildSslConfig(env),
+    max: 1,
+  });
+
+  // Um único client mantém a sessão viva durante toda a corrida — requisito da
+  // trava: pg_advisory_lock é por SESSÃO, some se a conexão voltar ao pool.
+  const client = await pool.connect();
+  let lockAcquired = false;
+
+  try {
+    const lock = await client.query('SELECT pg_try_advisory_lock($1) AS ok', [MIGRATION_LOCK_KEY]);
+    lockAcquired = lock.rows[0].ok === true;
+    if (!lockAcquired) {
+      // Outra execução já detém a trava. Falha limpa — nunca aplica em paralelo.
+      throw new Error('outra execução de migrations em andamento (advisory lock ocupada).');
+    }
+
+    await ensureMigrationsTable(client);
+    const applied = await getAppliedMigrations(client);
+
+    for (const { version, file } of migrations) {
+      await applyMigration(client, version, file, applied);
+    }
+
+    // Verificação de integridade pós-migration.
+    const check = await client.query(
+      `SELECT 1 FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name = 'pin_reset_tokens'`
+    );
+    if (check.rowCount === 0) {
+      throw new Error('verificação falhou: tabela pin_reset_tokens não encontrada.');
+    }
+
+    console.log('\n[migrate] todas as migrations aplicadas com sucesso.\n');
+  } finally {
+    if (lockAcquired) {
+      await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_KEY]).catch(() => {});
+    }
+    client.release();
+    await pool.end().catch(() => {});
   }
-})().catch(async (err) => {
-  console.error('[migrate] ERRO:', err.message);
-  await pool.end().catch(() => {});
-  if (typeof pool.poolTenant?.end === 'function') {
-    await pool.poolTenant.end().catch(() => {});
-  }
-  process.exit(1);
-});
+}
+
+// Execução direta (npm run migrate). Sob require (testes), apenas exporta.
+if (require.main === module) {
+  require('dotenv').config({ path: path.resolve(__dirname, '..', '.env'), quiet: true });
+  run().catch((err) => {
+    console.error('[migrate] ERRO:', err.message);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  run,
+  migrations,
+  resolveMigrationConnectionString,
+  describeTarget,
+  buildSslConfig,
+  readMigrationSql,
+  applyMigration,
+  MIGRATION_LOCK_KEY,
+};
