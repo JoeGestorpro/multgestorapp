@@ -277,6 +277,26 @@ describe('run-migrations — assertStrictEndpoint (invariante em código)', () =
       expect(e.code).toBe('STRICT_INVALID_URL');
     }
   });
+
+  // Achado 1 da auditoria do GATE 4A: porta ausente também é recusada.
+  // Deliberado — num gate bloqueante, depender do default implícito do driver
+  // torna a intenção ambígua.
+  it('REJEITA porta AUSENTE (exige porta explícita)', () => {
+    const semPorta = 'postgresql://u:p@host-exemplo/db';
+    expect(() => assertStrictEndpoint(semPorta, true)).toThrow(/porta ausente/);
+    try { assertStrictEndpoint(semPorta, true); } catch (e) {
+      expect(e.code).toBe('STRICT_REQUIRES_SESSION_PORT');
+    }
+  });
+
+  it('distingue porta ausente de porta errada na mensagem', () => {
+    try { assertStrictEndpoint('postgresql://u:p@h/db', true); } catch (e) {
+      expect(e.message).toMatch(/porta ausente/);
+    }
+    try { assertStrictEndpoint(TRANSACTION_URL, true); } catch (e) {
+      expect(e.message).toMatch(/porta não é de sessão/);
+    }
+  });
 });
 
 describe('run-migrations — run() em modo estrito falha ANTES de conectar', () => {
@@ -304,7 +324,31 @@ describe('run-migrations — run() em modo estrito falha ANTES de conectar', () 
     await expect(run({
       PoolCtor: PoolProibido,
       env: { DATABASE_URL: TRANSACTION_URL, NODE_ENV: 'test' },
+      argv: [],
     })).rejects.not.toMatchObject({ code: 'STRICT_REQUIRES_DEDICATED' });
+  });
+
+  // Achado 3 da auditoria: argv é injetável — run() não depende de process.argv.
+  it('ativa modo estrito por argv INJETADO (sem tocar process.argv)', async () => {
+    await expect(run({
+      PoolCtor: PoolProibido,
+      env: { DATABASE_URL: TRANSACTION_URL, NODE_ENV: 'test' },
+      argv: ['node', 'run-migrations.js', '--strict'],
+    })).rejects.toMatchObject({ code: 'STRICT_REQUIRES_DEDICATED' });
+  });
+
+  it('argv injetado VAZIO neutraliza um --strict do processo hospedeiro', async () => {
+    const argvOriginal = process.argv;
+    process.argv = ['node', 'jest', '--strict']; // simula contaminação global
+    try {
+      await expect(run({
+        PoolCtor: PoolProibido,
+        env: { DATABASE_URL: TRANSACTION_URL, NODE_ENV: 'test' },
+        argv: [], // injeção explícita vence o estado global
+      })).rejects.not.toMatchObject({ code: 'STRICT_REQUIRES_DEDICATED' });
+    } finally {
+      process.argv = argvOriginal;
+    }
   });
 });
 

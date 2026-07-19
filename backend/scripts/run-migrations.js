@@ -118,10 +118,15 @@ function assertStrictEndpoint(connectionString, dedicated) {
     e.code = 'STRICT_INVALID_URL';
     throw e;
   }
+  // A PORTA PRECISA SER EXPLÍCITA e igual a 5432.
+  //  - porta 6543 → pooler em modo transaction, onde pg_advisory_lock (por
+  //    sessão) é decorativo — exatamente o que a Emenda 01 proíbe;
+  //  - porta AUSENTE → `parsed.port` é '' e também é recusada. É deliberado:
+  //    num gate bloqueante, depender do default implícito do driver torna a
+  //    intenção ambígua. Melhor falhar alto e exigir a porta escrita.
   if (parsed.port !== MIGRATION_SESSION_PORT) {
-    // Porta ≠ 5432 indica pooler em modo transaction, onde pg_advisory_lock
-    // (por sessão) é decorativo — exatamente o que a Emenda 01 proíbe.
-    const e = new Error('modo estrito exige endpoint de SESSÃO');
+    const detalhe = parsed.port === '' ? 'porta ausente' : 'porta não é de sessão';
+    const e = new Error(`modo estrito exige endpoint de SESSÃO explícito (${detalhe})`);
     e.code = 'STRICT_REQUIRES_SESSION_PORT';
     throw e;
   }
@@ -257,7 +262,7 @@ async function applyMigration(client, version, file, applied) {
 
 // Executa todas as migrations pendentes sob trava de concorrência, num único
 // client de sessão. Recebe o Pool por injeção (testável).
-async function run({ PoolCtor = Pool, env = process.env } = {}) {
+async function run({ PoolCtor = Pool, env = process.env, argv = process.argv } = {}) {
   const { connectionString, dedicated } = resolveMigrationConnectionString(env);
 
   if (!connectionString) {
@@ -266,7 +271,7 @@ async function run({ PoolCtor = Pool, env = process.env } = {}) {
     throw e;
   }
 
-  const strict = isStrictMode(env);
+  const strict = isStrictMode(env, argv);
 
   if (strict) {
     // Falha ANTES de qualquer conexão. Nenhum fallback é tolerado.
