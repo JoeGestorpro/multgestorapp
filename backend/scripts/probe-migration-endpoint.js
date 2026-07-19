@@ -141,10 +141,26 @@ async function runProbe({ ClientCtor = Client, env = process.env, logger = conso
   if (failure) throw failure;
 }
 
+// Guard de ambiente — o probe só executa no build do Render.
+// Fora dele (CI com `npm ci`, `npm install` local) é NO-OP com exit 0: não lê
+// MIGRATION_DATABASE_URL, não constrói Client e não tenta conexão.
+// Sem este guard, o postinstall derrubaria TODO o CI, pois `npm ci` dispara
+// postinstall e o probe é fail-closed (exit 1 sem a variável).
+function shouldRunProbe(env = process.env) {
+  return String(env.RENDER) === 'true';
+}
+
 async function main(options = {}) {
   const logger = options.logger || console;
+  const env = options.env || process.env;
+
+  if (!shouldRunProbe(env)) {
+    writeLog(logger, 'fora do Render — probe ignorado (no-op)');
+    return 0;
+  }
+
   try {
-    await runProbe({ ...options, logger });
+    await runProbe({ ...options, env, logger });
     writeLog(logger, 'OK');
     return 0;
   } catch (error) {
@@ -162,6 +178,7 @@ if (require.main === module) {
 module.exports = {
   main,
   runProbe,
+  shouldRunProbe,
   validateEndpoint,
   sanitizeError,
   buildSslConfig,
