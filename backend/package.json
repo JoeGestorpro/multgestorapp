@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/server.js",
+    "postinstall": "node scripts/probe-migration-endpoint.js",
     "dev": "nodemon src/server.js",
     "migrate": "node scripts/run-migrations.js",
     "seed:master": "node scripts/seed-master-admin.js",
