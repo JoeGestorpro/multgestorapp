@@ -1,11 +1,8 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
 const {
   main,
   runProbe,
-  shouldRunProbe,
   validateEndpoint,
   PROBE_LOCK_KEY,
 } = require('../../scripts/probe-migration-endpoint');
@@ -114,7 +111,7 @@ describe('probe-migration-endpoint — validação fail-closed', () => {
 
     await expect(main({
       ClientCtor: ClientDouble,
-      env: { MIGRATION_DATABASE_URL: SAFE_URL, NODE_ENV: 'test', RENDER: 'true' },
+      env: { MIGRATION_DATABASE_URL: SAFE_URL, NODE_ENV: 'test' },
       logger,
     })).resolves.toBe(1);
 
@@ -133,7 +130,7 @@ describe('probe-migration-endpoint — validação fail-closed', () => {
 
     await expect(runProbe({
       ClientCtor: ClientDouble,
-      env: { MIGRATION_DATABASE_URL: SAFE_URL, NODE_ENV: 'test', RENDER: 'true' },
+      env: { MIGRATION_DATABASE_URL: SAFE_URL, NODE_ENV: 'test' },
       logger,
     })).rejects.toMatchObject({ code: 'LOCK_NOT_ACQUIRED' });
 
@@ -150,7 +147,7 @@ describe('probe-migration-endpoint — validação fail-closed', () => {
 
     await expect(runProbe({
       ClientCtor: ClientDouble,
-      env: { MIGRATION_DATABASE_URL: SAFE_URL, NODE_ENV: 'test', RENDER: 'true' },
+      env: { MIGRATION_DATABASE_URL: SAFE_URL, NODE_ENV: 'test' },
       logger,
     })).resolves.toBeUndefined();
 
@@ -171,7 +168,7 @@ describe('probe-migration-endpoint — validação fail-closed', () => {
 
     await expect(runProbe({
       ClientCtor: ClientDouble,
-      env: { MIGRATION_DATABASE_URL: SAFE_URL, NODE_ENV: 'test', RENDER: 'true' },
+      env: { MIGRATION_DATABASE_URL: SAFE_URL, NODE_ENV: 'test' },
       logger,
     })).rejects.toMatchObject({ code: 'LOCK_RELEASE_FAILED' });
     expect(instances[0].end).toHaveBeenCalledTimes(1);
@@ -184,7 +181,7 @@ describe('probe-migration-endpoint — validação fail-closed', () => {
 
     await expect(main({
       ClientCtor: ClientDouble,
-      env: { MIGRATION_DATABASE_URL: SAFE_URL, NODE_ENV: 'test', RENDER: 'true' },
+      env: { MIGRATION_DATABASE_URL: SAFE_URL, NODE_ENV: 'test' },
       logger,
     })).resolves.toBe(1);
     expect(lines.join('\n')).toContain('codigo=EPIPE');
@@ -204,7 +201,7 @@ describe('probe-migration-endpoint — validação fail-closed', () => {
 
     await main({
       ClientCtor: ClientDouble,
-      env: { MIGRATION_DATABASE_URL: SAFE_URL, NODE_ENV: 'test', RENDER: 'true' },
+      env: { MIGRATION_DATABASE_URL: SAFE_URL, NODE_ENV: 'test' },
       logger,
     });
 
@@ -213,163 +210,5 @@ describe('probe-migration-endpoint — validação fail-closed', () => {
     expect(output).not.toContain('probe_password');
     expect(output).not.toContain('session.example.invalid');
     expect(output).not.toContain('postgresql://');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Guard de ambiente + wiring temporário via postinstall (03D GATE 3).
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('probe — guard de ambiente (shouldRunProbe)', () => {
-  it('só é verdadeiro com RENDER exatamente "true"', () => {
-    expect(shouldRunProbe({ RENDER: 'true' })).toBe(true);
-    expect(shouldRunProbe({ RENDER: 'false' })).toBe(false);
-    expect(shouldRunProbe({ RENDER: '1' })).toBe(false);
-    expect(shouldRunProbe({ RENDER: true })).toBe(true); // coerção para "true"
-    expect(shouldRunProbe({})).toBe(false);
-  });
-});
-
-describe('probe — FORA do Render: no-op absoluto', () => {
-  // Proxy que EXPLODE se qualquer segredo for lido. Prova, de forma ativa,
-  // que o guard corta antes de tocar em MIGRATION_DATABASE_URL/DATABASE_URL.
-  function envQueExplode(extra = {}) {
-    const base = { NODE_ENV: 'test', ...extra };
-    return new Proxy(base, {
-      get(target, prop) {
-        if (prop === 'MIGRATION_DATABASE_URL' || prop === 'DATABASE_URL') {
-          throw new Error(`${String(prop)} foi lida fora do Render`);
-        }
-        return target[prop];
-      },
-    });
-  }
-
-  it('não lê MIGRATION_DATABASE_URL, não cria Client, não conecta e sai com 0', async () => {
-    const { ClientDouble, instances } = createClientDouble();
-    const { logger, lines } = createLogger();
-
-    await expect(main({
-      ClientCtor: ClientDouble,
-      env: envQueExplode(),
-      logger,
-    })).resolves.toBe(0);
-
-    expect(instances).toHaveLength(0);              // nenhum Client construído
-    expect(lines.join('\n')).toContain('no-op');    // registrou o desvio
-  });
-
-  it('permanece no-op mesmo com RENDER definido com outro valor', async () => {
-    const { ClientDouble, instances } = createClientDouble();
-    const { logger } = createLogger();
-
-    await expect(main({
-      ClientCtor: ClientDouble,
-      env: envQueExplode({ RENDER: 'false' }),
-      logger,
-    })).resolves.toBe(0);
-
-    expect(instances).toHaveLength(0);
-  });
-
-  it('no-op não emite nada além da linha de desvio (sem endpoint/segredo)', async () => {
-    const { ClientDouble } = createClientDouble();
-    const { logger, lines } = createLogger();
-
-    await main({ ClientCtor: ClientDouble, env: envQueExplode(), logger });
-
-    const output = lines.join('\n');
-    expect(output).not.toContain('conectando');
-    expect(output).not.toContain('postgresql://');
-    expect(output).not.toContain('probe_password');
-    expect(output).not.toContain('session.example.invalid');
-  });
-});
-
-describe('probe — DENTRO do Render: fail-closed preservado', () => {
-  const envRender = (extra = {}) => ({ NODE_ENV: 'test', RENDER: 'true', ...extra });
-
-  it('executa o probe e sai com 0 no sucesso', async () => {
-    const { ClientDouble, instances } = createClientDouble();
-    const { logger, lines } = createLogger();
-
-    await expect(main({
-      ClientCtor: ClientDouble,
-      env: envRender({ MIGRATION_DATABASE_URL: SAFE_URL }),
-      logger,
-    })).resolves.toBe(0);
-
-    expect(instances).toHaveLength(1);              // conectou de verdade
-    expect(lines.join('\n')).toContain('OK');
-  });
-
-  it('variável ausente → exit 1 (fail-closed, sem fallback)', async () => {
-    const { ClientDouble, instances } = createClientDouble();
-    const { logger, lines } = createLogger();
-
-    await expect(main({
-      ClientCtor: ClientDouble,
-      env: envRender(),
-      logger,
-    })).resolves.toBe(1);
-
-    expect(instances).toHaveLength(0);
-    expect(lines.join('\n')).toContain('codigo=NO_MIGRATION_URL');
-  });
-
-  it('porta errada → exit 1 antes de conectar', async () => {
-    const { ClientDouble, instances } = createClientDouble();
-    const { logger, lines } = createLogger();
-
-    await expect(main({
-      ClientCtor: ClientDouble,
-      env: envRender({ MIGRATION_DATABASE_URL: SAFE_URL.replace(':5432/', ':6543/') }),
-      logger,
-    })).resolves.toBe(1);
-
-    expect(instances).toHaveLength(0);
-    expect(lines.join('\n')).toContain('codigo=ENDPOINT_INVALIDO');
-  });
-
-  it('lock negado → exit 1 e nenhum segredo/endpoint logado', async () => {
-    const { ClientDouble } = createClientDouble({ lockAcquired: false });
-    const { logger, lines } = createLogger();
-
-    await expect(main({
-      ClientCtor: ClientDouble,
-      env: envRender({ MIGRATION_DATABASE_URL: SAFE_URL }),
-      logger,
-    })).resolves.toBe(1);
-
-    const output = lines.join('\n');
-    expect(output).toContain('codigo=LOCK_NOT_ACQUIRED');
-    expect(output).not.toContain('probe_password');
-    expect(output).not.toContain('session.example.invalid');
-    expect(output).not.toContain('postgresql://');
-    expect(output).not.toContain('probe_db');
-  });
-});
-
-describe('wiring temporário — postinstall', () => {
-  const pkg = JSON.parse(
-    fs.readFileSync(path.resolve(__dirname, '..', '..', 'package.json'), 'utf8')
-  );
-
-  it('postinstall aponta para o probe', () => {
-    expect(pkg.scripts.postinstall).toBe('node scripts/probe-migration-endpoint.js');
-  });
-
-  it('não altera start nem migrate (wiring isolado)', () => {
-    expect(pkg.scripts.start).toBe('node src/server.js');
-    expect(pkg.scripts.migrate).toBe('node scripts/run-migrations.js');
-  });
-
-  it('o probe invocado pelo postinstall tem o guard — CI não quebra', () => {
-    const fonte = fs.readFileSync(
-      path.resolve(__dirname, '..', '..', 'scripts', 'probe-migration-endpoint.js'),
-      'utf8'
-    );
-    expect(fonte).toMatch(/shouldRunProbe/);
-    expect(fonte).toMatch(/RENDER/);
   });
 });
