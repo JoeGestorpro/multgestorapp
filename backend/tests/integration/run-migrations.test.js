@@ -10,6 +10,8 @@ const {
   run,
   migrations,
   resolveMigrationConnectionString,
+  isStrictMode,
+  assertStrictEndpoint,
   describeEndpoint,
   sanitizeError,
   formatFatal,
@@ -222,5 +224,100 @@ describe('run-migrations — contra Postgres real', () => {
         await probe.end().catch(() => {});
       }
     }, 60000);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Modo estrito — OPS-MIGRATIONS-03D GATE 4.
+// Converte a regra invariante ("fallback para DATABASE_URL proibido em
+// produção") de disciplina operacional em garantia de código.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SESSION_URL = 'postgresql://u:p@host-exemplo:5432/db';
+const TRANSACTION_URL = 'postgresql://u:p@host-exemplo:6543/db';
+
+describe('run-migrations — isStrictMode (ativação)', () => {
+  it('ativa por flag --strict (multiplataforma)', () => {
+    expect(isStrictMode({}, ['node', 'run-migrations.js', '--strict'])).toBe(true);
+  });
+
+  it('ativa por MIGRATION_STRICT=1', () => {
+    expect(isStrictMode({ MIGRATION_STRICT: '1' }, ['node', 'x'])).toBe(true);
+  });
+
+  it('permanece desligado por padrão (CI não é afetado)', () => {
+    expect(isStrictMode({}, ['node', 'x'])).toBe(false);
+    expect(isStrictMode({ MIGRATION_STRICT: '0' }, ['node', 'x'])).toBe(false);
+    expect(isStrictMode({ MIGRATION_STRICT: 'true' }, ['node', 'x'])).toBe(false);
+  });
+});
+
+describe('run-migrations — assertStrictEndpoint (invariante em código)', () => {
+  it('aceita endpoint dedicado de sessão (5432)', () => {
+    expect(() => assertStrictEndpoint(SESSION_URL, true)).not.toThrow();
+  });
+
+  it('REJEITA fallback para DATABASE_URL', () => {
+    expect(() => assertStrictEndpoint(TRANSACTION_URL, false))
+      .toThrow(/fallback proibido/);
+    try { assertStrictEndpoint(TRANSACTION_URL, false); } catch (e) {
+      expect(e.code).toBe('STRICT_REQUIRES_DEDICATED');
+    }
+  });
+
+  it('REJEITA endpoint dedicado em modo transaction (6543)', () => {
+    try { assertStrictEndpoint(TRANSACTION_URL, true); } catch (e) {
+      expect(e.code).toBe('STRICT_REQUIRES_SESSION_PORT');
+    }
+    expect(() => assertStrictEndpoint(TRANSACTION_URL, true)).toThrow();
+  });
+
+  it('REJEITA URL inválida', () => {
+    try { assertStrictEndpoint('nao-e-url', true); } catch (e) {
+      expect(e.code).toBe('STRICT_INVALID_URL');
+    }
+  });
+});
+
+describe('run-migrations — run() em modo estrito falha ANTES de conectar', () => {
+  // Pool que explode se instanciado: prova que nenhuma conexão é tentada.
+  class PoolProibido {
+    constructor() { throw new Error('Pool não deveria ter sido construído'); }
+  }
+
+  it('sem MIGRATION_DATABASE_URL: falha STRICT_REQUIRES_DEDICATED sem conectar', async () => {
+    await expect(run({
+      PoolCtor: PoolProibido,
+      env: { DATABASE_URL: TRANSACTION_URL, MIGRATION_STRICT: '1', NODE_ENV: 'test' },
+    })).rejects.toMatchObject({ code: 'STRICT_REQUIRES_DEDICATED' });
+  });
+
+  it('com endpoint em 6543: falha STRICT_REQUIRES_SESSION_PORT sem conectar', async () => {
+    await expect(run({
+      PoolCtor: PoolProibido,
+      env: { MIGRATION_DATABASE_URL: TRANSACTION_URL, MIGRATION_STRICT: '1', NODE_ENV: 'test' },
+    })).rejects.toMatchObject({ code: 'STRICT_REQUIRES_SESSION_PORT' });
+  });
+
+  it('sem modo estrito, o fallback continua permitido (CI preservado)', async () => {
+    // Não deve lançar erro de modo estrito; falha adiante, ao conectar.
+    await expect(run({
+      PoolCtor: PoolProibido,
+      env: { DATABASE_URL: TRANSACTION_URL, NODE_ENV: 'test' },
+    })).rejects.not.toMatchObject({ code: 'STRICT_REQUIRES_DEDICATED' });
+  });
+});
+
+describe('run-migrations — códigos do modo estrito são sanitizáveis', () => {
+  it('aparecem como código, nunca como mensagem crua', () => {
+    ['STRICT_REQUIRES_DEDICATED', 'STRICT_INVALID_URL', 'STRICT_REQUIRES_SESSION_PORT']
+      .forEach((code) => {
+        const err = new Error(`vazamento ${SESSION_URL}`);
+        err.code = code;
+        const linha = formatFatal(err);
+        expect(linha).toContain(`codigo=${code}`);
+        expect(linha).not.toContain('host-exemplo');
+        expect(linha).not.toContain('postgresql://');
+      });
   });
 });

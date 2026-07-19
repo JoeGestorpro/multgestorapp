@@ -87,6 +87,46 @@ const migrations = [
   { version: '20260708_031', file: '20260708_031_ai_suggestions.sql' },
 ];
 
+// ─── Modo estrito (OPS-MIGRATIONS-03D GATE 4) ────────────────────────────────
+// Transforma a regra invariante da 03D — "o fallback para DATABASE_URL NÃO
+// será aceito em produção" — de disciplina operacional em GARANTIA DE CÓDIGO.
+//
+// Sem modo estrito o comportamento é o de sempre (fallback com aviso), o que
+// mantém o CI funcionando: lá o alvo é o Postgres efêmero via DATABASE_URL.
+// Com modo estrito, o runner exige endpoint DEDICADO e de SESSÃO (porta 5432)
+// e falha antes de abrir qualquer conexão.
+//
+// Ativação: flag `--strict` (multiplataforma) ou MIGRATION_STRICT=1.
+const MIGRATION_SESSION_PORT = '5432';
+
+function isStrictMode(env = process.env, argv = process.argv) {
+  return String(env.MIGRATION_STRICT) === '1' || argv.includes('--strict');
+}
+
+// Falha ANTES de conectar se o endpoint não satisfizer a invariante.
+function assertStrictEndpoint(connectionString, dedicated) {
+  if (!dedicated) {
+    const e = new Error('modo estrito exige MIGRATION_DATABASE_URL — fallback proibido');
+    e.code = 'STRICT_REQUIRES_DEDICATED';
+    throw e;
+  }
+  let parsed;
+  try {
+    parsed = new URL(connectionString);
+  } catch {
+    const e = new Error('MIGRATION_DATABASE_URL inválida');
+    e.code = 'STRICT_INVALID_URL';
+    throw e;
+  }
+  if (parsed.port !== MIGRATION_SESSION_PORT) {
+    // Porta ≠ 5432 indica pooler em modo transaction, onde pg_advisory_lock
+    // (por sessão) é decorativo — exatamente o que a Emenda 01 proíbe.
+    const e = new Error('modo estrito exige endpoint de SESSÃO');
+    e.code = 'STRICT_REQUIRES_SESSION_PORT';
+    throw e;
+  }
+}
+
 // Resolve o endpoint do runner. MIGRATION_DATABASE_URL tem precedência
 // (Emenda 01: pooler modo session, 5432). Fallback: DATABASE_URL.
 function resolveMigrationConnectionString(env = process.env) {
@@ -119,6 +159,8 @@ const SAFE_ERROR_CODES = new Set([
   // internos do runner (sem detalhe de ambiente)
   'NO_CONFIG', 'LOCK_BUSY', 'INTEGRITY_FAIL', 'MIGRATION_FILE_MISSING',
   'MIGRATION_APPLY_FAILED',
+  // modo estrito (03D GATE 4)
+  'STRICT_REQUIRES_DEDICATED', 'STRICT_INVALID_URL', 'STRICT_REQUIRES_SESSION_PORT',
 ]);
 
 // Reduz um erro a um CÓDIGO seguro. Jamais retorna err.message.
@@ -224,7 +266,13 @@ async function run({ PoolCtor = Pool, env = process.env } = {}) {
     throw e;
   }
 
-  if (!dedicated) {
+  const strict = isStrictMode(env);
+
+  if (strict) {
+    // Falha ANTES de qualquer conexão. Nenhum fallback é tolerado.
+    assertStrictEndpoint(connectionString, dedicated);
+    console.log('[migrate] modo estrito: endpoint dedicado de sessão exigido');
+  } else if (!dedicated) {
     console.warn(
       '[migrate] MIGRATION_DATABASE_URL não configurada — usando DATABASE_URL. '
       + 'Em produção, a trava exige endpoint de SESSÃO estável (pooler 5432).'
@@ -302,6 +350,8 @@ module.exports = {
   run,
   migrations,
   resolveMigrationConnectionString,
+  isStrictMode,
+  assertStrictEndpoint,
   describeEndpoint,
   sanitizeError,
   formatFatal,
