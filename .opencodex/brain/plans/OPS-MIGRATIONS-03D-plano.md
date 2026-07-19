@@ -65,7 +65,8 @@ Confundir os dois removeria a validação de migrations no CI. O único job a re
 - **Evidência:** presença do nome `MIGRATION_DATABASE_URL`; valor **nunca** exibido/transcrito.
 - **Abortar se:** ausente ou não verificável → **regra invariante**: não prosseguir.
 
-### GATE 3 — Validação do endpoint dedicado/session
+### GATE 3 — Validação do endpoint dedicado/session · ✅ **APROVADO em 2026-07-19**
+> Resultado completo e evidência em **§ Registro do GATE 3**, ao fim deste documento.
 - **Quem:** agente + operador.
 - **Ação:** provar que o endpoint é **modo session (5432)** e alcançável do build, **sem** o agente tocar a credencial. Método candidato: uma sonda **temporária** (nos moldes da OPS-MIGRATIONS-03B, já revertida), que lê `MIGRATION_DATABASE_URL` do ambiente do build e reporta **apenas** `dedicado=true`, `sessão estável=true/false`, código de erro — **jamais** URL/host/IP. Sonda é gated e revertida após a coleta.
 - **Evidência:** `dedicado=true` + prova de sessão estável (advisory lock com 2 clientes), como na 03B §9.
@@ -155,3 +156,72 @@ GATE 10 validação final + docs
 ## O que este plano NÃO autoriza
 
 Alterar Render, criar/editar variável, alterar `buildCommand`, modificar `deploy.yml`/`ci.yml`, executar migration, disparar deploy, acessar/testar credencial, iniciar a integração operacional. Cada um exige autorização própria no gate correspondente. Este PR é **documental** e **não deve ser mergeado** sem revisão (`OPS_MIGRATIONS_03D_PR_DOCUMENTAL_MERGE_NAO_AUTORIZADO`).
+
+---
+
+# Registro do GATE 3 — executado em 2026-07-19
+
+> **Veredito:** `GATE_3_APROVADO` · `CONECTIVIDADE_RENDER_DB_COMPROVADA` · `SESSAO_ESTAVEL_COM_ADVISORY_LOCK`
+> GATES 1 e 2 satisfeitos previamente: a variável foi criada pelo operador (`CREDENCIAL_INSERIDA_SOMENTE_PELO_OPERADOR`); o agente **nunca** leu, testou nem exibiu seu valor.
+
+## Método
+
+Probe temporário read-only (`backend/scripts/probe-migration-endpoint.js`), acoplado ao build via `postinstall` **temporário e versionado** — o `buildCommand` do Render **não foi tocado** em nenhum momento. Guard de ambiente: executa somente com `RENDER === "true"`; fora do Render é no-op com exit 0. Dentro do Render, **fail-closed**.
+
+O guard foi requisito inegociável: sem ele, o `postinstall` derrubaria todo o CI, pois `npm ci` o dispara e o probe é fail-closed. Comprovado no CI: `> backend@1.0.0 postinstall` → `[probe-migv] fora do Render — probe ignorado (no-op)`, com `npm ci` em exit 0.
+
+## Evidência sanitizada — build `7da19b6`, 2026-07-19T16:54:17–19Z (~1,8s)
+
+```text
+[probe-migv] MIGRATION_DATABASE_URL presente: true
+[probe-migv] endpoint válido (protocolo + porta 5432): true
+[probe-migv] conectando
+[probe-migv] conexão estabelecida
+[probe-migv] SELECT 1: ok
+[probe-migv] advisory lock adquirido: true
+[probe-migv] validação concluída: endpoint dedicado/session OK
+[probe-migv] advisory lock liberado: true
+[probe-migv] OK
+```
+
+Sem host, URL, IP, usuário, senha, banco ou project ref — a sanitização resistiu ao ambiente real.
+
+**Provado:** a variável dedicada chega ao build; o endpoint é PostgreSQL na porta 5432; é alcançável do build container; e a **sessão é estável** — o advisory lock foi adquirido **e liberado**, satisfazendo a pré-condição do item 4 da Emenda 01. `pg_advisory_lock` fica autorizado.
+
+## Commits e runs
+
+| Etapa | Commit | Execução |
+|---|---|---|
+| Merge PR #55 — probe + wiring | `7da19b6` | `deploy.yml` success · Render `7da19b6` live |
+| Merge PR #56 — rollback | `7020a04` | `deploy.yml` success · Render `7020a04` live |
+
+**Flaky conhecido (issue #35), não relacionado ao rollback:** runs `29695746688` e `29695831683` falharam em `tests/integration/outbox-durability.test.js › writes appointment.created event to outbox_messages via UoW` (`1 failed, 138 passed, 139 total`). O PR de rollback **apenas remove arquivos do probe** — nada toca o outbox. A atualização da branch (necessária pelo estado `BEHIND`) gerou runs novos `29695875074` e `29695876202`, ambos verdes. **Nenhum código foi alterado para contornar o flaky**, conforme a proibição da missão.
+
+## Migrations — nenhuma executada
+
+O job `run-migrations` do `deploy.yml` falhou com `codigo=ENETUNREACH` (não conectou), como em todo deploy. Zero `[ok]`, zero `[skip]`, zero DDL, zero escrita. O probe, por construção, não carrega o runner nem qualquer `.sql`.
+
+## Conclusão do diagnóstico
+
+**Render → banco funciona.** A falha histórica está no **caminho do GitHub Actions**, que usa a conexão direta do Supabase (`db.<ref>.supabase.co`), IPv6-only e inalcançável do runner — daí o `ENETUNREACH` permanente. O build do Render alcança o pooler em **modo session (5432)** com sessão estável, que é exatamente o que o runner endurecido (OPS-MIGRATIONS-03C) requer.
+
+Isto encerra a incógnita aberta desde a OPS-MIGRATIONS-01.
+
+## Rollback e estado final
+
+O instrumento temporário foi removido **imediatamente após a coleta**, conforme a regra de não deixar o probe permanente. O build do rollback **ocorreu de fato** (`Running build command 'npm install'` → `Build successful 🎉`) e nele **não há `backend@1.0.0 postinstall` nem nenhuma linha `[probe-migv]`** — prova negativa válida, não vácuo.
+
+**Precisão para auditoria Git:** `7020a04` e `4a4f319` são **commits distintos**; `7020a04` carrega o histórico do probe e dos dois reverts. O que é idêntico entre eles é a **árvore de arquivos**. Dizer que "`main` voltou ao baseline" só é correto no sentido de árvore, nunca de commit.
+
+| Verificação | Resultado |
+|---|---|
+| `main` | `7020a04` — árvore idêntica à de `4a4f319` |
+| Probe em `main` | ausente |
+| `postinstall` em `main` | ausente |
+| Deploy vivo | `7020a04` · live |
+| Saúde | HTTP 200 · `status: healthy` · `database: ok` (179ms) |
+| Render (variável/config) | **não alterado** pelo agente |
+
+## Situação dos gates
+
+GATES 0–3 concluídos. **GATE 4 em diante permanecem bloqueados** e exigem autorização independente — o GATE 4 altera o caminho permanente de deploy (`buildCommand`) e requer baseline novo e plano de rollback próprio.
