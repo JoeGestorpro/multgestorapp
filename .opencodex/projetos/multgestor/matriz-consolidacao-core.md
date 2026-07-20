@@ -596,21 +596,23 @@ SELECT version, name, applied_at FROM schema_migrations ORDER BY applied_at DESC
 ## ANEXO F — Backlog priorizado
 
 > Ordenação: severidade · bloqueio de marco · dependências desbloqueadas · exposição ao risco · facilidade de produzir evidência · menor esforço. **Severidade isolada não determina a ordem.**
+> **Reordenado em 2026-07-20** após a conclusão da OPS-MIGRATIONS-03D — ver nota de encerramento abaixo da tabela.
 
 | # | Item | Capacidades | Sev. | Marco | Justificativa da posição |
 |---|---|---|---|---|---|
-| **1** | **`OPS-MIGRATIONS-03`** — criar o processo seguro de aplicação de migrations · [[../../brain/plans/OPS-MIGRATIONS-03-plano]] | `DATAOPS-001` (alvo) · `DATAOPS-003` (dissolve) | P1 | v1 | 🔄 **Substitui `ops/migrations-02-evidencia-painel`, que foi RESOLVIDA por verificação humana (2026-07-16):** o Render **não** roda migration (`DATAOPS-002` = `AUSENTE`) e o banco está alinhado em `031`. **Drift atual = ZERO — mas por ação manual.** As **5 camadas** que deveriam garantir aplicação estão **todas ausentes**; o que resta é memória humana. **Não é conserto: é criação.** ⛔ Plano pronto, **implementação aguarda autorização** |
-| **2** | **ADR: rebaixar ou promover o Booking Engine** | `DOMAIN-002`, `NICHEKIT-001` | P1 | Multi-nicho | Decisão, não código. Bloqueia 2 capacidades e o marco Multi-nicho. **Escrever código antes do ADR é o erro que criou o A7.** |
-| **3** | **Inventário de RLS consultado no banco** | `TENANT-003` | P2 | v1 | 3 documentos erram a cobertura (D-03) e o repo **não é fonte completa** (L-4). Requer acesso read-only ao banco. |
-| **4** | **Ativação do entitlement de billing em produção** | `BILLING-001`, `BILLING-002` | P2 | v1 | Código pronto e gating **já genérico** (D-04 elimina o pré-requisito antes presumido). Falta config (D-016) + evidência de prod. Fecha o circuito comercial. |
-| **5** | **Auditoria de proteção de rota (R-003)** | `API-001`, `FILES-001` | P2 | v1 | Rotas de upload e de IA (custo externo) não auditadas. Superfície de abuso desconhecida. |
-| **6** | **Escopo de auth por módulo** | `IDENT-002`, `ACCESS-002` | P2/P3 | Multi-nicho | Contorno controlado hoje; vira P1 quando existir um segundo scope real. |
-| **7** | **Trilha de auditoria unificada** | `AUDIT-001` | P3 | — | 3 tabelas, nenhuma com RLS, sem retenção. |
-| **8** | **Gate de segurança bloqueante** | `SEC-003` | P3 | — | `security-audit.yml` não bloqueia. |
-| **9** | **Decomposição de `Barber.jsx`** | `FRONTCORE-002` | P3 | Multi-nicho | 4.990 linhas; débito de manutenção, sem risco imediato. |
-| **10** | **Observabilidade de performance** | `OBS-002` | P4 | — | Sem baseline; adiar até o volume justificar. |
+| **1** | **ADR: rebaixar ou promover o Booking Engine** | `DOMAIN-002`, `NICHEKIT-001` | P1 | Multi-nicho | Decisão, não código. Bloqueia 2 capacidades e o marco Multi-nicho. **Escrever código antes do ADR é o erro que criou o A7.** |
+| **2** | **Inventário de RLS consultado no banco** | `TENANT-003` | P2 | v1 | 3 documentos erram a cobertura (D-03) e o repo **não é fonte completa** (L-4). Requer acesso read-only ao banco. |
+| **3** | **Ativação do entitlement de billing em produção** | `BILLING-001`, `BILLING-002` | P2 | v1 | Código pronto e gating **já genérico** (D-04 elimina o pré-requisito antes presumido). Falta config (D-016) + evidência de prod. Fecha o circuito comercial. |
+| **4** | **Auditoria de proteção de rota (R-003)** | `API-001`, `FILES-001` | P2 | v1 | Rotas de upload e de IA (custo externo) não auditadas. Superfície de abuso desconhecida. |
+| **5** | **Escopo de auth por módulo** | `IDENT-002`, `ACCESS-002` | P2/P3 | Multi-nicho | Contorno controlado hoje; vira P1 quando existir um segundo scope real. |
+| **6** | **Trilha de auditoria unificada** | `AUDIT-001` | P3 | — | 3 tabelas, nenhuma com RLS, sem retenção. |
+| **7** | **Gate de segurança bloqueante** | `SEC-003` | P3 | — | `security-audit.yml` não bloqueia. |
+| **8** | **Decomposição de `Barber.jsx`** | `FRONTCORE-002` | P3 | Multi-nicho | 4.990 linhas; débito de manutenção, sem risco imediato. |
+| **9** | **Observabilidade de performance** | `OBS-002` | P4 | — | Sem baseline; adiar até o volume justificar. |
 
-**Fora do backlog (bloqueado por humano):** `DATAOPS-001` e `DATAOPS-003` — dependem da rotação de segredos, **pausada por decisão humana**. **Não alterar o `continue-on-error`** até liberação explícita.
+> ✅ **Item #1 anterior — `OPS-MIGRATIONS-03` — CONCLUÍDO em 2026-07-20** como **OPS-MIGRATIONS-03D**. Migrations de produção passaram a ser automáticas, bloqueantes, estritas, idempotentes e reversíveis (`buildCommand = npm install && npm run migrate:prod`, gate no Render). `DATAOPS-001` deixou de ser alvo — está **resolvido** (gate bloqueante ativo). Evidências: [[../../brain/plans/OPS-MIGRATIONS-03D-plano]] § ENCERRAMENTO. Os itens 2–10 subiram uma posição cada.
+
+**Fora do backlog (bloqueado por humano):** `DATAOPS-003` — a **conectividade IPv6** que o descrevia ficou **moot**: nenhum workflow do GitHub tenta mais alcançar o banco de produção (o job `run-migrations` foi removido do `deploy.yml` no GATE 9). A condição que a própria matriz previa para desbloquear a rotação de segredos — *"remove a `DATABASE_URL` de produção do CI → dissolve a preocupação de secret em log"* — está **satisfeita**: `secrets.DATABASE_URL` tem **0 ocorrências** em `deploy.yml`. A rotação de segredos em si **continua pausada por decisão humana** — este documento não a declara retomada; apenas registra que o bloqueio técnico que a impedia deixou de existir. **Não alterar o `continue-on-error`** (que também já não existe neste job) não se aplica mais — nada a fazer aqui sem decisão humana sobre a rotação.
 
 ---
 
