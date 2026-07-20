@@ -16,53 +16,30 @@ jobs:
     name: Run CI before deploy
     uses: ./.github/workflows/ci.yml
 
-  # ─── Run Database Migrations ─────────────────────────────────────────────
-  run-migrations:
-    name: Run Database Migrations
-    needs: ci
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run database migrations
-        # continue-on-error RESTAURADO temporariamente (debito Supavisor/IPv6).
-        # A conexao direta db.<ref>.supabase.co so expoe IPv6 -> o runner do GitHub
-        # Actions nao alcanca (ENETUNREACH) -> migrate falha 100% (visto em 883e516).
-        # O Render aplica migrations em runtime pela propria DATABASE_URL do dashboard.
-        # Sem este continue-on-error, o gate bloqueia TODO deploy de backend.
-        # Remover SOMENTE quando o Supabase resolver o tenant/IPv6 (ver PR #26).
-        # Wrapper timeout 3m mantido: mata hang e emite ::error visivel (124/137).
-        continue-on-error: true
-        # Contencao de hang (debito fix/ci-migrate-hang; causa-raiz DESCONHECIDA).
-        # migrate normalmente conclui em <1min; o teto de 3min mata um processo travado.
-        # timeout retorna 124 ao exceder -> step falha VISIVELMENTE (nunca sucesso silencioso).
-        run: |
-          code=0
-          timeout --signal=TERM --kill-after=30s 3m npm run migrate || code=$?
-          if [ "$code" -eq 124 ] || [ "$code" -eq 137 ]; then
-            echo "::error title=migrate-timeout::run-migrations excedeu 3min (exit $code) — possivel hang intermitente; ver fix/ci-migrate-hang."
-          fi
-          exit $code
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  # ─── Migrations: aplicadas pelo Render, NAO por este workflow ─────────────
+  # O job `run-migrations` foi REMOVIDO em 2026-07-20 (OPS-MIGRATIONS-03D, GATE 9).
+  #
+  # Por que existia e por que saiu:
+  #   - rodava `npm run migrate` contra a conexao DIRETA do Supabase, que so
+  #     expoe IPv6; o runner do GitHub nao alcanca -> ENETUNREACH em 100% das
+  #     execucoes, mascarado por `continue-on-error: true`;
+  #   - com isso o step era sempre `success`, e o `needs:` de `deploy-backend`
+  #     virava uma dependencia DECORATIVA: nunca protegeu nada.
+  #
+  # Onde as migrations sao aplicadas agora:
+  #   Render, no `buildCommand` = `npm install && npm run migrate:prod`.
+  #   Gate BLOQUEANTE: migration falha -> build falha -> deploy falha -> a
+  #   versao anterior permanece no ar. Modo estrito (`--strict`) recusa o
+  #   fallback para DATABASE_URL e exige endpoint de sessao (porta 5432).
+  #   Evidencias: .opencodex/brain/plans/OPS-MIGRATIONS-03D-plano.md
+  #
+  # ATENCAO: o step `Run migrations` do ci.yml NAO foi tocado — ele valida as
+  # migrations contra um Postgres efemero em todo PR e deve permanecer.
 
   # ─── Deploy Backend → Render ──────────────────────────────────────────────
   deploy-backend:
     name: Deploy Backend (Render)
-    needs: run-migrations
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Render deploy
