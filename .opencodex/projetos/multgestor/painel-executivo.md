@@ -24,11 +24,24 @@ oque # 📈 Executive Dashboard
 | Indicador | Status | Detalhe |
 |---|---|---|
 | **CI** | 🟢 Verde | Unit + Integration passam |
-| **CD** | 🟡 Parcial | Deploy automático, migrations manuais |
-| **Migrations** | 🔴 continue-on-error | A-005 — não bloqueia deploy |
-| **Rollback** | ⚪ Não documentado | Sem runbook de rollback |
+| **CD** | 🟢 Completo | Deploy automático **+ migrations automáticas** (2026-07-20) |
+| **Migrations** | 🟢 Gate bloqueante | `buildCommand = npm install && npm run migrate:prod` — falha impede o deploy |
+| **Modo estrito** | 🟢 Ativo | Recusa fallback p/ `DATABASE_URL` e endpoint fora de sessão, antes de conectar |
+| **Idempotência** | 🟢 Comprovada | 2º deploy: `pendentes: 0`, nenhuma migration reaplicada |
+| **Rollback** | 🟢 Documentado | Um passo: `buildCommand = npm install` |
 | **Deploy Frontend** | 🟢 Vercel | Automático via CI |
 | **Deploy Backend** | 🟢 Render | Automático via CI |
+
+### Capacidade `DATAOPS-002` — aplicação de migrations em produção
+
+| | |
+|---|---|
+| **Antes** | `AUSENTE` — nenhum mecanismo aplicava migrations; o job do GitHub falhava com `ENETUNREACH` (IPv6) e era mascarado por `continue-on-error` |
+| **Agora** | ✅ **`ATIVO_AUTOMATICO_COMPROVADO`** — gate bloqueante no `buildCommand` do Render, em modo estrito |
+| **Ativado em** | 2026-07-20T03:07:34Z (OPS-MIGRATIONS-03D) |
+| **Evidência** | `endpoint dedicado=true` · `migrations pendentes: 0` · `Build successful` em **2 deploys** com saída idêntica |
+
+Diagnóstico encerrado: Render → banco **funciona**; a falha histórica era o caminho IPv6 do GitHub Actions. Ver [[../mapas/decisions/ADR-006-migrations]] e [[../../../brain/plans/OPS-MIGRATIONS-03D-plano]] § ENCERRAMENTO.
 
 **Links:** [[technical/ci-cd]] · [[technical/deploy]]
 
@@ -39,7 +52,7 @@ oque # 📈 Executive Dashboard
 | Indicador | Status | Detalhe |
 |---|---|---|
 | **Conectividade** | 🟢 OK | Supabase pooler sa-east-1 |
-| **Schema** | 🟡 Drift controlado | Migrations manuais via MCP |
+| **Schema** | 🟢 Alinhado | Migrations aplicadas pelo gate do deploy (não mais manuais via MCP) |
 | **RLS** | 🟡 23/27 tabelas | Companies + users sem policy |
 | **Performance** | 🟡 Sem monitoramento | Sem slow query log |
 | **Backup** | 🟢 Local + B2 | `verified=true` |
