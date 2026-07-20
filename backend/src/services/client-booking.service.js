@@ -2,9 +2,9 @@
 // client-booking.service.js
 // FACADE — mantido para compatibilidade com imports existentes.
 // Novos verticais devem importar diretamente:
-//   - booking-customer-auth.service.js
-//   - booking-scheduling.service.js
-//   - booking-appointments.service.js
+//   - booking-customer-auth.service.js (generico, fica em services/)
+//   - barber/booking-scheduling.service.js (ADR-007: rebaixado para barber/)
+//   - barber/booking-appointments.service.js (ADR-007: rebaixado para barber/)
 
 const {
   preRegisterClient,
@@ -17,14 +17,14 @@ const {
   getSchedulingAvailability,
   validateBookableSlot,
   getBookingSettings
-} = require('./booking-scheduling.service');
+} = require('./barber/booking-scheduling.service');
 
 const {
   createPublicAppointment,
   createClientAppointment,
   listClientAppointments,
   cancelClientAppointment
-} = require('./booking-appointments.service');
+} = require('./barber/booking-appointments.service');
 
 module.exports = {
   preRegisterClient,

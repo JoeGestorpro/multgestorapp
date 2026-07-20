@@ -1,11 +1,11 @@
-const pool = require('../config/database');
+const pool = require('../../config/database');
 const {
   addMinutes, toUtcDate, normalizeStartsAtInput, normalizeDateInput,
   normalizeTimeInput, getTimezoneOffset, BRAZIL_TIMEZONE, formatDateKey
-} = require('../shared/capabilities/booking-engine/scheduling-utils');
+} = require('../../shared/capabilities/booking-engine/scheduling-utils');
 
 const { validateBookableSlot, getCompanyBySlug } = require('./booking-scheduling.service');
-const WalletService = require('./wallet.service')
+const WalletService = require('../wallet.service')
 const walletService = new WalletService()
 
 function createError(message, statusCode) {

@@ -9,7 +9,12 @@ que precise de agendamento de servicos.
 
 ## Verticals usando esta capability
 
-- BarberGestor: `services/booking-customer-auth.service.js`, `services/booking-scheduling.service.js`
+- BarberGestor: `services/booking-customer-auth.service.js`, `services/barber/booking-scheduling.service.js`, `services/barber/booking-appointments.service.js`
+
+> **ADR-007 (2026-07-20):** os serviços com estado (`booking-appointments`, `booking-scheduling`)
+> foram rebaixados para `services/barber/` — eles consultam tabelas `barber_*` diretamente
+> e nunca foram genéricos de fato (91 ocorrências de `barber_` entre os dois). Apenas
+> `scheduling-utils.js` (esta pasta) é código genuinamente compartilhado.
 
 ## Como adicionar um novo vertical
 
