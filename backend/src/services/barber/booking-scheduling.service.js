@@ -1,10 +1,10 @@
-const pool = require('../config/database');
+const pool = require('../../config/database');
 const {
   addMinutes, toUtcDate, buildAvailabilitySlots, getWorkingWindow,
   getTimezoneOffset, BRAZIL_TIMEZONE, formatDateKey, normalizeDateInput,
   normalizeTimeInput, getLocalDateTimeParts, weekdayFromDate,
   normalizeEmail, normalizePhone
-} = require('../shared/capabilities/booking-engine/scheduling-utils');
+} = require('../../shared/capabilities/booking-engine/scheduling-utils');
 
 const ACTIVE_APPOINTMENT_STATUSES = ['scheduled', 'confirmed', 'arrived', 'in_progress'];
 
