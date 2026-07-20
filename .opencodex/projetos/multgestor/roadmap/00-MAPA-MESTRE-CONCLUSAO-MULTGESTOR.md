@@ -723,7 +723,7 @@ Essas atividades podem ser planejadas em paralelo. Porém, a ativação real dep
 ### O que a auditoria respondeu
 
 - **Concluído:** fundação multi-tenant (`TENANT-001/002`), pools (`CONFIG-001`), gating de plano (`FEATURE-001`), guard de módulo (`ACCESS-001`), outbox/contratos (`EVENT-001/002`), respostas/erros (`CONTRACT-001/003`), booking-utils (`DOMAIN-001`).
-- **Parcial/reestruturação:** motor de booking (`DOMAIN-002`, **P1**), kit de nicho (`NICHEKIT-001`, **P1**), escopo de auth (`IDENT-002`, P2).
+- **Parcial/reestruturação:** ~~motor de booking (`DOMAIN-002`, **P1**)~~ ✅ **decidido e implementado em 2026-07-20** (rebaixado — ver ADR-008); kit de nicho (`NICHEKIT-001`, **P1**, replanejamento pendente), escopo de auth (`IDENT-002`, P2).
 - **Mock/aspiracional:** Automation Engine, AI Operational Layer, N8N Bridge, Omnichannel — **não existem**; não usar em plano (ANEXO C).
 - **Risco (RESOLVIDO):** ✅ **`DATAOPS-002` = `ATIVO_AUTOMATICO_COMPROVADO`** desde 2026-07-20. O risco de **drift entre repositório e produção** deixou de existir como risco estrutural: o gate bloqueante aplica migrations pendentes a cada deploy, em modo estrito, e **falha impede o deploy**. ~~`NÃO_COMPROVADO` (P1) — rede de segurança afirmada sem evidência por `3b417a9`, contradita por 3 fontes; drift NÃO MENSURADO (ocorreu 2×: `022`, `023`)~~ — diagnóstico de 16/07, superado. Ver [[../../brain/plans/OPS-MIGRATIONS-03D-plano]] § ENCERRAMENTO e, para o histórico, [[../../auditorias/multgestor/2026-07-16-ops-migrations-01]].
 - **Marcos:** *Core Consolidado v1* e *Multi-nicho* — **ambos NÃO ATINGIDOS** (ANEXO G).
@@ -734,7 +734,7 @@ Essas atividades podem ser planejadas em paralelo. Porém, a ativação real dep
 >
 > **Higiene pendente desta linha:** remover o job `run-migrations` do `deploy.yml` (que falha com `ENETUNREACH` e é mascarado por `continue-on-error`), trocando `deploy-backend` de `needs: run-migrations` para `needs: ci`. **Preservar** o step de migrate do `ci.yml`, que valida migrations contra o Postgres efêmero. É o GATE 9 do plano 03D.
 >
-> **Próxima missão do backlog:** ver a matriz — os candidatos são `TENANT-003` (cobertura de RLS em produção), `DOMAIN-002` (motor de booking) e `NICHEKIT-001`.
+> **Próxima missão do backlog:** ver a matriz ANEXO F — o topo é `TENANT-003` (cobertura de RLS em produção). ~~`DOMAIN-002` (motor de booking)~~ **concluído em 2026-07-20** — ver [[../mapas/decisions/ADR-008-booking-engine-formalizacao]]. `NICHEKIT-001` segue no backlog, aguardando replanejamento sem a pressuposição de motor compartilhado.
 
 <details>
 <summary>Histórico encerrado — <code>ops/migrations-02-evidencia-painel</code> (16/07/2026)</summary>
