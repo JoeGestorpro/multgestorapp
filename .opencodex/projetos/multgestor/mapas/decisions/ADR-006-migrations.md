@@ -1,15 +1,22 @@
 ---
 tipo: decisao
 area: infra
-status: aprovado
+status: implementado
 progresso: 100
 criticidade: alta
 bloqueia_producao: false
 bloqueia_venda: false
-ultima_revisao: 2026-07-16
+ultima_revisao: 2026-07-20
 ---
 
 # ADR-006 — Arquitetura oficial de migrations
+
+> ✅ **IMPLEMENTADA EM PRODUÇÃO em 2026-07-20T03:07:34Z** (OPS-MIGRATIONS-03D).
+> `buildCommand = npm install && npm run migrate:prod` — gate bloqueante ativo no Render.
+> Modo estrito comprovado (`endpoint dedicado=true`), idempotência comprovada em 2º deploy,
+> zero migrations reaplicadas, produção HTTP 200 · `database: ok`.
+> Rollback de um passo disponível: `buildCommand = npm install`.
+> Detalhes e evidências: [[../../../../brain/plans/OPS-MIGRATIONS-03D-plano]] § ENCERRAMENTO.
 
 > **Missão:** OPS-MIGRATIONS-03A · **Marcador alvo:** `ADR_MIGRATIONS_APROVADA`
 > **Status:** ✅ **APROVADA** por decisão humana em 2026-07-16 — marcador `ADR_MIGRATIONS_APROVADA`.
@@ -21,7 +28,9 @@ Decisão de como as migrations do [[backend]] chegam ao banco de produção ([[A
 
 ## Estado atual
 
-O mecanismo de aplicação em produção é **`AUSENTE`** — comprovado por leitura direta da API do Render.
+O mecanismo de aplicação em produção era **`AUSENTE`** — comprovado por leitura direta da API do Render.
+
+> ⚠️ **SUPERADO em 2026-07-20.** Esta seção descreve o diagnóstico que motivou a ADR. O mecanismo **passou a existir**: `DATAOPS-002` é agora **`ATIVO_AUTOMATICO_COMPROVADO`** — `buildCommand = npm install && npm run migrate:prod`, em modo estrito, com gate bloqueante. O texto abaixo fica preservado como registro histórico do problema original.
 
 A auditoria `OPS-MIGRATIONS-01` fechou como `NÃO_COMPROVADO` porque **não tinha acesso ao painel**. Esse acesso passou a existir (MCP Render conectado). A incógnita que ela registrou foi resolvida: não havia mecanismo escondido no painel. **Evidência posterior e direta prevalece sobre ausência de acesso anterior** — a auditoria não é contradita, é *concluída*.
 
@@ -200,7 +209,7 @@ Lacunas reais do runner, verificadas por leitura direta — **insumo da Fase 3**
 
 1. **Aprovação humana desta ADR** → marcador `ADR_MIGRATIONS_APROVADA`.
 2. ~~**OPS-MIGRATIONS-03B** (prova de conectividade Render→Supabase, cross-region).~~ ✅ **CONCLUÍDA** em 2026-07-17 — runtime e build container comprovados. Ver [[../../../auditorias/multgestor/2026-07-16-ops-migrations-03b]].
-3. `DATAOPS-002` → **`AUSENTE` (comprovado)**. Reclassificação pendente de aplicação na matriz — esta ADR registra a evidência, não edita a matriz.
+3. ~~`DATAOPS-002` → **`AUSENTE` (comprovado)**.~~ ✅ **RESOLVIDO em 2026-07-20:** `DATAOPS-002` passa a **`ATIVO_AUTOMATICO_COMPROVADO`** — mecanismo implantado e exercitado em produção (OPS-MIGRATIONS-03D). Reclassificação na matriz de capacidades permanece como tarefa separada.
 4. Corrigir o comentário falso em `deploy.yml:41-47` — mas **só junto com a Fase 5**, não isoladamente: remover o `continue-on-error` hoje bloquearia todo deploy, pois a conectividade continua quebrada.
 
 ## Links
