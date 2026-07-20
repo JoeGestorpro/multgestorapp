@@ -72,12 +72,16 @@ Confundir os dois removeria a validação de migrations no CI. O único job a re
 - **Evidência:** `dedicado=true` + prova de sessão estável (advisory lock com 2 clientes), como na 03B §9.
 - **Abortar se:** endpoint não é session, ou sessão instável → **regra invariante**.
 
-### GATE 4 — Preparação do wiring bloqueante
+### GATE 4 — Preparação do wiring bloqueante · dividido em **4A** e **4B**
+> **4A — endurecimento do runner: ✅ CONCLUÍDO** (PR #58, merge `291b420`).
+> **4B — registro do wiring e do rollback: ✅ CONCLUÍDO** — ver **§ Registro do GATE 4B/5** ao fim.
+> A aplicação no Render permanece no **GATE 6**, bloqueado.
 - **Quem:** agente (branch + PR, **sem** aplicar no Render).
 - **Ação:** preparar a alteração do `buildCommand` do Render para incluir `npm run migrate` **após** `npm install`, de forma bloqueante (falha do migrate → build falha → deploy falha → versão anterior permanece).
   - Free tier: o ponto é o **`buildCommand`** (não há `preDeployCommand`). Ver ADR-006, *Ponto de acoplamento*.
   - A alteração do `buildCommand` é **config do Render** — sua aplicação é GATE 6, gated à parte; aqui só se **documenta/prepara** o texto exato.
-- **Evidência:** valor proposto do `buildCommand` revisado; confirmação de que o runner exige `MIGRATION_DATABASE_URL` (regra invariante embutida no processo, não no código — o código faz fallback com aviso; a proibição é operacional).
+- **Evidência:** valor proposto do `buildCommand` revisado; confirmação de que o runner exige `MIGRATION_DATABASE_URL`.
+  - ⚠️ **Premissa superada pelo GATE 4A.** Este parágrafo dizia originalmente que a invariante era *"embutida no processo, não no código — o código faz fallback com aviso; a proibição é operacional"*. **Isso deixou de valer:** o modo estrito (`--strict` / `MIGRATION_STRICT=1`) recusa o fallback e a porta de transaction **por código**, antes de abrir conexão. A invariante passou de disciplina a garantia.
 - **Saída:** wiring pronto para aplicar, **não aplicado**.
 
 ### GATE 5 — Plano de rollback pronto
@@ -225,3 +229,106 @@ O instrumento temporário foi removido **imediatamente após a coleta**, conform
 ## Situação dos gates
 
 GATES 0–3 concluídos. **GATE 4 em diante permanecem bloqueados** e exigem autorização independente — o GATE 4 altera o caminho permanente de deploy (`buildCommand`) e requer baseline novo e plano de rollback próprio.
+
+> **Atualização:** GATE 4A e 4B concluídos (2026-07-20). Ver § abaixo. **GATE 6 permanece bloqueado.**
+
+---
+
+# Registro do GATE 4B/5 — wiring proposto e rollback
+
+> **Status:** documentado, **não aplicado**. Nenhuma alteração no Render.
+> `GATE_4A_CONCLUIDO` · `GATE_4B_CONCLUIDO` · `GATE_6_BLOQUEADO`
+
+## Baseline (capturado em 2026-07-20, antes de qualquer proposta)
+
+| Campo | Valor exato |
+|---|---|
+| **`buildCommand`** | **`npm install`** ← valor de rollback |
+| `startCommand` | `npm start` |
+| `plan` | `free` (sem `preDeployCommand`) |
+| `autoDeploy` | `no` (deploy vem do hook disparado pelo `deploy.yml`) |
+| `main` | `291b420` |
+
+## O wiring proposto
+
+```text
+buildCommand:  npm install && npm run migrate:prod
+```
+
+Onde, já versionado em `main` (`backend/package.json`):
+
+```json
+"migrate:prod": "node scripts/run-migrations.js --strict"
+```
+
+### Por que `migrate:prod` e não `migrate`
+
+`npm run migrate` roda em **modo permissivo**: se `MIGRATION_DATABASE_URL` faltar, cai em `DATABASE_URL` com aviso. É o que o `deploy.yml` e o `ci.yml` usam — e deve continuar assim, pois no CI o alvo é o Postgres efêmero.
+
+`migrate:prod` roda em **modo estrito** (GATE 4A): recusa o fallback e recusa porta que não seja 5432, **antes de abrir conexão**, com exit ≠ 0. É o único aceitável em produção — materializa a regra invariante deste plano.
+
+### Por que `&&` e não `;`
+
+`&&` só executa o migrate se o `npm install` tiver sucesso, e propaga o código de falha. Com `;` o build mascararia erro de instalação. O encadeamento é o que torna o gate **bloqueante**.
+
+## Pré-condições (todas obrigatórias antes do GATE 6)
+
+1. `MIGRATION_DATABASE_URL` existe no serviço — **criada pelo operador** (GATE 1 ✅).
+2. Endpoint validado como dedicado + sessão 5432, alcançável do build — **GATE 3 ✅** (`advisory lock adquirido: true` / `liberado: true`).
+3. Modo estrito em `main` — **GATE 4A ✅** (`291b420`).
+4. Baseline do `buildCommand` registrado — **✅ acima**.
+5. Rollback definido e executável em um passo — **✅ abaixo**.
+6. Janela combinada com o operador: durante o GATE 6, **falha de migrate bloqueia todo deploy de backend**.
+
+## Critérios de sucesso do GATE 6
+
+O deploy controlado é considerado bem-sucedido se **todos** ocorrerem:
+
+```text
+[migrate] modo estrito: endpoint dedicado de sessão exigido
+[migrate] endpoint dedicado=true
+[migrate] conexão estabelecida
+[migrate] migrations pendentes: 0
+[migrate] todas as migrations aplicadas com sucesso.
+==> Build successful 🎉
+```
+
+- `dedicado=true` — o modo estrito confirma o endpoint correto;
+- `pendentes: 0` — as 32 migrations já estão aplicadas; **o primeiro deploy não deve aplicar nada novo**;
+- build conclui e o serviço fica `live`;
+- `/api/health/deep` em HTTP 200 com `database: ok`;
+- nenhum host, URL, IP, usuário, senha ou project ref nos logs (sanitização do 03C).
+
+## Critérios de abortar → rollback imediato
+
+Qualquer um dispara o rollback, sem tentativa de correção improvisada:
+
+| Sintoma no build | Código esperado | Leitura |
+|---|---|---|
+| Fallback recusado | `STRICT_REQUIRES_DEDICATED` | variável ausente/renomeada |
+| Porta recusada | `STRICT_REQUIRES_SESSION_PORT` | apontou para transaction (6543) ou omitiu a porta |
+| URL malformada | `STRICT_INVALID_URL` | valor corrompido |
+| Rede | `ENETUNREACH` / `ETIMEDOUT` | build não alcança o endpoint |
+| Trava ocupada | `LOCK_BUSY` | execução concorrente |
+| Falha de migration | `MIGRATION_APPLY_FAILED` ou SQLSTATE | migration com erro — transação já revertida |
+| Integridade | `INTEGRITY_FAIL` | verificação pós-migration falhou |
+| Build travado | — | além do limite de tempo definido pelo operador |
+
+## Rollback — um passo
+
+```text
+Restaurar no Render:  buildCommand = npm install
+```
+
+Depois disso, um novo deploy volta a não migrar. **Nada mais precisa ser desfeito:**
+
+- o `migrate:prod` permanece versionado e inerte (ninguém o invoca);
+- o modo estrito é opt-in — o caminho permissivo do CI/deploy segue intacto;
+- migrations aplicadas são **forward-only** e atômicas por transação (03C): não há estado parcial a reverter;
+- nenhuma migration nova está pendente, então o cenário esperado é `pendentes: 0` — rollback sem efeito colateral em dados.
+
+**Propriedade central:** o rollback é uma edição de configuração no Render, reversível e independente de código. O código pode permanecer exatamente como está.
+
+## O que este registro NÃO faz
+
+Não altera o `buildCommand`, não toca o Render, não dispara deploy, não executa migration. É documento. A aplicação é o **GATE 6**, que exige autorização própria, com deploy controlado e acompanhamento ao vivo.
