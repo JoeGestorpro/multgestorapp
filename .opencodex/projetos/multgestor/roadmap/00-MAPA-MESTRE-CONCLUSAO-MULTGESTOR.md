@@ -695,7 +695,7 @@ Essas atividades podem ser planejadas em paralelo. Porém, a ativação real dep
 | Fase                  | Estado atual | Evidência principal | Bloqueador | Próxima ação |
 | --------------------- | ------------ | ------------------- | ---------- | ------------ |
 | 0. Diagnóstico        | VALIDADO EM DESENVOLVIMENTO | Relatório 2026-07-10 | — | Manter painel sincronizado |
-| 1. Governança         | PRODUÇÃO CONTROLADA | `.github/workflows/{ci,deploy,security-audit}.yml` | 🔄 **~~14 commits unpushed~~ RESOLVIDO** (D-06): `main` 0/0 = `4c8ce847`; **0 PRs abertas**. Bloqueador real: **`DATAOPS-002` = `NÃO_COMPROVADO`** (OPS-MIGRATIONS-01, 2026-07-16) — asserção sem evidência (`3b417a9`), contradita por 3 fontes; painel/logs/banco `NÃO_VERIFICADO`. **`DATAOPS-001`: job existe mas NÃO é bloqueante** (`continue-on-error`; `needs:` decorativo). **Risco de drift repo × prod: NÃO MENSURADO** | **`ops/migrations-02-evidencia-painel`** — ⚠️ **exige humano** (~10min): painel/logs do Render + `SELECT … FROM schema_migrations` |
+| 1. Governança         | PRODUÇÃO CONTROLADA | `.github/workflows/{ci,deploy,security-audit}.yml` | 🔄 **~~14 commits unpushed~~ RESOLVIDO** (D-06): `main` 0/0 = `4c8ce847`; **0 PRs abertas**. ✅ **RESOLVIDO em 2026-07-20 (OPS-MIGRATIONS-03D):** `DATAOPS-002` = **`ATIVO_AUTOMATICO_COMPROVADO`** e `DATAOPS-001` = **gate bloqueante ativo** — `buildCommand = npm install && npm run migrate:prod`, modo estrito, idempotência comprovada em 2 deploys. ~~Bloqueador: `DATAOPS-002` = `NÃO_COMPROVADO`; job não bloqueante (`continue-on-error`); drift NÃO MENSURADO~~ — diagnóstico de 16/07, superado. | ~~`ops/migrations-02-evidencia-painel`~~ **encerrada.** Higiene pendente: remover o job `run-migrations` do `deploy.yml` (GATE 9 do plano 03D) |
 | 2. Banco e RLS        | PRODUÇÃO CONTROLADA | migrations 024-029; `config/database.js:129` `tenantAwareConnect`; `tests/integration/tenant-isolation-rls.test.js`; CI cria role `app_runtime` NOBYPASSRLS real | 🔄 **~~writes via `pool.connect` podem bypassar (P1-a)~~ RESOLVIDO** (D-02) em `02c5396`, em `main`. Lacuna real: **cobertura de RLS em prod não verificada** (P2, `TENANT-003`) | Inventário de RLS **consultado no banco** (requer acesso read-only) |
 | 3. Identidade         | VALIDADO EM DESENVOLVIMENTO | `auth.routes.js`, `auth.service.js`, migration 030 | MFA ausente | Backlog MFA acessos sensíveis |
 | 4. Back-end           | VALIDADO EM DESENVOLVIMENTO | `services/*`, outbox/UoW/event-bus, `rate-limit.middleware.js` | — | Documentar contratos (OpenAPI) |
@@ -725,18 +725,29 @@ Essas atividades podem ser planejadas em paralelo. Porém, a ativação real dep
 - **Concluído:** fundação multi-tenant (`TENANT-001/002`), pools (`CONFIG-001`), gating de plano (`FEATURE-001`), guard de módulo (`ACCESS-001`), outbox/contratos (`EVENT-001/002`), respostas/erros (`CONTRACT-001/003`), booking-utils (`DOMAIN-001`).
 - **Parcial/reestruturação:** motor de booking (`DOMAIN-002`, **P1**), kit de nicho (`NICHEKIT-001`, **P1**), escopo de auth (`IDENT-002`, P2).
 - **Mock/aspiracional:** Automation Engine, AI Operational Layer, N8N Bridge, Omnichannel — **não existem**; não usar em plano (ANEXO C).
-- **Risco:** **`DATAOPS-002` = `NÃO_COMPROVADO`** (P1) — a rede de segurança que justifica o `continue-on-error` foi **afirmada sem evidência** pelo commit `3b417a9` e é **contradita por 3 fontes** do projeto. **Consequência registrada:** risco de **drift entre as migrations do repositório e o banco de produção** — hoje **NÃO MENSURADO** (já ocorreu 2×: `022`, `023`). Ver ANEXO D da matriz e [[../../auditorias/multgestor/2026-07-16-ops-migrations-01]].
+- **Risco (RESOLVIDO):** ✅ **`DATAOPS-002` = `ATIVO_AUTOMATICO_COMPROVADO`** desde 2026-07-20. O risco de **drift entre repositório e produção** deixou de existir como risco estrutural: o gate bloqueante aplica migrations pendentes a cada deploy, em modo estrito, e **falha impede o deploy**. ~~`NÃO_COMPROVADO` (P1) — rede de segurança afirmada sem evidência por `3b417a9`, contradita por 3 fontes; drift NÃO MENSURADO (ocorreu 2×: `022`, `023`)~~ — diagnóstico de 16/07, superado. Ver [[../../brain/plans/OPS-MIGRATIONS-03D-plano]] § ENCERRAMENTO e, para o histórico, [[../../auditorias/multgestor/2026-07-16-ops-migrations-01]].
 - **Marcos:** *Core Consolidado v1* e *Multi-nicho* — **ambos NÃO ATINGIDOS** (ANEXO G).
 
 ### Próxima ação
 
-> **`ops/migrations-02-evidencia-painel`** — ⚠️ **exige um humano, não um agente** (~10 min).
+> ✅ **A linha de migrations está ENCERRADA.** A **OPS-MIGRATIONS-03D** concluiu em 2026-07-20: migrations de produção **automáticas, bloqueantes, estritas, idempotentes e reversíveis**. Ver [[../../brain/plans/OPS-MIGRATIONS-03D-plano]] § ENCERRAMENTO.
 >
-> 🔄 A missão anterior (`ops/verificar-aplicacao-migrations-producao`) **foi executada** em 2026-07-16 como **OPS-MIGRATIONS-01** e **não resolveu a incógnita — por falta de acesso, não de método**: painel/logs do Render inacessíveis (sem sessão Chrome; **login é vedado ao agente**), MCP Supabase `Unauthorized`, CLI ausente. `/api/health/deep` confirmou produção no ar, mas **não expõe `schema_migrations`**. Sem `render.yaml`, **o repositório é estruturalmente incapaz de responder**.
+> **Higiene pendente desta linha:** remover o job `run-migrations` do `deploy.yml` (que falha com `ENETUNREACH` e é mascarado por `continue-on-error`), trocando `deploy-backend` de `needs: run-migrations` para `needs: ci`. **Preservar** o step de migrate do `ci.yml`, que valida migrations contra o Postgres efêmero. É o GATE 9 do plano 03D.
 >
-> **Os 3 passos:** (1) painel → `Build/Pre-Deploy/Start Command` (⚠️ free tier **não tem** Pre-Deploy → só Build); (2) log do último deploy → procurar `[migrate] banco alvo:` / `[ok]` / `[skip]`; (3) `SELECT version, name, applied_at FROM schema_migrations ORDER BY applied_at DESC LIMIT 10;` — **se `20260708_031` faltar, o drift está confirmado e ativo**.
+> **Próxima missão do backlog:** ver a matriz — os candidatos são `TENANT-003` (cobertura de RLS em produção), `DOMAIN-002` (motor de booking) e `NICHEKIT-001`.
+
+<details>
+<summary>Histórico encerrado — <code>ops/migrations-02-evidencia-painel</code> (16/07/2026)</summary>
+
+> ⚠️ **Superada.** Registrada aqui apenas como histórico.
 >
-> Especificação completa em [[../matriz-consolidacao-core]] §Próxima Missão · relatório em [[../../auditorias/multgestor/2026-07-16-ops-migrations-01]].
+> **`ops/migrations-02-evidencia-painel`** — exigia um humano, não um agente (~10 min).
+>
+> A missão anterior (`ops/verificar-aplicacao-migrations-producao`) foi executada em 2026-07-16 como **OPS-MIGRATIONS-01** e **não resolveu a incógnita — por falta de acesso, não de método**: painel/logs do Render inacessíveis, MCP Supabase `Unauthorized`, CLI ausente. Sem `render.yaml`, o repositório era estruturalmente incapaz de responder.
+>
+> **Como foi resolvida:** verificação humana fechou a incógnita em 16/07 (`AUSENTE` confirmado); a **OPS-MIGRATIONS-03D** criou e comprovou o mecanismo em 20/07. O MCP do Render passou a expor a configuração ao agente, tornando desnecessária a inspeção manual de painel.
+
+</details>
 
 ⚠️ **Não é mais a Fase 6.** Pagamentos foi reavaliada e caiu para 4º: sua pré-condição declarada já está satisfeita (D-06) e o pré-requisito de gating não existia (D-04) — mas perde para uma verificação P1 que custa uma inspeção.
 

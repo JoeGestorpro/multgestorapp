@@ -3,6 +3,8 @@
 > **Tipo:** documento canônico factual. Fonte única da consolidação do Core.
 > **Criado:** 2026-07-16 · **Missão:** 12.1A · **Modo:** READ_ONLY sobre código, testes, banco, CI, infra e produção.
 > **Revisão 1 — 2026-07-16 (OPS-MIGRATIONS-01):** bloco DATAOPS reclassificado com autorização humana. `DATAOPS-002` → `NÃO_COMPROVADO`; `DATAOPS-001` → job existe mas **não é bloqueante**; risco de drift registrado. Relatório: [[../../auditorias/multgestor/2026-07-16-ops-migrations-01]].
+> **Revisão 3 — 2026-07-20 (OPS-MIGRATIONS-03D):** ✅ **MECANISMO CRIADO E COMPROVADO.** `DATAOPS-002` → **`ATIVO_AUTOMATICO_COMPROVADO`**; `DATAOPS-001` → **gate bloqueante ativo**. Migrations de produção agora são automáticas, bloqueantes, estritas, idempotentes e reversíveis (`buildCommand = npm install && npm run migrate:prod`). Backlog `ops/migrations-02-evidencia-painel` **encerrado**. Evidências: [[../../brain/plans/OPS-MIGRATIONS-03D-plano]] § ENCERRAMENTO.
+>
 > **Revisão 2 — 2026-07-16 (verificação humana):** ✅ **INCÓGNITA FECHADA.** `DATAOPS-002` → **`AUSENTE` confirmado** (o Render **não** roda migration; a afirmação de `deploy.yml:43` é **falsa**). **Drift MENSURADO = ZERO** (banco alinhado até `031`) — mas por **ação manual**, não por processo: as **5 camadas** que deveriam garantir aplicação estão **todas ausentes**. Próxima missão → **`OPS-MIGRATIONS-03`** ([[../../brain/plans/OPS-MIGRATIONS-03-plano]]). Baseline **inalterado** (`4c8ce847`); nenhum código, workflow, banco, Render ou secret tocado.
 > **Autoridade:** ver [[../../areas/governanca/fonte-unica-verdade]]. Em conflito com qualquer outro documento sobre o **estado do Core**, esta matriz prevalece.
 > **Regra de honestidade:** documento é pista; só código, teste, CI, telemetria ou comportamento observado elevam o nível de comprovação. Ausência de evidência é registrada como ausência — nunca preenchida por inferência.
@@ -62,7 +64,7 @@
 | **L-2** | **CI não foi executado nesta auditoria.** Evidência de CI vem da leitura de `.github/workflows/ci.yml` (o que o pipeline *declara* executar), não de um run observado. | `VALIDADO EM CI` significa "o CI declara e está configurado para provar", não "vi o run verde". |
 | **L-3** | **Testes de integração não foram executados localmente** (exigem Postgres + Redis + role `app_runtime`). Só a suíte unitária rodou. | Cobertura de integração é inferida do CI (L-2). |
 | **L-4** | **Cobertura de RLS medida por migrations, não pelo banco.** Migrations 027/028 declaram "Já possui RLS habilitado" — ou seja, houve `ENABLE` **fora** dos arquivos versionados. | O número real em prod pode divergir. Contar `ENABLE` subestima; por isso a métrica adotada é **policy por tabela**. |
-| **L-5** | **Configuração do Render não é inspecionável** a partir do repositório (sem `render.yaml`/`Procfile`). 🔄 **Confirmado e agravado pela OPS-MIGRATIONS-01 (2026-07-16):** painel e logs também são inacessíveis ao agente (`list_connected_browsers` → `[]`; login vedado; CLI ausente). | A afirmação de que o Render aplica migrations em runtime **permanece `NÃO_COMPROVADO`** — ver `DATAOPS-002`. **Só um humano resolve** (`ops/migrations-02-evidencia-painel`). |
+| **L-5** | **Configuração do Render não é inspecionável** a partir do repositório (sem `render.yaml`/`Procfile`). 🔄 **Confirmado e agravado pela OPS-MIGRATIONS-01 (2026-07-16):** painel e logs também são inacessíveis ao agente (`list_connected_browsers` → `[]`; login vedado; CLI ausente). | ~~A afirmação de que o Render aplica migrations em runtime **permanece `NÃO_COMPROVADO`**. **Só um humano resolve**.~~ ✅ **SUPERADO em 2026-07-20:** o MCP do Render passou a expor a configuração ao agente, e a 03D leu, alterou e comprovou o `buildCommand` por API. A limitação de **não-versionamento** da config persiste (segue sem `render.yaml`), mas ela **deixou de ser inspecionável apenas por humano**. Ver `DATAOPS-002`. |
 | **L-6** | **Nenhum secret foi lido.** `backend/check-rls.js` e `check-rls2.js` existem localmente e **não foram abertos** por risco de conter credencial (INC-004). | Conteúdo desses arquivos permanece não auditado, por decisão deliberada. |
 
 ### Estados e evidência
@@ -308,9 +310,28 @@ Progressão: `DOCUMENTADO → IMPLEMENTADO → VALIDADO LOCAL → VALIDADO EM CI
 ### Bloco DATAOPS — Operação de dados
 
 > 🔄 **Bloco atualizado em 2026-07-16 pela missão OPS-MIGRATIONS-01** (READ_ONLY, mesmo baseline `4c8ce847`). Relatório: [[../../auditorias/multgestor/2026-07-16-ops-migrations-01]]. Reclassificação documental autorizada pelo humano; **nenhum código, workflow, banco, Render ou secret foi tocado**.
+>
+> ✅ **SUPERADO em 2026-07-20 pela OPS-MIGRATIONS-03D.** A transição:
+>
+> ```text
+> Estado observado em 16/07/2026:
+> migrations automáticas não comprovadas.
+>
+> Estado comprovado em 20/07/2026:
+> migrations automáticas ativas, bloqueantes, estritas, idempotentes e reversíveis.
+> ```
+>
+> O diagnóstico de 16/07 estava **correto** — a rede de segurança realmente não existia. Ela **foi criada**. Evidências: [[../../brain/plans/OPS-MIGRATIONS-03D-plano]] § ENCERRAMENTO. Os textos abaixo preservam o diagnóstico histórico; o estado canônico atual está marcado em cada capacidade.
 
-#### `DATAOPS-001` — Job de migrations no pipeline · **existe, mas NÃO É BLOQUEANTE**
-- **Bloco:** DATAOPS · **Responsabilidade:** CORE · **Estado:** `EXISTE MAS PRECISA REESTRUTURAÇÃO` · **Evidência:** `VALIDADO EM CI` (o job existe e roda) · **Severidade:** **P1**
+#### `DATAOPS-001` — Gate de migrations no deploy · ✅ **BLOQUEANTE E ATIVO**
+- **Bloco:** DATAOPS · **Responsabilidade:** CORE · **Estado:** ✅ **`EXISTE E FUNCIONA`** · **Evidência:** `COMPROVADO EM PRODUÇÃO` · **Severidade:** ~~P1~~ **resolvida**
+
+> ✅ **RESOLVIDO em 2026-07-20 (OPS-MIGRATIONS-03D).** O gate bloqueante passou a existir no **Render**, não no GitHub:
+> `buildCommand = npm install && npm run migrate:prod`. Migration que falha ⇒ build falha ⇒ deploy falha ⇒ **versão anterior permanece no ar**.
+> Comprovado em 2 deploys: `endpoint dedicado=true`, `migrations pendentes: 0`, `Build successful`, saída idêntica (idempotência).
+> O `continue-on-error` do `deploy.yml` **deixou de ser o mecanismo relevante** — o gate real vive no Render. A remoção daquele job segue como higiene pendente (GATE 9 do plano 03D).
+>
+> **Diagnóstico histórico preservado abaixo** (estado de 16/07/2026).
 - **Fato central (OPS-MIGRATIONS-01):** **o job de migrations existe, mas não é bloqueante** — `continue-on-error: true` (`deploy.yml:48`) permite o fluxo seguir mesmo quando o `migrate` falha. O step é marcado `success` independentemente do resultado real.
 - 🔄 **AGRAVANTE (verificação humana, 2026-07-16):** o débito **não é mais "aceito sobre premissa não comprovada"** — a premissa foi **confirmada FALSA** (`DATAOPS-002` = `AUSENTE`). **O Render não roda migrations e o CI não bloqueia**: hoje **nada** garante que uma migration futura chegue à produção antes do backend novo entrar no ar. O banco está alinhado (`031`) **por ação manual**, não por processo.
 - **⚠️ A dependência `needs: run-migrations` é decorativa.** `deploy-backend` (`deploy.yml:63-65`) declara `needs: run-migrations`, mas como esse job **sempre** conclui como `success`, a dependência **nunca protege nada**. O deploy do backend prossegue com migrations falhas. É a **mesma classe de engano** que o commit `3b417a9` admite ter sofrido: *"O 'success' observado nos deploys anteriores era mascarado pelo próprio continue-on-error"*.
@@ -320,9 +341,25 @@ Progressão: `DOCUMENTADO → IMPLEMENTADO → VALIDADO LOCAL → VALIDADO EM CI
 - **⚠️ Regra vigente:** **NÃO alterar o `continue-on-error`** antes de confirmar que nenhum log/CI exibirá secrets (rotação de segredos **pausada por decisão humana** — `DATAOPS-003`).
 - **DoD:** migration falha ⇒ deploy bloqueia; schema de prod == schema do repo, verificado.
 
-#### `DATAOPS-002` — Rede de segurança de migrations em runtime · **`AUSENTE` (confirmado)**
-- **Bloco:** DATAOPS · **Responsabilidade:** CORE · **Estado:** **`NÃO EXISTE` — CONFIRMADO** · **Evidência:** `COMPROVADO EM PRODUÇÃO` (atestado humano, ver proveniência) · **Severidade:** **P1**
-- 🔄 **RESOLVIDA em 2026-07-16 pela verificação humana.** Classificação final: **`AUSENTE`**.
+#### `DATAOPS-002` — Aplicação de migrations em produção · ✅ **`ATIVO_AUTOMATICO_COMPROVADO`**
+- **Bloco:** DATAOPS · **Responsabilidade:** CORE · **Estado:** ✅ **`EXISTE E FUNCIONA`** · **Evidência:** `COMPROVADO EM PRODUÇÃO` (2 deploys observados) · **Severidade:** ~~P1~~ **resolvida**
+
+> ✅ **IMPLANTADO em 2026-07-20T03:07:34Z (OPS-MIGRATIONS-03D).**
+>
+> | Propriedade | Estado comprovado |
+> |---|---|
+> | Migrations de produção | **automáticas** — no `buildCommand` do Render |
+> | Gate | **bloqueante** — falha impede o deploy |
+> | Modo estrito | **ativo** (`--strict` via `migrate:prod`) |
+> | Fallback para `DATABASE_URL` | **recusado** — `STRICT_REQUIRES_DEDICATED` antes de conectar |
+> | Endpoint dedicado | **obrigatório** (`MIGRATION_DATABASE_URL`) |
+> | Porta | **5432** (sessão) — porta explícita exigida |
+> | Idempotência | **comprovada** — 2º deploy: `pendentes: 0`, nenhuma reaplicação |
+> | Rollback | `buildCommand = npm install` — um passo |
+>
+> A rede de segurança **nunca existiu até 20/07** — o diagnóstico de 16/07 estava certo. Ela **foi criada**, não consertada.
+>
+> **Diagnóstico histórico preservado abaixo** (estado de 16/07/2026), incluindo a origem da afirmação falsa em `3b417a9`.
 
 > **✅ A INCÓGNITA ESTÁ FECHADA.** **O Render NÃO roda migrations.** A afirmação de `deploy.yml:43` (*"O Render aplica migrations em runtime pela propria DATABASE_URL do dashboard"*), introduzida pelo commit `3b417a9` sem evidência, é **FALSA**. A rede de segurança **nunca existiu**.
 >
@@ -344,9 +381,9 @@ Progressão: `DOCUMENTADO → IMPLEMENTADO → VALIDADO LOCAL → VALIDADO EM CI
 - **Próxima ação:** **`OPS-MIGRATIONS-03`** — projetar o processo que **passa a existir** (a rede de segurança nunca existiu; não há o que consertar, há o que **criar**). Plano: [[../../brain/plans/OPS-MIGRATIONS-03-plano]].
 - **Contradição documental (`INCONSISTENTE`):** 3 fontes afirmam o oposto — auditoria `2026-07-10-auditoria-readonly-mapa-mestre.md:80` (*"drift acumula se não aplicadas via MCP"*), `status-atual.md:77` (`open_risks`, idem) e `status-atual.md:34` (*"Aplicado direto em produção via MCP Supabase (NÃO via CI)"* — migrations `022`/`023`). **Indício forte de aplicação manual:** se o Render aplicasse automaticamente, os drifts `022`/`023` nunca teriam existido. Permanece **indício** — a evidência de painel/log exigida não existe.
 - **Evidência de produção obtida (não resolve):** `GET /api/health/deep` → HTTP 200; `database: ok` (173ms); **o health check NÃO expõe `schema_migrations`** (`server.js:235-315`).
-- **Dependências:** `DATAOPS-001` · **Severidade:** **P1** — é a premissa que sustenta aceitar `DATAOPS-001`, e está **não comprovada**
-- **DoD:** evidência de painel/log do Render **ou** consulta a `schema_migrations` → sai para `AUTOMÁTICO_COMPROVADO` **ou** `AUSENTE`, com evidência em ambos os casos.
-- **Próxima ação:** `ops/migrations-02-evidencia-painel` (ver §Próxima Missão). **Exige humano** — o repositório é **estruturalmente incapaz** de responder (evidência 3).
+- **Dependências:** `DATAOPS-001` · **Severidade:** ~~P1~~ **resolvida em 2026-07-20**
+- **DoD:** ✅ **ATENDIDO** — mecanismo implantado, exercitado em produção e reversível.
+- ~~**Próxima ação:** `ops/migrations-02-evidencia-painel` — exige humano.~~ **HISTÓRICO ENCERRADO:** essa missão foi superada. A incógnita foi fechada por verificação humana (16/07) e o mecanismo, criado e comprovado pela **OPS-MIGRATIONS-03D** (20/07). **Nada pendente neste item.**
 
 #### `DATAOPS-003` — Conectividade de migrations (OPS-SUPAVISOR) · ⛔ bloqueado
 - **Bloco:** DATAOPS · **Responsabilidade:** CORE · **Estado:** `NÃO EXISTE` · **Evidência:** `DOCUMENTADO`
