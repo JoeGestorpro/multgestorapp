@@ -332,3 +332,81 @@ Depois disso, um novo deploy volta a não migrar. **Nada mais precisa ser desfei
 ## O que este registro NÃO faz
 
 Não altera o `buildCommand`, não toca o Render, não dispara deploy, não executa migration. É documento. A aplicação é o **GATE 6**, que exige autorização própria, com deploy controlado e acompanhamento ao vivo.
+
+---
+
+# ENCERRAMENTO — OPS-MIGRATIONS-03D CONCLUÍDA
+
+> **Ativação em produção: 2026-07-20T03:07:34Z** · `OPS_MIGRATIONS_03D_CONCLUIDA`
+> `MIGRATIONS_AUTOMATICAS_ATIVAS` · `MODO_ESTRITO_COMPROVADO` · `IDEMPOTENCIA_COMPROVADA`
+
+## O que mudou em produção
+
+```text
+buildCommand   npm install   →   npm install && npm run migrate:prod
+```
+
+Nada mais foi alterado: `startCommand`, branch, rootDir, plano, região, health check, `autoDeploy` e as 32 variáveis permanecem como estavam.
+
+## Pré-validação do endpoint (GATE 3, read-only)
+
+Propriedades verificadas **sem revelar o valor**:
+
+```text
+MIGRATION_DATABASE_URL = PRESENTE
+protocolo postgres     = true
+porta explícita 5432   = true
+porta 6543 (transaction) = false
+```
+
+## Evidência do 1º deploy controlado — `dep-d9ep1tjbc2fs738dpatg`
+
+```text
+==> Running build command 'npm install && npm run migrate:prod'...
+> backend@1.0.0 migrate:prod
+[migrate] modo estrito: endpoint dedicado de sessão exigido
+[migrate] endpoint dedicado=true
+[migrate] conectando…
+[migrate] conexão estabelecida
+[migrate] migrations pendentes: 0
+[migrate] todas as migrations aplicadas com sucesso.
+==> Build successful 🎉
+```
+
+## Evidência do 2º deploy — prova de idempotência — `dep-d9ep2mf7f7vs73b47an0`
+
+Saída **idêntica**: modo estrito, `dedicado=true`, `pendentes: 0`, build com sucesso.
+
+**Zero linhas `[ok]` nos dois ciclos** — nenhuma migration foi aplicada nem reaplicada. Era o resultado esperado: as 32 já estavam aplicadas. A idempotência fica comprovada por observação, não por inferência.
+
+## Fallback proibido — comprovado
+
+`endpoint dedicado=true` nos dois ciclos, e **nenhuma** ocorrência do aviso de fallback. O modo estrito (GATE 4A) recusaria `DATABASE_URL` com `STRICT_REQUIRES_DEDICATED` antes de abrir conexão. A regra invariante da 03D passou de disciplina operacional a garantia de código, e agora está exercitada em produção.
+
+## Sanitização
+
+Nenhum host, URL, usuário, senha, IP ou project ref apareceu nos logs dos dois deploys — o saneamento da OPS-MIGRATIONS-03C resistiu ao ambiente real.
+
+## Estado final
+
+| Item | Valor |
+|---|---|
+| `main` = `origin/main` | `fa3f3b5` (0/0) |
+| Deploy vivo | `dep-d9ep2mf7f7vs73b47an0` @ `fa3f3b5` · live |
+| `buildCommand` | `npm install && npm run migrate:prod` |
+| `startCommand` | `npm start` (inalterado) |
+| Saúde | HTTP 200 · `healthy` · `database: ok` (178ms) |
+| Migrations modificadas | **0** — nenhuma editada ou apagada (37 arquivos intactos) |
+| SQL manual | **nenhum** — tudo via runner |
+
+## Rollback — permanece disponível e testável
+
+```text
+Restaurar:  buildCommand = npm install
+```
+
+Um passo, editável no painel ou via API. Nada mais precisa ser desfeito: `migrate:prod` volta a ficar inerte, o modo estrito é opt-in, e as migrations são forward-only e atômicas por transação.
+
+## Gates
+
+GATES 0–9 concluídos. A OPS-MIGRATIONS-03D está **encerrada**.
