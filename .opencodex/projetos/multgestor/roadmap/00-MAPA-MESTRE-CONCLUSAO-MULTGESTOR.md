@@ -681,22 +681,26 @@ Essas atividades podem ser planejadas em paralelo. Porém, a ativação real dep
 
 ## 15. Painel de estado a ser mantido neste documento
 
-> ✅ **Painel preenchido pela auditoria READ_ONLY de 2026-07-10.**
-> - **Relatório/evidências:** [[2026-07-10-auditoria-readonly-mapa-mestre]] (cada estado cita arquivo/rota/migration real).
-> - **Escopo auditado:** análise estática do repositório local (código, migrations, rotas, testes, CI, integrações, git). Estado vivo operacional em [[status-atual]].
-> - **Limitações:** NÃO executou testes, NÃO consultou o banco de produção, NÃO leu `.env` reais. Afirmações sobre PROD são conservadoras e marcadas como tal no relatório.
-> - **Nível de confiança:** ALTO para estrutura/código; MÉDIO para comportamento em produção (inferido, não observado).
+> ✅ **Painel preenchido pela auditoria READ_ONLY de 2026-07-10** · 🔄 **Revisado pela missão 12.1A em 2026-07-16** (`4c8ce847`).
+>
+> ⚠️ **A decomposição factual por capacidade migrou para [[../matriz-consolidacao-core]]** (missão 12.1A): 20 blocos, IDs estáveis, proveniência e severidade P0–P4. **Este painel é resumo por fase; a matriz prevalece** em conflito sobre estado de capacidade.
+>
+> - **Relatório/evidências:** [[2026-07-10-auditoria-readonly-mapa-mestre]] · matriz 12.1A (ANEXOS A–G).
+> - **Escopo auditado:** análise estática do repositório local + **suíte unitária executada** na 12.1A (53 suítes / 765 testes / 100% passando, 2026-07-16).
+> - **Limitações (12.1A):** produção **NÃO** verificada — MCP Supabase retornou `Unauthorized`; CI **não** executado (só lido); testes de integração **não** executados localmente; config do Render **não** inspecionável. Ver ANEXO B da matriz.
+> - **Nível de confiança:** ALTO para estrutura/código; **NENHUMA verificação própria de produção** nesta revisão.
+> - **Correções factuais aplicadas em 2026-07-16:** 2 linhas deste painel estavam incorretas (Fases 1 e 2) — ver notas na tabela.
 > - **Regra de reauditoria:** reavaliar a cada missão APPROVE e sempre que o código de uma fase mudar; um estado sem reauditoria após mudança relevante deve ser tratado como desatualizado.
 
 | Fase                  | Estado atual | Evidência principal | Bloqueador | Próxima ação |
 | --------------------- | ------------ | ------------------- | ---------- | ------------ |
 | 0. Diagnóstico        | VALIDADO EM DESENVOLVIMENTO | Relatório 2026-07-10 | — | Manter painel sincronizado |
-| 1. Governança         | PRODUÇÃO CONTROLADA | `.github/workflows/{ci,deploy,security-audit}.yml` | 14 commits unpushed (P1 op.) | Publicar batch (gate humano) |
-| 2. Banco e RLS        | PRODUÇÃO CONTROLADA | migrations 024-029; `config/database.js` poolTenant/withTenantContext; `tests/integration/tenant-isolation-rls.test.js` | writes via `pool.connect` podem bypassar (P1-a) | Migrar writes p/ poolTenant |
+| 1. Governança         | PRODUÇÃO CONTROLADA | `.github/workflows/{ci,deploy,security-audit}.yml` | 🔄 **~~14 commits unpushed~~ RESOLVIDO** (D-06): `main` 0/0 = `4c8ce847`; **0 PRs abertas**. Bloqueador real: **`DATAOPS-002` = `NÃO_COMPROVADO`** (OPS-MIGRATIONS-01, 2026-07-16) — asserção sem evidência (`3b417a9`), contradita por 3 fontes; painel/logs/banco `NÃO_VERIFICADO`. **`DATAOPS-001`: job existe mas NÃO é bloqueante** (`continue-on-error`; `needs:` decorativo). **Risco de drift repo × prod: NÃO MENSURADO** | **`ops/migrations-02-evidencia-painel`** — ⚠️ **exige humano** (~10min): painel/logs do Render + `SELECT … FROM schema_migrations` |
+| 2. Banco e RLS        | PRODUÇÃO CONTROLADA | migrations 024-029; `config/database.js:129` `tenantAwareConnect`; `tests/integration/tenant-isolation-rls.test.js`; CI cria role `app_runtime` NOBYPASSRLS real | 🔄 **~~writes via `pool.connect` podem bypassar (P1-a)~~ RESOLVIDO** (D-02) em `02c5396`, em `main`. Lacuna real: **cobertura de RLS em prod não verificada** (P2, `TENANT-003`) | Inventário de RLS **consultado no banco** (requer acesso read-only) |
 | 3. Identidade         | VALIDADO EM DESENVOLVIMENTO | `auth.routes.js`, `auth.service.js`, migration 030 | MFA ausente | Backlog MFA acessos sensíveis |
 | 4. Back-end           | VALIDADO EM DESENVOLVIMENTO | `services/*`, outbox/UoW/event-bus, `rate-limit.middleware.js` | — | Documentar contratos (OpenAPI) |
 | 5. Front-end          | PRODUÇÃO CONTROLADA | `frontend/src/services/api.js` (VITE_API_URL real) | — | Cobrir fluxos plano/cobrança |
-| 6. Pagamentos         | IMPLEMENTADO NÃO VALIDADO | `billing-manager.js` (assinatura+idempotência+outbox); providers kiwify/abacatepay | config prod (plans/produtos/env, D-016) | **PRÓXIMA MISSÃO** |
+| 6. Pagamentos         | IMPLEMENTADO NÃO VALIDADO | `billing-manager.js` (assinatura+idempotência+outbox); providers kiwify/abacatepay; gating **já genérico** (`utils/planFeatures.js`, D-04) | config prod (plans/produtos/env, D-016) — **P2** | 🔄 **~~PRÓXIMA MISSÃO~~ reavaliada → 4º no backlog** da matriz. Pré-condição `release/push-p0-batch` **já satisfeita** (D-06); pré-requisito "generalizar gating" **não existe** (D-04) |
 | 7. WhatsApp           | PARCIAL / MOCK em prod | `whatsapp-resolver.js` (default mock); `whatsapp-provider.js` | sem token cifrado por tenant | Onboarding credenciais por tenant |
 | 8. IA Core            | PARCIAL | `services/llm/LlmService.js` (providers reais + budget/rate/circuit + gate); migration 031; `barber-ai.routes.js` | sem catálogo de ferramentas c/ permissão | Definir tool-calling gated |
 | 9. IA + WhatsApp      | BLOQUEADO | Depende das fases 7 (mock) e 8 (sem tools) | Fases 7 e 8 | Concluir 7 e 8 |
@@ -712,13 +716,29 @@ Essas atividades podem ser planejadas em paralelo. Porém, a ativação real dep
 
 ## 16. Primeira ação recomendada
 
-A primeira ação **não é** implementar WhatsApp, IA, gateway ou front-end.
+> ✅ **A ação original desta seção foi CUMPRIDA.** A auditoria READ_ONLY e a matriz real de capacidades existem: [[../matriz-consolidacao-core]] (missão 12.1A, 2026-07-16, commit `4c8ce847`) — 20 blocos, IDs estáveis, proveniência, severidade e dependências sem ciclos.
 
-A primeira ação é:
+**Texto original (cumprido):** *"Executar uma auditoria arquitetural READ_ONLY da raiz atual do MultGestor e preencher a matriz real de capacidades e dependências (Seção 15)."*
 
-> Executar uma auditoria arquitetural READ_ONLY da raiz atual do MultGestor e preencher a matriz real de capacidades e dependências (Seção 15).
+### O que a auditoria respondeu
 
-Somente depois dessa auditoria será possível responder com precisão: o que já está concluído; o que está parcial; o que é mock; o que está quebrado; o que oferece risco; qual missão deve ser feita primeiro; qual missão pode esperar; qual implementação desbloqueia mais partes; quanto falta para o MultGestor se tornar operacional e comercializável.
+- **Concluído:** fundação multi-tenant (`TENANT-001/002`), pools (`CONFIG-001`), gating de plano (`FEATURE-001`), guard de módulo (`ACCESS-001`), outbox/contratos (`EVENT-001/002`), respostas/erros (`CONTRACT-001/003`), booking-utils (`DOMAIN-001`).
+- **Parcial/reestruturação:** motor de booking (`DOMAIN-002`, **P1**), kit de nicho (`NICHEKIT-001`, **P1**), escopo de auth (`IDENT-002`, P2).
+- **Mock/aspiracional:** Automation Engine, AI Operational Layer, N8N Bridge, Omnichannel — **não existem**; não usar em plano (ANEXO C).
+- **Risco:** **`DATAOPS-002` = `NÃO_COMPROVADO`** (P1) — a rede de segurança que justifica o `continue-on-error` foi **afirmada sem evidência** pelo commit `3b417a9` e é **contradita por 3 fontes** do projeto. **Consequência registrada:** risco de **drift entre as migrations do repositório e o banco de produção** — hoje **NÃO MENSURADO** (já ocorreu 2×: `022`, `023`). Ver ANEXO D da matriz e [[../../auditorias/multgestor/2026-07-16-ops-migrations-01]].
+- **Marcos:** *Core Consolidado v1* e *Multi-nicho* — **ambos NÃO ATINGIDOS** (ANEXO G).
+
+### Próxima ação
+
+> **`ops/migrations-02-evidencia-painel`** — ⚠️ **exige um humano, não um agente** (~10 min).
+>
+> 🔄 A missão anterior (`ops/verificar-aplicacao-migrations-producao`) **foi executada** em 2026-07-16 como **OPS-MIGRATIONS-01** e **não resolveu a incógnita — por falta de acesso, não de método**: painel/logs do Render inacessíveis (sem sessão Chrome; **login é vedado ao agente**), MCP Supabase `Unauthorized`, CLI ausente. `/api/health/deep` confirmou produção no ar, mas **não expõe `schema_migrations`**. Sem `render.yaml`, **o repositório é estruturalmente incapaz de responder**.
+>
+> **Os 3 passos:** (1) painel → `Build/Pre-Deploy/Start Command` (⚠️ free tier **não tem** Pre-Deploy → só Build); (2) log do último deploy → procurar `[migrate] banco alvo:` / `[ok]` / `[skip]`; (3) `SELECT version, name, applied_at FROM schema_migrations ORDER BY applied_at DESC LIMIT 10;` — **se `20260708_031` faltar, o drift está confirmado e ativo**.
+>
+> Especificação completa em [[../matriz-consolidacao-core]] §Próxima Missão · relatório em [[../../auditorias/multgestor/2026-07-16-ops-migrations-01]].
+
+⚠️ **Não é mais a Fase 6.** Pagamentos foi reavaliada e caiu para 4º: sua pré-condição declarada já está satisfeita (D-06) e o pré-requisito de gating não existia (D-04) — mas perde para uma verificação P1 que custa uma inspeção.
 
 ---
 
