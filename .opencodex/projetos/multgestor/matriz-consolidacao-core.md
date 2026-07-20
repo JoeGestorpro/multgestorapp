@@ -214,11 +214,15 @@ Progressão: `DOCUMENTADO → IMPLEMENTADO → VALIDADO LOCAL → VALIDADO EM CI
 > ✅ **RESOLVIDO em 2026-07-20.** [[ADR-008-booking-engine-formalizacao]] (formaliza [[ADR-007-booking-engine]], Opção A) decidiu **rebaixar**. Implementado: `services/booking-appointments.service.js` e `services/booking-scheduling.service.js` → `services/barber/` (PR #67, commit `4af95aa`, produção saudável). `scheduling-utils.js` permanece no Core — é o único código genuinamente compartilhado (0 ocorrências `barber_`/`clima_`).
 >
 > **Achado novo da auditoria de formalização:** existem **duas trilhas paralelas** de criação de agendamento dentro do próprio BarberGestor — `AppointmentService`/`AppointmentRepository` (staff, com eventos) e `client-booking.service.js`/`booking-appointments.service.js` (público, SQL cru). Não muda esta decisão; registrado como próxima missão técnica (`DOMAIN-002B`).
+>
+> **Reposicionamento estratégico ([[ADR-009-booking-engine-reposicionamento-estrategico]]), 2026-07-20:** o rebaixamento acima **não muda** — mas não deve ser lido como "booking pertence permanentemente ao nicho". O destino arquitetural de longo prazo é uma **Booking Capability genérica no Core**, com o BarberGestor como primeiro adapter/validador, não como autoridade do domínio. Nenhuma extração autorizada agora; orienta o planejamento futuro de `DOMAIN-002B` e `NICHEKIT-001`.
+>
+> **Definição arquitetural concluída ([[../core/booking/CORE-BOOKING-001-capability-spec]]), 2026-07-20:** a Booking Capability do Core está agora **especificada** (glossário, modelo de domínio, invariantes, contratos, catálogo de eventos, fronteira Core/adapter, estratégia de testes e mapa de transição do legado) — ainda **não implementada**. O inventário desta missão confirmou, com evidência de código, as duas trilhas paralelas descritas acima e um achado novo, mais crítico: a **trilha pública/cliente usa o pool sem RLS ativo** (`pool.connect()` fora de `requireCompany`), dependendo só de `WHERE company_id` manual — reclassificado como risco `SUBSTITUIR`/**Crítico** no mapa de transição, independente do cronograma de consolidação arquitetural.
 
 - **Proveniência:** `backend/src/services/barber/booking-appointments.service.js` — 59 ocorrências de `barber_` (revalidado 2026-07-20) · `booking-scheduling.service.js` — 32 · `repositories/appointment.repository.js` — **40** (achado novo — não capturado em 16/07) · auditoria `.opencodex/audits/2026-07-03-core-vs-nicho-audit` (A7) · [[../../../auditorias/multgestor/2026-07-20-domain-002-booking-engine]] (evidência completa)
 - **Dependências:** `DOMAIN-001` (concluída) · **Bloqueadores:** — · **Severidade:** ~~P1~~ **resolvida**
 - **DoD:** ✅ **ATENDIDO** — decisão registrada em ADR (dupla: 007 + 008), implementada, comprovada em produção.
-- **Próxima ação:** `DOMAIN-002B` — consolidar as duas trilhas de criação de agendamento e cobrir com testes de conflito/concorrência (ver ADR-008 § Próximas ações). `NICHEKIT-001` precisa ser replanejado com a pressuposição de "motor compartilhado" removida.
+- **Próxima ação:** `DOMAIN-002B` — consolidar as duas trilhas de criação de agendamento e cobrir com testes de conflito/concorrência (ver ADR-008 § Próximas ações). `NICHEKIT-001` foi reconciliado (ver bloco abaixo) para não prometer "motor compartilhado" antes da hora, mas também para não descartar a Booking Capability como destino — ver [[../core/booking/CORE-BOOKING-001-transition-map]] para a sequência completa (`CORE-BOOKING-002` a `CORE-BOOKING-CLOSEOUT`).
 
 > **✅ CONVERGÊNCIA (16/07, ainda válida):** a alegação de "59+ `barber_*`" em `capacidades.md` foi confirmada com precisão. Revalidada novamente em 20/07 nos mesmos números.
 
@@ -449,16 +453,18 @@ Progressão: `DOCUMENTADO → IMPLEMENTADO → VALIDADO LOCAL → VALIDADO EM CI
 - **Bloco:** NICHEKIT · **Responsabilidade:** CORE · **Estado:** `EXISTE PARCIALMENTE` · **Evidência:** `VALIDADO LOCAL`
 - **Proveniência:** `middlewares/createModuleGuard.js` (factory genérica, **2 consumidores reais**) · tabelas `modules` / `company_modules` (com RLS) · `shared/capabilities/booking-engine/` (utils puras, reusadas por Barber e Clima) · `shared/tenant/`
 - **Lacuna:** as primitivas existem, mas **não formam um kit**: não há scaffolding nem documentação de "como criar um nicho".
-- ⚠️ **Pressuposição corrigida em 2026-07-20 ([[ADR-008-booking-engine-formalizacao]]):** o DoD abaixo presumia um "motor de booking reusável" que **não existe e foi formalmente decidido não construir agora** (`DOMAIN-002` = rebaixado). O kit não pode prometer motor de agendamento compartilhado — cada nicho implementa o próprio, reaproveitando apenas `scheduling-utils.js`.
-- **Dependências:** ~~`DOMAIN-002` (P1)~~ resolvida (rebaixada, não promovida) · `IDENT-002` (P2) · `ACCESS-001` (pronto) · **Severidade:** **P1** para o marco Multi-nicho
-- **DoD (a replanejar):** ~~kit tecnicamente verificável — um nicho novo obtém guard, contexto tenant, RLS, billing, gating e motor de booking sem reimplementar nenhum deles~~. Novo DoD pendente de definição: kit deve cobrir guard, contexto tenant, RLS, billing e gating **sem** prometer motor de booking compartilhado.
+- ⚠️ **Pressuposição corrigida em 2026-07-20 ([[ADR-008-booking-engine-formalizacao]]):** o DoD abaixo presumia um "motor de booking reusável" que **não existe hoje e não será construído imediatamente** (`DOMAIN-002` = rebaixado no código atual). O kit não pode prometer, no curto prazo, motor de agendamento compartilhado — cada nicho implementa o próprio por enquanto, reaproveitando apenas `scheduling-utils.js`.
+- **Reposicionado em 2026-07-20 ([[ADR-009-booking-engine-reposicionamento-estrategico]] + [[../core/booking/CORE-BOOKING-001-capability-spec]]):** "não construir agora" **não é o mesmo que** "nunca existirá". A Booking Capability genérica está **especificada** para o Core (`CORE-BOOKING-001`), com o BarberGestor como primeiro adapter — ainda não implementada. O DoD abaixo deve ser lido como estado de transição, não como destino final do kit.
+- **Dependências:** ~~`DOMAIN-002` (P1)~~ resolvida (rebaixada, não promovida) · `IDENT-002` (P2) · `ACCESS-001` (pronto) · `CORE-BOOKING-001` (definição concluída, implementação não iniciada) · **Severidade:** **P1** para o marco Multi-nicho
+- **DoD (curto prazo, vigente):** kit cobre guard, contexto tenant, RLS, billing e gating **sem** prometer motor de booking compartilhado.
+- **DoD (destino, condicionado à implementação de `CORE-BOOKING-004` a `CORE-BOOKING-VALIDATION-001`):** um nicho novo obtém guard, contexto tenant, RLS, billing, gating **e** a Booking Capability do Core (via adapter), sem reimplementar o motor de agendamento do zero.
 
 #### `NICHEKIT-002` — ClimaGestor como prova do kit
 - **Bloco:** NICHEKIT · **Responsabilidade:** NICHO · **Estado:** `EXISTE PARCIALMENTE` · **Evidência:** `IMPLEMENTADO`
 - **Proveniência:** `routes/clima.routes.js` (auth+company+module guards aplicados) · `controllers/clima/index.js` · `services/clima-core.service.js` · `database/{clima.sql,clima_appointments.sql}` (3 tabelas com RLS) · `shared/core/validation/schemas/clima-requests.schema.js` · `frontend/src/pages/Clima.jsx` (**7 linhas**)
 - **Lacuna:** o Clima **reimplementa o motor de booking** em vez de reusar (`DOMAIN-002`); frontend inexistente; **nenhuma empresa real usando** (afirmação documental, não verificável — L-1).
 - **Severidade:** **P1** para o marco Multi-nicho; **P4** como produto
-- **DoD:** o Clima consome o motor de booking do Core **sem reimplementar** — é o **teste objetivo do marco Multi-nicho**.
+- **DoD:** o Clima consome o motor de booking do Core **sem reimplementar** — é o **teste objetivo do marco Multi-nicho**. Este DoD corresponde à futura missão `CORE-BOOKING-VALIDATION-001` (ver [[../core/booking/CORE-BOOKING-001-transition-map]]) — não atingido hoje, e não esperado antes de `CORE-BOOKING-004` (kernel) e `BARBER-BOOKING-ADAPTER-001` (adapter piloto) existirem.
 
 ---
 
