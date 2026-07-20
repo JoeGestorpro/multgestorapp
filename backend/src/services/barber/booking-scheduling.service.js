@@ -1,4 +1,5 @@
 const pool = require('../../config/database');
+const { runPublicTenantOperation } = require('../../config/database');
 const {
   addMinutes, toUtcDate, buildAvailabilitySlots, getWorkingWindow,
   getTimezoneOffset, BRAZIL_TIMEZONE, formatDateKey, normalizeDateInput,
@@ -272,130 +273,133 @@ async function validateBookableSlot({ companyId, collaboratorId, serviceId, date
 
 async function getPublicBookingInfo(companySlug) {
   const company = await getCompanyBySlug(companySlug);
-  const settings = await getBookingSettings(company.id);
 
-  const servicesResult = await pool.query(
-    `SELECT
-       id,
-       name,
-       description,
-       price,
-       service_type,
-       icon,
-       estimated_time_minutes
-     FROM barber_services
-     WHERE company_id = $1
-       AND is_active = true
-       AND COALESCE(is_deleted, false) = false
-     ORDER BY created_at DESC`,
-    [company.id]
-  );
+  return runPublicTenantOperation(company.id, async () => {
+    const settings = await getBookingSettings(company.id);
 
-  const collaborators = await listBookableCollaborators(company.id);
-
-  // Load landing config with fallback to company profile
-  const [landingResult, companyResult] = await Promise.all([
-    pool.query(
+    const servicesResult = await pool.query(
       `SELECT
-         display_name, slogan, about_text,
-         whatsapp, instagram, address_display, hours_display, banner_url,
-         booking_primary_color, booking_secondary_color, booking_accent_color,
-         button_text, button_text_color,
-         extra_info,
-         differentials, gallery,
-         show_hero, show_info, show_about, show_differentials, show_team, show_gallery
-       FROM barber_booking_landing
+         id,
+         name,
+         description,
+         price,
+         service_type,
+         icon,
+         estimated_time_minutes
+       FROM barber_services
        WHERE company_id = $1
-       LIMIT 1`,
+         AND is_active = true
+         AND COALESCE(is_deleted, false) = false
+       ORDER BY created_at DESC`,
       [company.id]
-    ),
-    pool.query(
-      `SELECT
-         public_display_name, business_description,
-         whatsapp_phone,
-         logo_url, primary_color, secondary_color, accent_color, wallpaper_url,
-         address_line, city, state
-       FROM companies
-       WHERE id = $1
-       LIMIT 1`,
-      [company.id]
-    )
-  ]);
+    );
 
-  const c = companyResult.rowCount > 0 ? companyResult.rows[0] : {};
+    const collaborators = await listBookableCollaborators(company.id);
 
-  let l = {};
-  if (landingResult.rowCount > 0) {
-    l = landingResult.rows[0];
-  }
+    // Load landing config with fallback to company profile
+    const [landingResult, companyResult] = await Promise.all([
+      pool.query(
+        `SELECT
+           display_name, slogan, about_text,
+           whatsapp, instagram, address_display, hours_display, banner_url,
+           booking_primary_color, booking_secondary_color, booking_accent_color,
+           button_text, button_text_color,
+           extra_info,
+           differentials, gallery,
+           show_hero, show_info, show_about, show_differentials, show_team, show_gallery
+         FROM barber_booking_landing
+         WHERE company_id = $1
+         LIMIT 1`,
+        [company.id]
+      ),
+      pool.query(
+        `SELECT
+           public_display_name, business_description,
+           whatsapp_phone,
+           logo_url, primary_color, secondary_color, accent_color, wallpaper_url,
+           address_line, city, state
+         FROM companies
+         WHERE id = $1
+         LIMIT 1`,
+        [company.id]
+      )
+    ]);
 
-  const displayName = l.display_name || c.public_display_name || company.name;
-  const aboutText = l.about_text || c.business_description || company.name;
-  const whatsapp = l.whatsapp || c.whatsapp_phone || null;
-  const addressParts = [c.address_line, c.city, c.state].filter(Boolean);
-  const addressDisplay = l.address_display || (addressParts.length > 0 ? addressParts.join(', ') : null);
-  const primaryColor = l.booking_primary_color || c.primary_color || '#a3ff12';
-  const secondaryColor = l.booking_secondary_color || c.secondary_color || '#0c1017';
-  const accentColor = l.booking_accent_color || c.accent_color || '#7fe11e';
-  const buttonText = l.button_text || 'Agendar Horário';
-  const buttonTextColor = l.button_text_color || null;
-  const differentials = Array.isArray(l.differentials) ? l.differentials : [];
-  const gallery = Array.isArray(l.gallery) ? l.gallery : [];
-  const showHero = typeof l.show_hero === 'boolean' ? l.show_hero : true;
-  const showInfo = typeof l.show_info === 'boolean' ? l.show_info : true;
-  const showAbout = typeof l.show_about === 'boolean' ? l.show_about : true;
-  const showDifferentials = typeof l.show_differentials === 'boolean' ? l.show_differentials : true;
-  const showTeam = typeof l.show_team === 'boolean' ? l.show_team : true;
-  const showGallery = typeof l.show_gallery === 'boolean' ? l.show_gallery : false;
+    const c = companyResult.rowCount > 0 ? companyResult.rows[0] : {};
 
-  return {
-    company: {
-      id: company.id,
-      name: displayName,
-      slug: company.public_booking_slug,
-      description: aboutText,
-      logo_url: c.logo_url || null,
-      banner_url: l.banner_url || c.wallpaper_url || null,
-      slogan: l.slogan || null,
-      display_name: displayName,
-      phone: whatsapp,
-      whatsapp,
-      address: addressDisplay,
-      instagram: l.instagram || null,
-      working_hours: l.hours_display ? [{ day: l.hours_display }] : null,
-      differentials,
-      gallery,
-      extra_info: l.extra_info || null,
-      button_text: buttonText,
-      show_sections: {
-        hero: showHero,
-        info: showInfo,
-        about: showAbout,
-        differentials: showDifferentials,
-        team: showTeam,
-        gallery: showGallery
-      },
-      colors: {
-        primary: primaryColor,
-        secondary: secondaryColor,
-        accent: accentColor,
-        button_text: buttonTextColor
-      }
-    },
-    services: servicesResult.rows,
-    collaborators,
-    settings: {
-      timezone: settings.timezone || BRAZIL_TIMEZONE,
-      slot_interval_minutes: Number(settings.slot_interval_minutes || 30),
-      minimum_notice_minutes: Number(settings.minimum_notice_minutes || 0),
-      online_min_advance_enabled: settings.online_min_advance_enabled === true,
-      online_min_advance_value: Number(settings.online_min_advance_value || 0),
-      cancellation_limit_hours: Number(settings.cancellation_limit_hours || 0),
-      allow_customer_select_collaborator: settings.allow_customer_select_collaborator !== false,
-      allow_any_collaborator: settings.allow_any_collaborator !== false,
-      confirmation_message: String(settings.confirmation_message || '').trim() || null
+    let l = {};
+    if (landingResult.rowCount > 0) {
+      l = landingResult.rows[0];
     }
-  };
+
+    const displayName = l.display_name || c.public_display_name || company.name;
+    const aboutText = l.about_text || c.business_description || company.name;
+    const whatsapp = l.whatsapp || c.whatsapp_phone || null;
+    const addressParts = [c.address_line, c.city, c.state].filter(Boolean);
+    const addressDisplay = l.address_display || (addressParts.length > 0 ? addressParts.join(', ') : null);
+    const primaryColor = l.booking_primary_color || c.primary_color || '#a3ff12';
+    const secondaryColor = l.booking_secondary_color || c.secondary_color || '#0c1017';
+    const accentColor = l.booking_accent_color || c.accent_color || '#7fe11e';
+    const buttonText = l.button_text || 'Agendar Horário';
+    const buttonTextColor = l.button_text_color || null;
+    const differentials = Array.isArray(l.differentials) ? l.differentials : [];
+    const gallery = Array.isArray(l.gallery) ? l.gallery : [];
+    const showHero = typeof l.show_hero === 'boolean' ? l.show_hero : true;
+    const showInfo = typeof l.show_info === 'boolean' ? l.show_info : true;
+    const showAbout = typeof l.show_about === 'boolean' ? l.show_about : true;
+    const showDifferentials = typeof l.show_differentials === 'boolean' ? l.show_differentials : true;
+    const showTeam = typeof l.show_team === 'boolean' ? l.show_team : true;
+    const showGallery = typeof l.show_gallery === 'boolean' ? l.show_gallery : false;
+
+    return {
+      company: {
+        id: company.id,
+        name: displayName,
+        slug: company.public_booking_slug,
+        description: aboutText,
+        logo_url: c.logo_url || null,
+        banner_url: l.banner_url || c.wallpaper_url || null,
+        slogan: l.slogan || null,
+        display_name: displayName,
+        phone: whatsapp,
+        whatsapp,
+        address: addressDisplay,
+        instagram: l.instagram || null,
+        working_hours: l.hours_display ? [{ day: l.hours_display }] : null,
+        differentials,
+        gallery,
+        extra_info: l.extra_info || null,
+        button_text: buttonText,
+        show_sections: {
+          hero: showHero,
+          info: showInfo,
+          about: showAbout,
+          differentials: showDifferentials,
+          team: showTeam,
+          gallery: showGallery
+        },
+        colors: {
+          primary: primaryColor,
+          secondary: secondaryColor,
+          accent: accentColor,
+          button_text: buttonTextColor
+        }
+      },
+      services: servicesResult.rows,
+      collaborators,
+      settings: {
+        timezone: settings.timezone || BRAZIL_TIMEZONE,
+        slot_interval_minutes: Number(settings.slot_interval_minutes || 30),
+        minimum_notice_minutes: Number(settings.minimum_notice_minutes || 0),
+        online_min_advance_enabled: settings.online_min_advance_enabled === true,
+        online_min_advance_value: Number(settings.online_min_advance_value || 0),
+        cancellation_limit_hours: Number(settings.cancellation_limit_hours || 0),
+        allow_customer_select_collaborator: settings.allow_customer_select_collaborator !== false,
+        allow_any_collaborator: settings.allow_any_collaborator !== false,
+        confirmation_message: String(settings.confirmation_message || '').trim() || null
+      }
+    };
+  });
 }
 
 async function getSchedulingAvailability(companySlug, query = {}) {
@@ -409,125 +413,182 @@ async function getSchedulingAvailability(companySlug, query = {}) {
     throw createError('Servico e obrigatorio para consultar disponibilidade', 400);
   }
 
-  const settings = await getBookingSettings(companyId);
-  const service = await ensureService(companyId, serviceId);
-  const durationMinutes = Number(service.estimated_time_minutes || 30);
-  const startsAtFloor = addMinutes(new Date(), Number(settings.minimum_notice_minutes || 0));
-  const timezone = settings.timezone || BRAZIL_TIMEZONE;
+  return runPublicTenantOperation(companyId, async () => {
+    const settings = await getBookingSettings(companyId);
+    const service = await ensureService(companyId, serviceId);
+    const durationMinutes = Number(service.estimated_time_minutes || 30);
+    const startsAtFloor = addMinutes(new Date(), Number(settings.minimum_notice_minutes || 0));
+    const timezone = settings.timezone || BRAZIL_TIMEZONE;
 
-  if (!collaboratorId && settings.allow_any_collaborator === false) {
-    throw createError('Selecione um profissional para consultar a disponibilidade', 400);
-  }
+    if (!collaboratorId && settings.allow_any_collaborator === false) {
+      throw createError('Selecione um profissional para consultar a disponibilidade', 400);
+    }
 
-  let workingHoursByKey = null;
-  try {
-    const bwhResult = await pool.query(
-      `SELECT collaborator_id, weekday, opens_at, closes_at, is_closed, pauses
-       FROM barber_working_hours
-       WHERE company_id = $1`,
-      [companyId]
-    );
-    if (bwhResult.rows.length > 0) {
-      workingHoursByKey = { general: {}, collaborator: {} };
-      for (const row of bwhResult.rows) {
-        if (row.collaborator_id) {
-          workingHoursByKey.collaborator[`${row.collaborator_id}_${row.weekday}`] = row;
-        } else {
-          workingHoursByKey.general[row.weekday] = row;
+    let workingHoursByKey = null;
+    try {
+      const bwhResult = await pool.query(
+        `SELECT collaborator_id, weekday, opens_at, closes_at, is_closed, pauses
+         FROM barber_working_hours
+         WHERE company_id = $1`,
+        [companyId]
+      );
+      if (bwhResult.rows.length > 0) {
+        workingHoursByKey = { general: {}, collaborator: {} };
+        for (const row of bwhResult.rows) {
+          if (row.collaborator_id) {
+            workingHoursByKey.collaborator[`${row.collaborator_id}_${row.weekday}`] = row;
+          } else {
+            workingHoursByKey.general[row.weekday] = row;
+          }
         }
       }
+    } catch (e) {
+      workingHoursByKey = null;
     }
-  } catch (e) {
-    workingHoursByKey = null;
-  }
 
-  async function loadCollaboratorSlots(targetCollaboratorId) {
-    await ensureCollaborator(companyId, targetCollaboratorId);
+    async function loadCollaboratorSlots(targetCollaboratorId) {
+      await ensureCollaborator(companyId, targetCollaboratorId);
 
-    const appointmentsResult = await pool.query(
-      `SELECT starts_at, ends_at
-       FROM barber_appointments
-       WHERE company_id = $1
-         AND collaborator_id = $2
-         AND DATE(starts_at AT TIME ZONE $4) = $3::date
-         AND status = ANY($5::text[])`,
-      [companyId, targetCollaboratorId, date, timezone, ACTIVE_APPOINTMENT_STATUSES]
-    );
+      const appointmentsResult = await pool.query(
+        `SELECT starts_at, ends_at
+         FROM barber_appointments
+         WHERE company_id = $1
+           AND collaborator_id = $2
+           AND DATE(starts_at AT TIME ZONE $4) = $3::date
+           AND status = ANY($5::text[])`,
+        [companyId, targetCollaboratorId, date, timezone, ACTIVE_APPOINTMENT_STATUSES]
+      );
 
-    const blocksResult = await pool.query(
-      `SELECT starts_at, ends_at
-       FROM barber_booking_blocks
-       WHERE company_id = $1
-         AND (collaborator_id IS NULL OR collaborator_id = $2)
-         AND DATE(starts_at AT TIME ZONE $4) <= $3::date
-         AND DATE(ends_at AT TIME ZONE $4) >= $3::date`,
-      [companyId, targetCollaboratorId, date, timezone]
-    );
+      const blocksResult = await pool.query(
+        `SELECT starts_at, ends_at
+         FROM barber_booking_blocks
+         WHERE company_id = $1
+           AND (collaborator_id IS NULL OR collaborator_id = $2)
+           AND DATE(starts_at AT TIME ZONE $4) <= $3::date
+           AND DATE(ends_at AT TIME ZONE $4) >= $3::date`,
+        [companyId, targetCollaboratorId, date, timezone]
+      );
 
-    let effectiveSettings = settings;
-    let pauseConflicts = [];
+      let effectiveSettings = settings;
+      let pauseConflicts = [];
 
-    if (workingHoursByKey) {
-      const weekdayNum = weekdayFromDate(date, timezone);
-      const collKey = `${targetCollaboratorId}_${weekdayNum}`;
-      const collOverride = workingHoursByKey.collaborator[collKey];
-      const rowOverride = collOverride || workingHoursByKey.general[weekdayNum];
+      if (workingHoursByKey) {
+        const weekdayNum = weekdayFromDate(date, timezone);
+        const collKey = `${targetCollaboratorId}_${weekdayNum}`;
+        const collOverride = workingHoursByKey.collaborator[collKey];
+        const rowOverride = collOverride || workingHoursByKey.general[weekdayNum];
 
-      if (rowOverride) {
-        if (rowOverride.is_closed) return [];
+        if (rowOverride) {
+          if (rowOverride.is_closed) return [];
 
-        const wh = { ...(settings.weekly_hours || {}) };
-        wh[weekdayNum] = {
-          start: String(rowOverride.opens_at || '').slice(0, 5),
-          end: String(rowOverride.closes_at || '').slice(0, 5)
+          const wh = { ...(settings.weekly_hours || {}) };
+          wh[weekdayNum] = {
+            start: String(rowOverride.opens_at || '').slice(0, 5),
+            end: String(rowOverride.closes_at || '').slice(0, 5)
+          };
+          effectiveSettings = { ...settings, weekly_hours: wh };
+
+          if (rowOverride.pauses && Array.isArray(rowOverride.pauses)) {
+            pauseConflicts = rowOverride.pauses.map(p => {
+              try {
+                return {
+                  starts_at: toUtcDate(date, p.start, timezone),
+                  ends_at: toUtcDate(date, p.end, timezone)
+                };
+              } catch { return null; }
+            }).filter(Boolean);
+          }
+        }
+      }
+
+      const allBlockRows = [...blocksResult.rows];
+      for (const p of pauseConflicts) {
+        allBlockRows.push(p);
+      }
+
+      const conflictsFn = (slotStart, slotEnd) => {
+        const appointmentConflict = appointmentsResult.rows.some((item) => {
+          const itemStart = new Date(item.starts_at);
+          const itemEnd = new Date(item.ends_at);
+          return itemStart < slotEnd && itemEnd > slotStart;
+        });
+
+        if (appointmentConflict) return true;
+
+        return allBlockRows.some((item) => {
+          const itemStart = new Date(item.starts_at);
+          const itemEnd = new Date(item.ends_at);
+          return itemStart < slotEnd && itemEnd > slotStart;
+        });
+      };
+
+      return buildAvailabilitySlots({
+        date,
+        settings: effectiveSettings,
+        startsAtFloor,
+        durationMinutes,
+        conflictsFn
+      });
+    }
+
+    if (collaboratorId) {
+      const collaborator = await ensureCollaborator(companyId, collaboratorId);
+
+      return {
+        company: {
+          id: company.id,
+          name: company.name,
+          slug: company.public_booking_slug
+        },
+        date,
+        timezone,
+        service: {
+          id: service.id,
+          name: service.name,
+          duration_minutes: durationMinutes
+        },
+        minimum_notice_minutes: Number(settings.minimum_notice_minutes || 0),
+        online_min_advance_enabled: settings.online_min_advance_enabled === true,
+        online_min_advance_value: Number(settings.online_min_advance_value || 0),
+        any_collaborator: false,
+        slots: (await loadCollaboratorSlots(collaboratorId)).map((slot) => ({
+          ...slot,
+          collaborator_id: collaborator.id,
+          collaborator_name: collaborator.name
+        }))
+      };
+    }
+
+    const collaborators = await listBookableCollaborators(companyId);
+    const mergedSlots = new Map();
+
+    for (const collaborator of collaborators) {
+      const slots = await loadCollaboratorSlots(collaborator.id);
+
+      for (const slot of slots) {
+        if (!slot.available) {
+          continue;
+        }
+
+        const existing = mergedSlots.get(slot.time);
+        const collaboratorSummary = {
+          id: collaborator.id,
+          name: collaborator.name
         };
-        effectiveSettings = { ...settings, weekly_hours: wh };
 
-        if (rowOverride.pauses && Array.isArray(rowOverride.pauses)) {
-          pauseConflicts = rowOverride.pauses.map(p => {
-            try {
-              return {
-                starts_at: toUtcDate(date, p.start, timezone),
-                ends_at: toUtcDate(date, p.end, timezone)
-              };
-            } catch { return null; }
-          }).filter(Boolean);
+        if (existing) {
+          existing.available_collaborators.push(collaboratorSummary);
+          continue;
         }
+
+        mergedSlots.set(slot.time, {
+          ...slot,
+          collaborator_id: collaborator.id,
+          collaborator_name: collaborator.name,
+          available_collaborators: [collaboratorSummary]
+        });
       }
     }
-
-    const allBlockRows = [...blocksResult.rows];
-    for (const p of pauseConflicts) {
-      allBlockRows.push(p);
-    }
-
-    const conflictsFn = (slotStart, slotEnd) => {
-      const appointmentConflict = appointmentsResult.rows.some((item) => {
-        const itemStart = new Date(item.starts_at);
-        const itemEnd = new Date(item.ends_at);
-        return itemStart < slotEnd && itemEnd > slotStart;
-      });
-
-      if (appointmentConflict) return true;
-
-      return allBlockRows.some((item) => {
-        const itemStart = new Date(item.starts_at);
-        const itemEnd = new Date(item.ends_at);
-        return itemStart < slotEnd && itemEnd > slotStart;
-      });
-    };
-
-    return buildAvailabilitySlots({
-      date,
-      settings: effectiveSettings,
-      startsAtFloor,
-      durationMinutes,
-      conflictsFn
-    });
-  }
-
-  if (collaboratorId) {
-    const collaborator = await ensureCollaborator(companyId, collaboratorId);
 
     return {
       company: {
@@ -545,65 +606,10 @@ async function getSchedulingAvailability(companySlug, query = {}) {
       minimum_notice_minutes: Number(settings.minimum_notice_minutes || 0),
       online_min_advance_enabled: settings.online_min_advance_enabled === true,
       online_min_advance_value: Number(settings.online_min_advance_value || 0),
-      any_collaborator: false,
-      slots: (await loadCollaboratorSlots(collaboratorId)).map((slot) => ({
-        ...slot,
-        collaborator_id: collaborator.id,
-        collaborator_name: collaborator.name
-      }))
+      any_collaborator: true,
+      slots: Array.from(mergedSlots.values()).sort((first, second) => first.time.localeCompare(second.time))
     };
-  }
-
-  const collaborators = await listBookableCollaborators(companyId);
-  const mergedSlots = new Map();
-
-  for (const collaborator of collaborators) {
-    const slots = await loadCollaboratorSlots(collaborator.id);
-
-    for (const slot of slots) {
-      if (!slot.available) {
-        continue;
-      }
-
-      const existing = mergedSlots.get(slot.time);
-      const collaboratorSummary = {
-        id: collaborator.id,
-        name: collaborator.name
-      };
-
-      if (existing) {
-        existing.available_collaborators.push(collaboratorSummary);
-        continue;
-      }
-
-      mergedSlots.set(slot.time, {
-        ...slot,
-        collaborator_id: collaborator.id,
-        collaborator_name: collaborator.name,
-        available_collaborators: [collaboratorSummary]
-      });
-    }
-  }
-
-  return {
-    company: {
-      id: company.id,
-      name: company.name,
-      slug: company.public_booking_slug
-    },
-    date,
-    timezone,
-    service: {
-      id: service.id,
-      name: service.name,
-      duration_minutes: durationMinutes
-    },
-    minimum_notice_minutes: Number(settings.minimum_notice_minutes || 0),
-    online_min_advance_enabled: settings.online_min_advance_enabled === true,
-    online_min_advance_value: Number(settings.online_min_advance_value || 0),
-    any_collaborator: true,
-    slots: Array.from(mergedSlots.values()).sort((first, second) => first.time.localeCompare(second.time))
-  };
+  });
 }
 
 module.exports = { getPublicBookingInfo, getSchedulingAvailability, validateBookableSlot, getBookingSettings, getCompanyBySlug };
