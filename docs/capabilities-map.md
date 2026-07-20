@@ -137,7 +137,7 @@ Estas capabilities são a **base do sistema**. Sem elas, nada funciona.
 | **ID** | `C-03` |
 | **Nome** | Repository Pattern |
 | **Tipo** | Core |
-| **Status** | 📋 Planejado |
+| **Status** | ✅ Implementado |
 | **Dono** | Core Team |
 | **Prioridade** | P0 — Crítico |
 | **Depende de** | C-01 (Shared Kernel), C-02 (Multi-Tenant) |
@@ -150,7 +150,7 @@ Estas capabilities são a **base do sistema**. Sem elas, nada funciona.
 - Habilitar cache (Redis) futuramente
 - Habilitar testes unitários (mock de repository)
 
-**Ferramenta proposta:** Kysely (query builder type-safe)
+**Implementação:** BaseRepository.js com CRUD genérico, UnitOfWork, 10 repositories concretos. Consultas ainda usam SQL direto em alguns services (cobertura parcial).
 
 ---
 
@@ -161,7 +161,7 @@ Estas capabilities são a **base do sistema**. Sem elas, nada funciona.
 | **ID** | `C-04` |
 | **Nome** | Event Bus |
 | **Tipo** | Core |
-| **Status** | 📋 Planejado |
+| **Status** | ✅ Implementado (in-memory) |
 | **Dono** | Core Team |
 | **Prioridade** | P0 — Crítico |
 | **Depende de** | C-01 (Shared Kernel), C-02 (Multi-Tenant) |
@@ -173,7 +173,9 @@ Estas capabilities são a **base do sistema**. Sem elas, nada funciona.
 - Dead letter queue para eventos com falha
 - Retry com backoff exponencial
 
-**Eventos planejados:**
+**Implementação:** event-bus.js com contracts.js, factories/ e validateEventPayload. Volátil (in-memory). Outbox em outbox-worker.js com 15 handlers.
+
+**Eventos publicados:**
 
 | Evento | Trigger | Consumidores |
 |--------|---------|--------------|
@@ -703,15 +705,15 @@ D-03 ClimaGestor            → 9º (após C-03)
 
 | Status | Significado | Quantidade |
 |--------|-------------|-----------|
-| ✅ Ativo | Em produção, funcionando | 4 |
+| ✅ Ativo | Em produção, funcionando | 6 |
 | ⚠️ Parcial | Existe mas incompleto ou problemático | 3 |
-| 📋 Planejado | Próximo a ser implementado | 6 |
+| 📋 Planejado | Próximo a ser implementado | 4 |
 | 🔮 Futuro | Previsto para fases seguintes | 5 |
 
 ### Status por camada
 
 ```
-Core (C-01 a C-04):     ■■□□□  40% completo
+Core (C-01 a C-04):     ■■■■□  75% completo
 Integration (C-05, C-09): □□□□□  0% completo (fora Email isolado)
 Operational (C-06):      □□□□□  0% completo
 AI (C-07):               □□□□□  0% completo
@@ -729,8 +731,8 @@ Cross-Cutting (X-01-05): ■■□□□  40% completo
 
 | Gap | Capability afetada | Impacto |
 |-----|-------------------|---------|
-| **Sem Repository Pattern** | Todas | SQL em services, banco não trocável, sem testes |
-| **Sem Event Bus** | C-05, C-06, C-07, C-09 | WhatsApp, IA, automações bloqueados |
+| **Repository Pattern incompleto** | C-03 | Consultas ainda usam SQL direto em alguns services; cobertura parcial |
+| **Event Bus é in-memory** | C-04 | Volátil — eventos perdidos em restart; Outbox garante eventos de domínio |
 | **Sem Shared Kernel** | Todas | Erro, validação, log duplicados |
 | **Barber.service.js god class** | D-01 | Impede evolução do BarberGestor |
 | **planFeatures.js duplicado** | X-01 | Feature gates inconsistentes |
@@ -858,8 +860,8 @@ MCPs são tratados como capabilities de infraestrutura para agentes IA e seguem 
 |----|------|------|--------|-----------|------------|
 | C-01 | Shared Kernel | Core | 📋 Planejado | P0 | — |
 | C-02 | Multi-Tenant Engine | Core | ✅ Parcial | P0 | C-01 |
-| C-03 | Repository Pattern | Core | 📋 Planejado | P0 | C-01, C-02 |
-| C-04 | Event Bus | Core | 📋 Planejado | P0 | C-01, C-02 |
+| C-03 | Repository Pattern | Core | ✅ Implementado | P0 | C-01, C-02 |
+| C-04 | Event Bus | Core | ✅ Implementado (in-memory) | P0 | C-01, C-02 |
 | C-05 | Integration Layer | Integração | 📋 Planejado | P1 | C-04 |
 | C-06 | Automation Engine | Operacional | 📋 Planejado | P1 | C-04, C-05 |
 | C-07 | AI Operational Layer | IA | 🔮 Futuro | P2 | C-04, C-06, C-03, C-02 |

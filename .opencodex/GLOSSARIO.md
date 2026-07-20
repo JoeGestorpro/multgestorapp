@@ -163,4 +163,4 @@ Documento que registra uma decisão importante de arquitetura, o contexto, a alt
 
 ---
 
-> Dúvidas? Consulte [[brain/KNOWLEDGE-OS.md]] para perguntas e respostas rápidas.
+> Dúvidas? Consulte [[projetos/multgestor/knowledge-os]] para perguntas e respostas rápidas.

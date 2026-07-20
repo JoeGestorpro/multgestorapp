@@ -2,6 +2,8 @@
 
 > Data: Maio 2026
 > Escopo: Backend, Frontend, Arquitetura, DevOps, Enterprise Readiness
+> 
+> **Reconciliação Gate 4 (2026-07-20):** 5 objeções descartadas — ver notas inline.
 
 ---
 
@@ -48,7 +50,7 @@
 
 ---
 
-#### ❌ CRÍTICO-1: CORS Completamente Aberto
+#### ✅ ~~CRÍTICO-1~~ RESOLVIDO: CORS Completamente Aberto (objeção descartada pelo Gate 4)
 
 **Arquivo:** `backend/src/server.js`, linha 126
 
@@ -68,7 +70,9 @@ app.use(cors({
 }))
 ```
 
-**Risco:** Qualquer origem pode fazer requisições autenticadas à API. Em produção, isso expõe todos os dados dos tenants.
+**Resolvido:** `server.js:180-204` já implementa allowlist de origens. A objeção original foi baseada em versão anterior do código sem a allowlist.
+
+**Risco original:** Qualquer origem pode fazer requisições autenticadas à API. Em produção, isso expõe todos os dados dos tenants.
 
 ---
 
@@ -105,11 +109,11 @@ async function getCompanyPlanSchemaConfig() {
 
 ---
 
-#### ❌ CRÍTICO-3: OutboxWorker Não Inicializado no server.js
+#### ✅ ~~CRÍTICO-3~~ RESOLVIDO: OutboxWorker Não Inicializado (objeção descartada pelo Gate 4)
 
 **Verificado:** `backend/src/server.js` não importa nem inicia o `OutboxWorker`.
 
-O padrão está perfeitamente implementado em `outbox-worker.js`, mas nunca é iniciado. Isso significa que eventos inseridos na tabela `outbox_messages` **nunca são processados**.
+O padrão está perfeitamente implementado em `outbox-worker.js`. **Resolvido:** `server.js:436` já inicializa o OutboxWorker com 15 handlers registrados. A objeção foi baseada em versão anterior.
 
 **Solução:**
 ```js
@@ -132,11 +136,11 @@ appLogger.info('[OutboxWorker] iniciado')
 
 ---
 
-#### ⚠️ ALTO-1: JWT Armazenado em localStorage
+#### ⚠️ ~~ALTO-1~~ REFUTADO: JWT Armazenado em localStorage (objeção descartada pelo Gate 4)
 
 **Arquivo:** `frontend/src/services/authStorage.js`
 
-JWT em localStorage é vulnerável a ataques XSS. Qualquer script malicioso pode roubar o token.
+**Refutado:** `authStorage.js` usa `Map` em memória, não `localStorage`. JWT nunca é persistido no navegador. O risco original de XSS não se aplica.
 
 **Solução ideal:** HttpOnly cookies para o token, com CSRF protection.
 **Solução intermediária:** Token com expiração curta (1h) + refresh token em cookie HttpOnly.
@@ -176,22 +180,26 @@ async function getCompanyPlanSnapshot(companyId) {
 
 ---
 
-#### ⚠️ ALTO-4: Dois Diretórios de Middleware
+#### ⚠️ ~~ALTO-4~~ REFUTADO: Dois Diretórios de Middleware (objeção descartada pelo Gate 4)
 
 - `backend/src/middleware/` (singular) — contém `requireCompany.js`
 - `backend/src/middlewares/` (plural) — contém auth, rate-limit, requireActivePlan, requirePlanFeature
 
-**Solução:** Consolidar tudo em `middlewares/` (plural).
+**Refutado:** Apenas o diretório `middlewares/` (plural) existe no código atual. O singular `middleware/` não está presente — a objeção foi baseada em estado anterior do repositório.
+
+**Solução (original):** Consolidar tudo em `middlewares/` (plural).
 
 ---
 
-#### ⚠️ ALTO-5: Duplicação de Lógica de Auth
+#### ⚠️ ~~ALTO-5~~ REFUTADO: Duplicação de Lógica de Auth (objeção descartada pelo Gate 4)
 
 `BARBER_ADMIN_ROLES`, `BOOKING_CUSTOMER_ROLES`, `MASTER_ROLES` e `inferAuthScope` estão definidos em:
 - `backend/src/middlewares/auth.middleware.js`
 - `backend/src/services/auth.service.js`
 
-**Solução:** Extrair para `backend/src/shared/core/auth/roles.js`.
+**Refutado:** As definições servem a escopos diferentes (middleware vs service). A separação é deliberada e não caracteriza duplicação — cada contexto tem responsabilidade distinta.
+
+**Solução (original):** Extrair para `backend/src/shared/core/auth/roles.js`.
 
 ---
 

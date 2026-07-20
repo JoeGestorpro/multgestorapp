@@ -131,7 +131,7 @@ Usuário (Browser / Mobile)
 | Banco | PostgreSQL 15+ | Supabase Cloud | via SSL | ✅ Produção |
 | Storage | Supabase Storage | Supabase Cloud | via API | ✅ Produção |
 | Email | Resend API | Cloud Resend | via HTTP | ✅ Produção |
-| Auth | JWT (7 dias) | Backend + Supabase | via middleware | ✅ Produção |
+| Auth | JWT + Refresh Token (v030) | Backend + Supabase | via middleware | ✅ Produção |
 | MCPs | OpenCode | Local (VS Code) | via stdio | ✅ Ativo |
 | N8N | — | — | — | 🔮 Futuro |
 | WhatsApp | — | — | — | 🔮 Futuro |
@@ -819,7 +819,7 @@ Regras de Deploy (P2)
 |---|-------|---------|-----------|
 | RK-09 | **Sem logger estruturado** | Debug difícil, sem correlação entre eventos | Implementar Pino |
 | RK-10 | **Timezone hardcoded** | Expansão para outros fusos bloqueada | Parametrizar timezone por empresa |
-| RK-11 | **JWT sem refresh token** | Sessões irrevogáveis até expiração de 7 dias | Implementar refresh token |
+| RK-11 | **JWT sem refresh token** | ⚠️ Resolvido — migration v030 implementa refresh tokens | Implementado via migration v030 |
 | RK-12 | **Rate limiter in-memory** | Não escala horizontalmente | Migrar para Redis (futuro) |
 
 ### 10.4 Riscos de Integração Futura

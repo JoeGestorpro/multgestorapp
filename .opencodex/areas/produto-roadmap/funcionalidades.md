@@ -1,67 +1,67 @@
-# Funcionalidades — MultGestor
+# Funcionalidades â€” MultGestor
 
 > **Status:** VIVO
 > **Atualizado:** 2026-06-24
-> **Relacionamentos:** [[product/fluxos]] · [[product/prds/README]] · [[capacidades]] · [[maps/multgestor-core/STATUS-GERAL]]
+> **Relacionamentos:** [[product/fluxos-produto]] Â· [[product/prds/README]] Â· [[capacidades]] Â· [[maps/multgestor-core/STATUS-GERAL]]
 
 ---
 
 ## Por Capability
 
 ### Agenda (Booking Engine)
-- [x] Agendamento online público
-- [x] Gestão de horários por colaborador
-- [x] Bloqueio de horários
+- [x] Agendamento online pÃºblico
+- [x] GestÃ£o de horÃ¡rios por colaborador
+- [x] Bloqueio de horÃ¡rios
 - [x] Reagendamento e cancelamento
-- [x] Lembrete automático (job)
-- [ ] Confirmação WhatsApp (mock ativo)
-- [ ] Recuperação de no-show
+- [x] Lembrete automÃ¡tico (job)
+- [ ] ConfirmaÃ§Ã£o WhatsApp (mock ativo)
+- [ ] RecuperaÃ§Ã£o de no-show
 - [ ] Fila de espera
 
 ### Clientes (CRM)
 - [x] Cadastro de clientes
-- [x] Histórico de agendamentos
-- [ ] Segmentação
+- [x] HistÃ³rico de agendamentos
+- [ ] SegmentaÃ§Ã£o
 - [ ] Campanhas de marketing
 - [ ] CRM de retorno
-- [ ] Avaliação pós-serviço
+- [ ] AvaliaÃ§Ã£o pÃ³s-serviÃ§o
 
 ### Financeiro
 - [x] Caixa (vendas)
-- [x] Comissões de colaboradores
-- [x] Relatórios básicos
-- [x] Múltiplas formas de pagamento
+- [x] ComissÃµes de colaboradores
+- [x] RelatÃ³rios bÃ¡sicos
+- [x] MÃºltiplas formas de pagamento
 - [ ] Fluxo de caixa completo
-- [ ] Conciliação bancária
+- [ ] ConciliaÃ§Ã£o bancÃ¡ria
 - [ ] Nota fiscal
 
 ### Estoque
-- [x] Controle básico
-- [ ] Compra e reposição
-- [ ] Alertas de estoque mínimo
+- [x] Controle bÃ¡sico
+- [ ] Compra e reposiÃ§Ã£o
+- [ ] Alertas de estoque mÃ­nimo
 - [ ] Fornecedores
 
 ### Colaboradores
 - [x] Cadastro e perfis
-- [x] Escala de horários
-- [x] Comissões por serviço
-- [ ] Ponto eletrônico
-- [ ] Metas e premiações
+- [x] Escala de horÃ¡rios
+- [x] ComissÃµes por serviÃ§o
+- [ ] Ponto eletrÃ´nico
+- [ ] Metas e premiaÃ§Ãµes
 
-### Notificações
+### NotificaÃ§Ãµes
 - [x] Lembrete de agendamento (email)
-- [ ] Confirmação WhatsApp
+- [ ] ConfirmaÃ§Ã£o WhatsApp
 - [ ] Marketing disparo
-- [ ] Recuperação de no-show
+- [ ] RecuperaÃ§Ã£o de no-show
 
-### Relatórios
-- [x] Relatórios básicos de vendas
-- [ ] Relatório por colaborador
-- [ ] Relatório por período
+### RelatÃ³rios
+- [x] RelatÃ³rios bÃ¡sicos de vendas
+- [ ] RelatÃ³rio por colaborador
+- [ ] RelatÃ³rio por perÃ­odo
 - [ ] Dashboard executivo
 
-## Referências
+## ReferÃªncias
 
-- [[capacidades]] — Status detalhado de cada capability
-- [[maps/multgestor-core/STATUS-GERAL]] — Status geral do projeto
-- [[maps/multgestor-core/capabilities/README]] — Capacidades detalhadas
+- [[capacidades]] â€” Status detalhado de cada capability
+- [[maps/multgestor-core/STATUS-GERAL]] â€” Status geral do projeto
+- [[maps/multgestor-core/capabilities/README]] â€” Capacidades detalhadas

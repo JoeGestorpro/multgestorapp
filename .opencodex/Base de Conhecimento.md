@@ -1,6 +1,7 @@
 # Base de Conhecimento
 
 > Responde: **"Como funciona?"**
+> Primeiro acesso? Consulte [[02-COMO-USAR|Como Usar o OpenCodex]].
 > Conhecimento técnico permanente do MultGestor, organizado por assunto — não por
 > projeto, não por sprint, não por estado atual (isso é papel do
 > [[Diário do Projeto]] e de `status-atual`/`status-dinamico`).
