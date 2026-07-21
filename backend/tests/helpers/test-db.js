@@ -121,8 +121,12 @@ async function cleanupCompany(pool, companyId) {
 
   for (const table of tables) {
     try {
+      // "companies" identifica a própria empresa por "id", não "company_id".
+      // Usar a coluna errada aqui fazia o DELETE falhar sempre (silenciosamente,
+      // pelo catch abaixo) e a empresa nunca era removida entre execuções.
+      const column = table === 'companies' ? 'id' : 'company_id'
       await pool.query(
-        `DELETE FROM ${table} WHERE company_id = $1`,
+        `DELETE FROM ${table} WHERE ${column} = $1`,
         [companyId]
       )
     } catch {
