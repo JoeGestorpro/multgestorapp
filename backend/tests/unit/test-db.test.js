@@ -23,7 +23,7 @@ describe('Database Production Protection', () => {
     process.env.DATABASE_URL = 'postgres://user:pass@db.xyz123.supabase.co:5432/production'
 
     expect(() => guardAgainstProduction()).toThrow(
-      'FATAL: Test attempted to connect to production database'
+      'FATAL: Test attempted to connect to a disallowed database'
     )
   })
 
@@ -32,7 +32,7 @@ describe('Database Production Protection', () => {
     process.env.DATABASE_URL = 'postgres://user:pass@host:5432/my-production-db'
 
     expect(() => guardAgainstProduction()).toThrow(
-      'FATAL: Test attempted to connect to production database'
+      'FATAL: Test attempted to connect to a disallowed database'
     )
   })
 
@@ -46,6 +46,31 @@ describe('Database Production Protection', () => {
     process.env.DATABASE_URL = 'postgres://postgres:postgres@localhost:5432/multgestor_test'
 
     expect(() => guardAgainstProduction()).not.toThrow()
+  })
+
+  it('allows the approved Supabase test project ref (TENANT-003A)', () => {
+    process.env.TEST_DATABASE_URL =
+      'postgresql://postgres.ofyznjgfeqyadaeghtpc:pass@aws-1-us-west-2.pooler.supabase.com:5432/postgres'
+
+    expect(() => guardAgainstProduction()).not.toThrow()
+  })
+
+  it('blocks the known MultGestor production Supabase project ref even as TEST_DATABASE_URL', () => {
+    process.env.TEST_DATABASE_URL =
+      'postgresql://postgres.fjxqvohrnnxgqeaimdup:pass@aws-1-us-east-2.pooler.supabase.com:6543/postgres'
+
+    expect(() => guardAgainstProduction()).toThrow(
+      'é o projeto de produção do MultGestor'
+    )
+  })
+
+  it('blocks an unrecognized Supabase project ref (default-deny)', () => {
+    process.env.TEST_DATABASE_URL =
+      'postgresql://postgres.someunknownref:pass@aws-1-us-east-1.pooler.supabase.com:6543/postgres'
+
+    expect(() => guardAgainstProduction()).toThrow(
+      'não está na lista de projetos de teste aprovados'
+    )
   })
 
   it('redacts credentials in error message', () => {
