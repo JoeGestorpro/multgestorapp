@@ -1,8 +1,8 @@
 ---
 tipo: decisao
 area: dominio
-status: proposto
-progresso: 0
+status: implementado
+progresso: 100
 criticidade: alta
 bloqueia_producao: false
 bloqueia_venda: false
@@ -11,7 +11,10 @@ ultima_revisao: 2026-07-20
 
 # ADR-007 — Booking Engine: rebaixar ou promover
 
-> **Status:** PROPOSTA — requer decisão humana. Nenhum código alterado.
+> ✅ **APROVADA (Opção A — rebaixar) e IMPLEMENTADA em 2026-07-20** — PR #67, commit `4af95aa`, produção saudável.
+> ⚠️ **SUPERADA por [[ADR-008-booking-engine-formalizacao]]**, que reexamina a mesma decisão com auditoria completa
+> (inventário, contratos, testes, matriz de pontuação de 10 critérios) e **confirma** a escolha aqui registrada —
+> não a reverte. Consulte a ADR-008 para a evidência de maior rigor; este documento permanece como registro histórico da decisão original.
 > **Origem:** [[../matriz-consolidacao-core]] `DOMAIN-002`, ANEXO F item #1 (backlog pós-03D)
 > **Regra vigente do backlog:** *"escrever código antes do ADR é o erro que criou o achado A7"* — este documento existe para não repetir esse erro.
 

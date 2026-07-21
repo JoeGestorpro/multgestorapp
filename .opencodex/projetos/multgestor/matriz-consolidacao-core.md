@@ -208,15 +208,19 @@ Progressão: `DOCUMENTADO → IMPLEMENTADO → VALIDADO LOCAL → VALIDADO EM CI
 - **Proveniência:** `backend/src/shared/capabilities/booking-engine/{index.js,scheduling-utils.js}` · **0 ocorrências de `barber_`/`clima_`** no diretório · suíte unitária 765/765
 - **DoD:** funções puras reutilizáveis, sem vocabulário de nicho. **Atendido.**
 
-#### `DOMAIN-002` — Booking Engine (serviços com estado) · **🔴 gap estrutural do Core**
-- **Bloco:** DOMAIN · **Responsabilidade:** deveria ser CORE; **hoje é NICHO** · **Estado:** `EXISTE MAS PRECISA REESTRUTURAÇÃO` · **Evidência:** `IMPLEMENTADO`
-- **Proveniência:** `backend/src/services/booking-appointments.service.js` — **59 ocorrências de `barber_`** (`grep -c`, 2026-07-16) · `backend/src/services/booking-scheduling.service.js` — **32 ocorrências** · **total 91** · `backend/src/services/clima-core.service.js` (motor próprio do Clima) · auditoria `.opencodex/audits/2026-07-03-core-vs-nicho-audit` (achado **A7**)
-- **Lacuna:** os serviços **nomeiam-se `booking-*` (genérico) mas consultam tabelas `barber_*`**. Não são compartilhados: o ClimaGestor reimplementou o próprio motor. Moram em `services/` — **nem `shared/`, nem um módulo de nicho**.
-- **Dependências:** `DOMAIN-001` · **Bloqueadores:** — · **Severidade:** **P1** (bloqueia o marco **Core Multi-nicho Comprovado**; **não** bloqueia o Core Consolidado v1, que é provado pelo BarberGestor)
-- **DoD:** decisão registrada em ADR entre **(a) rebaixar** para o módulo barber (honesto, barato, elimina o falso rótulo de Core) e **(b) promover** extraindo porta de persistência (caro; é o que torna o Core reutilizável). Se (b): um segundo nicho consome o motor sem reimplementar.
-- **Próxima ação:** **ADR obrigatório antes de qualquer código.** Ver §Próxima Missão.
+#### `DOMAIN-002` — Booking Engine (serviços com estado) · ✅ **DECIDIDO E IMPLEMENTADO**
+- **Bloco:** DOMAIN · **Responsabilidade:** NICHO (decidido) · **Estado:** ✅ **`REBAIXADO — CONCLUÍDO`** · **Evidência:** `COMPROVADO EM PRODUÇÃO`
 
-> **✅ CONVERGÊNCIA:** a alegação de "59+ `barber_*`" em `capacidades.md` foi **confirmada com precisão** (59 exatas em `booking-appointments`). Este é o único achado crítico da doc canônica que resistiu integralmente à verificação.
+> ✅ **RESOLVIDO em 2026-07-20.** [[ADR-008-booking-engine-formalizacao]] (formaliza [[ADR-007-booking-engine]], Opção A) decidiu **rebaixar**. Implementado: `services/booking-appointments.service.js` e `services/booking-scheduling.service.js` → `services/barber/` (PR #67, commit `4af95aa`, produção saudável). `scheduling-utils.js` permanece no Core — é o único código genuinamente compartilhado (0 ocorrências `barber_`/`clima_`).
+>
+> **Achado novo da auditoria de formalização:** existem **duas trilhas paralelas** de criação de agendamento dentro do próprio BarberGestor — `AppointmentService`/`AppointmentRepository` (staff, com eventos) e `client-booking.service.js`/`booking-appointments.service.js` (público, SQL cru). Não muda esta decisão; registrado como próxima missão técnica (`DOMAIN-002B`).
+
+- **Proveniência:** `backend/src/services/barber/booking-appointments.service.js` — 59 ocorrências de `barber_` (revalidado 2026-07-20) · `booking-scheduling.service.js` — 32 · `repositories/appointment.repository.js` — **40** (achado novo — não capturado em 16/07) · auditoria `.opencodex/audits/2026-07-03-core-vs-nicho-audit` (A7) · [[../../../auditorias/multgestor/2026-07-20-domain-002-booking-engine]] (evidência completa)
+- **Dependências:** `DOMAIN-001` (concluída) · **Bloqueadores:** — · **Severidade:** ~~P1~~ **resolvida**
+- **DoD:** ✅ **ATENDIDO** — decisão registrada em ADR (dupla: 007 + 008), implementada, comprovada em produção.
+- **Próxima ação:** `DOMAIN-002B` — consolidar as duas trilhas de criação de agendamento e cobrir com testes de conflito/concorrência (ver ADR-008 § Próximas ações). `NICHEKIT-001` precisa ser replanejado com a pressuposição de "motor compartilhado" removida.
+
+> **✅ CONVERGÊNCIA (16/07, ainda válida):** a alegação de "59+ `barber_*`" em `capacidades.md` foi confirmada com precisão. Revalidada novamente em 20/07 nos mesmos números.
 
 ### Bloco EVENT — Eventos e entrega durável
 
@@ -444,9 +448,10 @@ Progressão: `DOCUMENTADO → IMPLEMENTADO → VALIDADO LOCAL → VALIDADO EM CI
 #### `NICHEKIT-001` — Primitivas de módulo
 - **Bloco:** NICHEKIT · **Responsabilidade:** CORE · **Estado:** `EXISTE PARCIALMENTE` · **Evidência:** `VALIDADO LOCAL`
 - **Proveniência:** `middlewares/createModuleGuard.js` (factory genérica, **2 consumidores reais**) · tabelas `modules` / `company_modules` (com RLS) · `shared/capabilities/booking-engine/` (utils puras, reusadas por Barber e Clima) · `shared/tenant/`
-- **Lacuna:** as primitivas existem, mas **não formam um kit**: não há scaffolding, documentação de "como criar um nicho", nem contrato de persistência que permita reusar o motor de booking (`DOMAIN-002`). O que existe hoje permite criar um nicho **guardado e isolado**, mas não **funcional sem reimplementar o domínio**.
-- **Dependências:** `DOMAIN-002` (P1), `IDENT-002` (P2), `ACCESS-001` (pronto) · **Severidade:** **P1** para o marco Multi-nicho
-- **DoD:** kit tecnicamente verificável — um nicho novo obtém guard, contexto tenant, RLS, billing, gating e motor de booking **sem reimplementar nenhum deles**.
+- **Lacuna:** as primitivas existem, mas **não formam um kit**: não há scaffolding nem documentação de "como criar um nicho".
+- ⚠️ **Pressuposição corrigida em 2026-07-20 ([[ADR-008-booking-engine-formalizacao]]):** o DoD abaixo presumia um "motor de booking reusável" que **não existe e foi formalmente decidido não construir agora** (`DOMAIN-002` = rebaixado). O kit não pode prometer motor de agendamento compartilhado — cada nicho implementa o próprio, reaproveitando apenas `scheduling-utils.js`.
+- **Dependências:** ~~`DOMAIN-002` (P1)~~ resolvida (rebaixada, não promovida) · `IDENT-002` (P2) · `ACCESS-001` (pronto) · **Severidade:** **P1** para o marco Multi-nicho
+- **DoD (a replanejar):** ~~kit tecnicamente verificável — um nicho novo obtém guard, contexto tenant, RLS, billing, gating e motor de booking sem reimplementar nenhum deles~~. Novo DoD pendente de definição: kit deve cobrir guard, contexto tenant, RLS, billing e gating **sem** prometer motor de booking compartilhado.
 
 #### `NICHEKIT-002` — ClimaGestor como prova do kit
 - **Bloco:** NICHEKIT · **Responsabilidade:** NICHO · **Estado:** `EXISTE PARCIALMENTE` · **Evidência:** `IMPLEMENTADO`
@@ -596,21 +601,24 @@ SELECT version, name, applied_at FROM schema_migrations ORDER BY applied_at DESC
 ## ANEXO F — Backlog priorizado
 
 > Ordenação: severidade · bloqueio de marco · dependências desbloqueadas · exposição ao risco · facilidade de produzir evidência · menor esforço. **Severidade isolada não determina a ordem.**
-> **Reordenado em 2026-07-20** após a conclusão da OPS-MIGRATIONS-03D — ver nota de encerramento abaixo da tabela.
+> **Reordenado em 2026-07-20 (duas vezes)** — após a conclusão da OPS-MIGRATIONS-03D e, no mesmo dia, após a formalização de `DOMAIN-002` — ver notas de encerramento abaixo da tabela.
 
 | # | Item | Capacidades | Sev. | Marco | Justificativa da posição |
 |---|---|---|---|---|---|
-| **1** | **ADR: rebaixar ou promover o Booking Engine** | `DOMAIN-002`, `NICHEKIT-001` | P1 | Multi-nicho | Decisão, não código. Bloqueia 2 capacidades e o marco Multi-nicho. **Escrever código antes do ADR é o erro que criou o A7.** |
-| **2** | **Inventário de RLS consultado no banco** | `TENANT-003` | P2 | v1 | 3 documentos erram a cobertura (D-03) e o repo **não é fonte completa** (L-4). Requer acesso read-only ao banco. |
-| **3** | **Ativação do entitlement de billing em produção** | `BILLING-001`, `BILLING-002` | P2 | v1 | Código pronto e gating **já genérico** (D-04 elimina o pré-requisito antes presumido). Falta config (D-016) + evidência de prod. Fecha o circuito comercial. |
-| **4** | **Auditoria de proteção de rota (R-003)** | `API-001`, `FILES-001` | P2 | v1 | Rotas de upload e de IA (custo externo) não auditadas. Superfície de abuso desconhecida. |
-| **5** | **Escopo de auth por módulo** | `IDENT-002`, `ACCESS-002` | P2/P3 | Multi-nicho | Contorno controlado hoje; vira P1 quando existir um segundo scope real. |
-| **6** | **Trilha de auditoria unificada** | `AUDIT-001` | P3 | — | 3 tabelas, nenhuma com RLS, sem retenção. |
-| **7** | **Gate de segurança bloqueante** | `SEC-003` | P3 | — | `security-audit.yml` não bloqueia. |
-| **8** | **Decomposição de `Barber.jsx`** | `FRONTCORE-002` | P3 | Multi-nicho | 4.990 linhas; débito de manutenção, sem risco imediato. |
-| **9** | **Observabilidade de performance** | `OBS-002` | P4 | — | Sem baseline; adiar até o volume justificar. |
+| **1** | **Inventário de RLS consultado no banco** | `TENANT-003` | P2 | v1 | 3 documentos erram a cobertura (D-03) e o repo **não é fonte completa** (L-4). Requer acesso read-only ao banco. |
+| **2** | **Ativação do entitlement de billing em produção** | `BILLING-001`, `BILLING-002` | P2 | v1 | Código pronto e gating **já genérico** (D-04 elimina o pré-requisito antes presumido). Falta config (D-016) + evidência de prod. Fecha o circuito comercial. |
+| **3** | **Auditoria de proteção de rota (R-003)** | `API-001`, `FILES-001` | P2 | v1 | Rotas de upload e de IA (custo externo) não auditadas. Superfície de abuso desconhecida. |
+| **4** | **Escopo de auth por módulo** | `IDENT-002`, `ACCESS-002` | P2/P3 | Multi-nicho | Contorno controlado hoje; vira P1 quando existir um segundo scope real. |
+| **5** | **Trilha de auditoria unificada** | `AUDIT-001` | P3 | — | 3 tabelas, nenhuma com RLS, sem retenção. |
+| **6** | **Gate de segurança bloqueante** | `SEC-003` | P3 | — | `security-audit.yml` não bloqueia. |
+| **7** | **Decomposição de `Barber.jsx`** | `FRONTCORE-002` | P3 | Multi-nicho | 4.990 linhas; débito de manutenção, sem risco imediato. |
+| **8** | **Observabilidade de performance** | `OBS-002` | P4 | — | Sem baseline; adiar até o volume justificar. |
 
-> ✅ **Item #1 anterior — `OPS-MIGRATIONS-03` — CONCLUÍDO em 2026-07-20** como **OPS-MIGRATIONS-03D**. Migrations de produção passaram a ser automáticas, bloqueantes, estritas, idempotentes e reversíveis (`buildCommand = npm install && npm run migrate:prod`, gate no Render). `DATAOPS-001` deixou de ser alvo — está **resolvido** (gate bloqueante ativo). Evidências: [[../../brain/plans/OPS-MIGRATIONS-03D-plano]] § ENCERRAMENTO. Os itens 2–10 subiram uma posição cada.
+**Novo item — `DOMAIN-002B`, achado da formalização (2026-07-20):** consolidar as duas trilhas paralelas de criação de agendamento no BarberGestor (`AppointmentService`/`AppointmentRepository` vs. `client-booking.service.js`/`booking-appointments.service.js`) e cobrir com testes de conflito/concorrência. Sem posição fixa ainda — depende de priorização humana; não bloqueia nenhum marco por si só. Ver [[ADR-008-booking-engine-formalizacao]].
+
+> ✅ **Item #1 anterior — `OPS-MIGRATIONS-03` — CONCLUÍDO em 2026-07-20** como **OPS-MIGRATIONS-03D**. Migrations de produção passaram a ser automáticas, bloqueantes, estritas, idempotentes e reversíveis (`buildCommand = npm install && npm run migrate:prod`, gate no Render). `DATAOPS-001` deixou de ser alvo — está **resolvido** (gate bloqueante ativo). Evidências: [[../../brain/plans/OPS-MIGRATIONS-03D-plano]] § ENCERRAMENTO.
+>
+> ✅ **Item #1 seguinte — `ADR: rebaixar ou promover o Booking Engine` — CONCLUÍDO em 2026-07-20**, no mesmo dia. Decidido e implementado: rebaixar (`DOMAIN-002`). Formalizado com auditoria completa em [[ADR-008-booking-engine-formalizacao]] (supera [[ADR-007-booking-engine]]). Os itens 2–9 subiram uma posição cada, duas vezes, resultando na numeração 1–8 atual.
 
 **Fora do backlog (bloqueado por humano):** `DATAOPS-003` — a **conectividade IPv6** que o descrevia ficou **moot**: nenhum workflow do GitHub tenta mais alcançar o banco de produção (o job `run-migrations` foi removido do `deploy.yml` no GATE 9). A condição que a própria matriz previa para desbloquear a rotação de segredos — *"remove a `DATABASE_URL` de produção do CI → dissolve a preocupação de secret em log"* — está **satisfeita**: `secrets.DATABASE_URL` tem **0 ocorrências** em `deploy.yml`. A rotação de segredos em si **continua pausada por decisão humana** — este documento não a declara retomada; apenas registra que o bloqueio técnico que a impedia deixou de existir. **Não alterar o `continue-on-error`** (que também já não existe neste job) não se aplica mais — nada a fazer aqui sem decisão humana sobre a rotação.
 
