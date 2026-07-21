@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
+const { runPublicTenantOperation } = require('../config/database');
 const emailService = require('./email/email.service');
 const { inferAuthScope } = require('../shared/core/auth/roles');
 
@@ -365,10 +366,12 @@ async function loginBookingCustomer(data) {
     throw createError('Credenciais invalidas', 401);
   }
 
-  await pool.query(
-    `UPDATE booking_customers SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1`,
-    [customer.id]
-  );
+  await runPublicTenantOperation(customer.company_id, async () => {
+    await pool.query(
+      `UPDATE booking_customers SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1 AND company_id = $2`,
+      [customer.id, customer.company_id]
+    );
+  });
 
   const customerForToken = { ...customer, role: 'booking_customer', customer_id: customer.id };
 

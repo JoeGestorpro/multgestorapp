@@ -1,4 +1,5 @@
 const pool = require('../../config/database');
+const { runPublicTenantOperation } = require('../../config/database');
 const {
   addMinutes, toUtcDate, normalizeStartsAtInput, normalizeDateInput,
   normalizeTimeInput, getTimezoneOffset, BRAZIL_TIMEZONE, formatDateKey
@@ -606,7 +607,6 @@ async function createClientAppointment(user, data) {
 
 async function createPublicAppointment(companySlug, data = {}) {
   const company = await getCompanyBySlug(companySlug);
-  const client = await pool.connect();
 
   const customerName = String(data.customerName || data.customer_name || '').trim();
   const customerPhone = normalizePhone(data.customerPhone || data.customer_phone || '');
@@ -628,17 +628,15 @@ async function createPublicAppointment(companySlug, data = {}) {
     throw createError('Servico e obrigatorio para concluir o agendamento', 400);
   }
 
-  try {
-    await client.query('BEGIN');
-
-    const settings = await getBookingSettings(company.id, client);
+  return runPublicTenantOperation(company.id, async () => {
+    const settings = await getBookingSettings(company.id);
 
     // Verificar configuração de depósito
     let depositRequired = false
     let depositAmount = 0
     const depositConfig = await walletService.getDepositConfig(company.id)
     if (depositConfig.deposit_enabled) {
-      const service = await ensureService(company.id, serviceId, client)
+      const service = await ensureService(company.id, serviceId)
       if (depositConfig.deposit_type === 'percentage') {
         depositAmount = Math.round((Number(service.price) * depositConfig.deposit_value / 100) * 100) / 100
       } else {
@@ -655,7 +653,7 @@ async function createPublicAppointment(companySlug, data = {}) {
       }
 
       // verificar se o topup_request foi completado
-      const topup = await client.query(
+      const topup = await pool.query(
         `SELECT id, status, amount FROM topup_requests
          WHERE id = $1 AND company_id = $2 AND status = 'completed'
          LIMIT 1`,
@@ -696,8 +694,7 @@ async function createPublicAppointment(companySlug, data = {}) {
       collaboratorId: resolvedCollaboratorId,
       serviceId,
       startsAt: startsAtInput,
-      settings,
-      client
+      settings
     });
 
     const insertColumns = [
@@ -749,7 +746,7 @@ async function createPublicAppointment(companySlug, data = {}) {
       })
       .join(', ');
 
-    const result = await client.query(
+    const result = await pool.query(
        `INSERT INTO barber_appointments (
          ${insertColumns.join(',\n         ')}
        )
@@ -758,14 +755,8 @@ async function createPublicAppointment(companySlug, data = {}) {
       insertValues
     );
 
-    await client.query('COMMIT');
     return result.rows[0];
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 async function cancelClientAppointment(user, appointmentId) {
