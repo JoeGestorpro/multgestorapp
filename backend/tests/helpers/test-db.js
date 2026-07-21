@@ -112,6 +112,7 @@ async function cleanupCompany(pool, companyId) {
     'password_reset_tokens',
     'pin_reset_tokens',
     'email_verification_tokens',
+    'booking_customers',
     'auth_audit_logs',
     'barber_audit_logs',
     'users',
