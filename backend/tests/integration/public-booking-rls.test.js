@@ -36,6 +36,22 @@ const supertest = require('supertest')
 
 const publicBookingRoutes = require('../../src/routes/public-booking.routes')
 
+// O motor de agenda avalia horário de funcionamento no fuso fixo do negócio
+// (America/Cuiaba, UTC-4, sem DST — ver scheduling-utils.js). new Date().setHours()
+// usa o fuso LOCAL do processo que roda o teste, que não é necessariamente
+// UTC-4 (CI normalmente roda em UTC) — construir o horário direto em UTC evita
+// que o mesmo teste passe numa máquina e falhe por "fora do horário de
+// funcionamento" (400) em outra, só por causa do fuso do runner.
+function nextBusinessDateAtUtcHour(minDaysAhead, hourUtc) {
+  let date = new Date(Date.now() + minDaysAhead * 24 * 60 * 60 * 1000)
+  date.setUTCHours(hourUtc, 0, 0, 0)
+  // Domingo (weekday 0) é fechado por padrão (weekly_hours default) — pula para segunda.
+  while (date.getUTCDay() === 0) {
+    date = new Date(date.getTime() + 24 * 60 * 60 * 1000)
+  }
+  return date
+}
+
 const TEST_COMPANY_IDS = []
 
 let app = null
@@ -157,8 +173,8 @@ describeDb('Public booking — isolamento entre tenants (TENANT-003A / SEC-BOOKI
 
   describe('3. POST /booking/:slug/appointments — criação de booking', () => {
     it('agendamento criado pelo slug A é gravado com company_id de A', async () => {
-      const startsAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
-      startsAt.setHours(10, 0, 0, 0)
+      // 14:00 UTC = 10:00 America/Cuiaba (dentro de 08:00-19:00, seg-sex/sáb 08:00-17:00).
+      const startsAt = nextBusinessDateAtUtcHour(3, 14)
 
       const response = await supertest(app)
         .post(`/api/public/booking/${companyA.public_booking_slug}/appointments`)
@@ -178,8 +194,8 @@ describeDb('Public booking — isolamento entre tenants (TENANT-003A / SEC-BOOKI
     })
 
     it('não é possível criar agendamento no slug A usando serviço do tenant B', async () => {
-      const startsAt = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000)
-      startsAt.setHours(11, 0, 0, 0)
+      // 15:00 UTC = 11:00 America/Cuiaba.
+      const startsAt = nextBusinessDateAtUtcHour(4, 15)
 
       const response = await supertest(app)
         .post(`/api/public/booking/${companyA.public_booking_slug}/appointments`)
