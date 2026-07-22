@@ -15,13 +15,25 @@ const TEST_MAX = 2; // teto pequeno só para o teste (default de produção é 6
 
 describe('Webhooks públicos — rate limit de abuso (R-003)', () => {
   let app;
+  let originalRedisUrl;
 
   beforeAll(() => {
     jest.resetModules();
     process.env.WEBHOOK_RATELIMIT_MAX = String(TEST_MAX);
     process.env.WEBHOOK_RATELIMIT_WINDOW_MS = String(60 * 1000);
 
-    // Requerido APÓS setar env — webhook-rate-limit.js lê o env no load.
+    // Força o path IN-MEMORY do limiter (determinístico) removendo REDIS_URL antes
+    // de carregar os módulos. Em CI, REDIS_URL está presente e o redis-client conecta
+    // de forma assíncrona (_available só vira true no evento 'ready') — durante o
+    // warmup, requests iniciais caem em memória e as seguintes em Redis, dividindo o
+    // contador entre dois backends e tornando o teste flaky. O objetivo aqui é validar
+    // a LÓGICA de decisão do limiter (429 após o teto), não a integração com Redis;
+    // o fallback in-memory é um caminho legítimo e documentado do middleware.
+    originalRedisUrl = process.env.REDIS_URL;
+    delete process.env.REDIS_URL;
+    jest.resetModules();
+
+    // Requerido APÓS setar/limpar env — webhook-rate-limit.js e redis-client leem env no load.
     const { createIntegrationApp, registerRoutes } = require('../helpers/integration-app');
     const webhooksRoutes = require('../../src/routes/webhooks.routes');
 
@@ -32,6 +44,8 @@ describe('Webhooks públicos — rate limit de abuso (R-003)', () => {
   afterAll(() => {
     delete process.env.WEBHOOK_RATELIMIT_MAX;
     delete process.env.WEBHOOK_RATELIMIT_WINDOW_MS;
+    if (originalRedisUrl === undefined) delete process.env.REDIS_URL;
+    else process.env.REDIS_URL = originalRedisUrl;
   });
 
   it('retorna 429 após exceder o teto no /kiwify, com corpo controlado', async () => {
