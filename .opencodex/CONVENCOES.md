@@ -13,7 +13,7 @@ Como contribuir com o Knowledge OS sem bagunçar.
 | Regras vinculantes | [[rules/]] |
 | Prompts prontos para IA | [[prompts/]] |
 | Modelos reutilizáveis | [[templates/]] |
-| Auditorias e verificações | [[audits/]] |
+| Auditorias e verificações | [[auditorias/multgestor/visao-geral]] |
 | Passagem de contexto entre fases | [[handoff/]] |
 | Automações e políticas | [[automation/]] |
 | Operação e deploy | [[ops/]] |
@@ -44,7 +44,7 @@ Se existe uma pasta com o mesmo nome na raiz e em [[brain/]]:
 
 ## 5. Como documentar uma decisão
 
-Use o template em [[brain/decisions/TEMPLATE-DECISION.md]]. Toda decisão deve ter:
+Use o template em [[decisoes/MODELO-DECISAO]]. Toda decisão deve ter:
 
 - Contexto (por que a decisão foi necessária)
 - Decisão (o que foi escolhido)
@@ -61,7 +61,7 @@ Antes de criar ou alterar um arquivo:
 - [ ] Se é regra vinculante, está em [[rules/]]?
 - [ ] Se é conhecimento profundo, está em [[brain/]] na camada certa?
 - [ ] Verificou se já existe conteúdo similar em outra pasta?
-- [ ] Atualizou o [[brain/INDEX.md]] se adicionou documento novo?
+- [ ] Atualizou o [[01-MAPA-GERAL]] se adicionou documento novo?
 
 ## 7. O que evitar
 

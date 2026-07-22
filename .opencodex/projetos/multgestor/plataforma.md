@@ -1,13 +1,33 @@
 # MultGestor Platform Specification
 
-> **Status:** OFICIAL • VIVO — este é o documento constitucional da plataforma. Define o que
-> é Core, o que é Nicho, e as regras que governam a fronteira entre os dois.
-> **Criado:** 2026-07-03 (missão Core P0) · **Última sincronização:** 2026-07-03
-> **Fontes:** [[capacidades]] (catálogo técnico vivo) ·
+> **Status:** OFICIAL • VIVO — define o que é Core, o que é Nicho, e as regras que governam a
+> fronteira entre os dois. **Este documento é normativo (a regra); não é a fonte do estado.**
+> **Criado:** 2026-07-03 (missão Core P0) · **Última sincronização:** 2026-07-16 (missão 12.1A)
+> **Estado factual das capacidades:** [[matriz-consolidacao-core]] — ancorada em `4c8ce847`. **Prevalece** em qualquer conflito sobre *estado*.
+> **Fontes:** [[capacidades]] (mapa conceitual; ⚠️ 4 divergências corrigidas em 2026-07-16) ·
 > [[../audits/2026-07-03-core-vs-nicho-audit]] (evidência e diagnóstico) ·
 > [[runbooks/MODELO-AUDITORIA-NICHO]] (como auditar um nicho)
 > **Regra de honestidade:** o que está implementado é descrito no presente. O que é intenção
 > futura é marcado **[VISÃO — não implementado]**. Nunca confundir os dois.
+
+---
+
+## 0. Estado de execução da fronteira Core × Nicho (verificado 2026-07-16)
+
+> Registro factual da missão 12.1A. As regras deste documento são **normativas**; a tabela abaixo diz **até onde elas estão cumpridas** no commit `4c8ce847`.
+
+| Regra da plataforma | Cumprimento verificado | Evidência |
+|---|---|---|
+| Core não contém vocabulário de nicho | 🟡 **1 violação** em `shared/` | `grep -rn "barber_\|clima_" backend/src/shared/` → **1 ocorrência** (`shared/core/auth/roles.js:17` → scope `'barber_admin'`). Matriz `ACCESS-002` (P3) |
+| Domínio compartilhável é reusado, não reimplementado | 🔴 **Violada** (achado A7 **confirmado**) | `services/booking-appointments.service.js` = **59** `barber_`; `booking-scheduling.service.js` = **32**. Clima reimplementa o motor. Matriz `DOMAIN-002` (**P1**) |
+| Nicho obtém isolamento sem tocar o Core | ✅ **Cumprida** | `middlewares/createModuleGuard.js` — factory genérica, 2 consumidores reais. Matriz `ACCESS-001` (`CONCLUÍDA`) |
+| Gating de plano é genérico | ✅ **Cumprida** | `utils/planFeatures.js` — chaves genéricas; billing com **0** `barber`. Matriz `FEATURE-001` (`CONCLUÍDA`) |
+| Isolamento multi-tenant é enforced, não confiado ao app | ✅ **Cumprida** | `tenantAwareConnect` → `poolTenant` NOBYPASSRLS; CI com role real. Matriz `TENANT-002` (`CONCLUÍDA`, VALIDADO EM CI) |
+| Existe kit verificável para criar nicho | 🔴 **Não cumprida** | Primitivas existem (`createModuleGuard`, `shared/tenant`, booking-utils), **mas não formam kit**: sem scaffolding e sem contrato de persistência do motor. Matriz `NICHEKIT-001` (**P1**) |
+
+**Leitura:** a fronteira está **bem executada na infra** (tenant, guards, gating, contratos) e **não executada no domínio** (`DOMAIN-002`). O `services/` hospeda código de nicho com nome genérico — é o ponto onde a regra desta especificação é contrariada na prática.
+
+**Marcos:** *Core Consolidado v1* e *Core Multi-nicho Comprovado* — **ambos NÃO ATINGIDOS** em `4c8ce847`. Ver ANEXO G da matriz.
 
 ---
 

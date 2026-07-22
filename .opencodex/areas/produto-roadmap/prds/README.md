@@ -1,8 +1,8 @@
-# PRD Library — Second Brain V2
+# PRD Library â€” Second Brain V2
 
-> **Status:** OFICIAL • VIVO
+> **Status:** OFICIAL â€¢ VIVO
 > **Atualizado:** 2026-06-24
-> **Propósito:** Biblioteca padronizada de PRDs (Product Requirements Documents).
+> **PropÃ³sito:** Biblioteca padronizada de PRDs (Product Requirements Documents).
 
 ---
 
@@ -14,21 +14,21 @@ Cada PRD segue o modelo definido em [[product/prds/TEMPLATE-PRD|TEMPLATE-PRD]]
 
 - Objetivo
 - Problema
-- Solução
+- SoluÃ§Ã£o
 - Fluxos
 - UX
 - Banco
 - API
 - Frontend
 - Regras
-- Critérios de Aceite
+- CritÃ©rios de Aceite
 - Checklist
 - Status
 - Relacionamentos
 
 ## PRDs
 
-| ID | Título | Status | Prioridade |
+| ID | TÃ­tulo | Status | Prioridade |
 |---|---|---|---|
 | _Nenhum PRD registrado ainda_ | | | |
 
@@ -37,14 +37,14 @@ Cada PRD segue o modelo definido em [[product/prds/TEMPLATE-PRD|TEMPLATE-PRD]]
 ## Como criar um PRD
 
 1. Copiar [[product/prds/TEMPLATE-PRD|template]] para `prds/PRD-XXX-descricao.md`
-2. Preencher todas as seções
+2. Preencher todas as seÃ§Ãµes
 3. Conectar via wikilinks com [[product/README]] e [[technical/README]]
-4. Atualizar este índice
+4. Atualizar este Ã­ndice
 
-## Referências
+## ReferÃªncias
 
-- [[product/README]] — Product Brain
-- [[technical/README]] — Technical Brain
-- [[product/vision]] — Visão de produto
-- [[product/funcionalidades]] — Funcionalidades atuais
-- [[product/fluxos]] — Fluxos de produto
+- [[product/README]] â€” Product Brain
+- [[technical/README]] â€” Technical Brain
+- [[product/vision]] â€” VisÃ£o de produto
+- [[product/funcionalidades]] â€” Funcionalidades atuais
+- [[product/fluxos-produto]] â€” Fluxos de produto

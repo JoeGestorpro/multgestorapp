@@ -301,7 +301,7 @@ backend/src/
 
 ### Health Checks
 - `/api/health` — básico
-- `/api/health/deep` — banco + integrações (pendente)
+- `/api/health/deep` — banco + integrações (✅ implementado)
 
 ---
 
@@ -317,10 +317,10 @@ backend/src/
 | R6 | barber.service.js é um God Service (3000+ linhas) | 🟠 Alto | Refatoração necessária |
 | R7 | Sem cache de plano (DB hit a cada request protegido) | 🟠 Alto | Pendente |
 | R8 | WhatsApp provider global com companyId=null | 🟡 Médio | Pendente |
-| R9 | Dois diretórios de middleware (`middleware/` e `middlewares/`) | 🟡 Médio | Pendente |
+| R9 | Dois diretórios de middleware (`middleware/` e `middlewares/`) | 🟡 Médio | ✅ Resolvido — apenas `middlewares/` existe no código |
 | R10 | `Barber.jsx` (276KB) e `session-ses_1c4f.md` (501KB) no root | 🟡 Médio | Limpeza necessária |
 | R11 | AuthContext duplicado (AuthContext.jsx + auth.context.js) | 🟡 Médio | Pendente |
 | R12 | `BookingPage.tsx` isolado em projeto JSX | 🟡 Médio | Pendente |
 | R13 | planFeatures.js duplicado (backend e frontend podem divergir) | 🟡 Médio | Pendente |
-| R14 | Sem migrations versionadas (sem tabela de controle) | 🟡 Médio | Pendente |
+| R14 | Sem migrations versionadas (sem tabela de controle) | 🟡 Médio | ✅ Resolvido — 37 SQL migrations + schema_migrations table + advisory lock |
 | R15 | Sem Docker/Podman para desenvolvimento local | 🟡 Médio | Pendente |

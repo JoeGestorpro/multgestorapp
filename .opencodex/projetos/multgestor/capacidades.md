@@ -34,47 +34,96 @@ A auditoria READ_ONLY 12.1A verificou este documento contra o código em `4c8ce8
 
 > **Padrão:** as divergências D-02/03/04 são **pessimistas** — este documento declara quebrado o que já funciona, e subestima a segurança do próprio produto. Não descontar por viés; verificar por comando.
 
-**Core Completion Index 52/100** (auditoria [[../../audits/2026-07-03-core-vs-nicho-audit]]) — ⚠️ métrica **não recalculada** pela 12.1A; D-02/03/04 sugerem que estava subestimada.
+**Core Completion Index:** ~63/100 (recalculado via Gate 4 — 40 módulos, 21 LOCALMENTE, 14 REMOTAMENTE, 5 NÃO_APLICAVEL). Matriz abaixo substitui as tabelas anteriores como fonte factual.
 
-## Core (infraestrutura fundamental)
-| Capability | Onde | Status | Notas |
-|---|---|---|---|
-| Multi-Tenant Engine | `company_id` em toda query; `shared/tenant/` | ✅ Produção | Defesa em profundidade: app + RLS |
-| RLS (Row-Level Security) | `database/*.sql` + `config/database.js:129` | ✅ **Ativa em runtime** (VALIDADO EM CI) | ~~inerte; BYPASSRLS~~ **corrigido D-02**: `tenantAwareConnect` → `poolTenant` (`app_runtime`, NOBYPASSRLS). 40 tabelas com policy (D-03). Cobertura em **prod não verificada** → [[matriz-consolidacao-core]] `TENANT-002`/`TENANT-003` |
-| Event Bus (in-memory) | `shared/core/events/event-bus.js` | ✅ Produção | Volátil; usado p/ notificações (WhatsApp) |
-| Outbox (durável) | `shared/core/database/unit-of-work.js` + `outbox/outbox-worker.js` | ✅ Produção | Transacional; evento sem handler = no-op (F6) |
-| Event Contracts + Factory | `shared/core/events/contracts.js` + `factories/appointment-events.js` | ✅ Produção (local) | `validateEventPayload` + factory obrigatórios (regra EVENT CONTRACTS) |
-| Cache | `shared/core/cache/` (redis-client + cache-manager) | 🟡 **EXISTE PARCIALMENTE** — fallback in-memory **COMPROVADO EM PRODUÇÃO**; **Redis gerenciado: NÃO CONFIGURADO** | ~~Redis + fallback in-memory~~ **corrigido D-08 (2026-07-16)**: prod respondeu `"Redis nao configurado — fallback in-memory ativo"`. **Fallback ≠ Redis ativo**: cache local à instância, perdido em cold start/restart; em múltiplas instâncias, **não compartilhado**. Config do painel do Render **não verificada**. Ver [[matriz-consolidacao-core]] e [[../../auditorias/multgestor/2026-07-16-ops-migrations-01]] |
-| Logger / Observabilidade | `shared/core/logger/` (pino) + Sentry + métricas | ✅ Produção | Correlation ID por request |
-| Errors / Responses / Validation | `shared/core/{errors,responses,validation}/` | ✅ Produção | AppError hierarchy + Zod schemas |
-| BaseRepository | `shared/core/database/BaseRepository.js` | ✅ Produção | ⚠️ interpola nomes de coluna — exige allowlist no caller |
+---
 
-## Domínio (lógica compartilhável)
-| Capability | Onde | Status |
+## Matriz de 40 Capacidades (Gate 4 · 2026-07-20)
+
+### Resumo
+
+| Localização | Quantidade | Critério |
 |---|---|---|
-| Booking Engine (utils puras) | `shared/capabilities/booking-engine/` (scheduling-utils, 19 funções puras) | ✅ Produção — reusado por Barber + Clima |
-| Booking Engine (services com estado) | `services/booking-appointments.service.js`, `booking-scheduling.service.js` | 🔴 **Não é compartilhado de fato** — 59+ ocorrências de `barber_*` hardcoded; Clima reimplementa o próprio motor contra `clima_professionals`/`clima_services`. Ver auditoria 2026-07-03, achado A7. |
-| Billing / Planos / Assinaturas | `shared/capabilities/billing/` (providers: AbacatePay, Kiwify) | ✅ Técnico (VALIDADO LOCAL); ~~gating com vocabulário do barber~~ **corrigido D-04: gating já é genérico** (`utils/planFeatures.js`). Falta **prova em produção** → `BILLING-001` |
-| Rate Limiting | `middlewares/rate-limit.middleware.js` (fail-open) | 🟡 **EXISTE PARCIALMENTE** — ~~(Redis, fail-open)~~ **corrigido D-08**: em produção **não há Redis** → o limite opera **in-memory, local à instância** (`:32` "degradado para memória"), é **perdido a cada cold start** e **não é compartilhado entre instâncias**. `fail-open` em erro inesperado (`:52`). Comportamento em prod **COMPROVADO** quanto à ausência de Redis; eficácia do limite **não medida** |
+| **LOCALMENTE** | 21 | Código neste repositório, com ou sem testes; sem dependência externa obrigatória |
+| **REMOTAMENTE** | 14 | Depende de serviço externo (SaaS, API, cloud) ou implementação parcial/incompleta |
+| **NÃO_APLICAVEL** | 5 | Ausente, futuro, ou sem evidência suficiente para classificar |
+| **Total** | **40** | |
 
-## Integração
-| Capability | Onde | Status |
-|---|---|---|
-| Integration Layer / Channel Adapter | `integrations/` | ✅ Produção |
-| WhatsApp (Meta Cloud API + resolver per-tenant) | `integrations/whatsapp/` + `consumers/appointment-integration.consumer.js` | ✅ Produção |
-| Token Encryption (AES-256-GCM) | `integrations/config/encryption.js` | ✅ Produção |
+### Core — Infraestrutura Fundamental
 
-## Operacional
-| Capability | Onde | Status |
-|---|---|---|
-| Appointment Reminder Job | `jobs/appointment-reminder-job.js` | ✅ Produção (mark-before-emit idempotente) |
-| Trial Email Sequence | `services/trial-emails.service.js` + job | ✅ Produção |
+| ID | Capacidade | Domínio | Estado Gate 4 | Localização | Fonte |
+|---|---|---|---|---|---|
+| C-01 | Multi-tenancy RLS | INFRA | CONSOLIDADO_LOCALMENTE | LOCALMENTE | 10 SQL RLS + middleware `tenantAwareConnect` |
+| C-02 | Auth JWT + Refresh Token | INFRA | CONSOLIDADO_LOCALMENTE | LOCALMENTE | `auth.service.js`, migration v030 |
+| C-03 | 3 escopos de autenticação | INFRA | CONSOLIDADO_LOCALMENTE | LOCALMENTE | `authScopes`, 6 guards |
+| C-04 | Migrations versionadas | INFRA | CONSOLIDADO | REMOTAMENTE | 37 SQL + runner + `schema_migrations` |
+| C-06 | Health checks | INFRA | CONSOLIDADO | REMOTAMENTE | `/api/health` + `/api/health/deep` |
+| C-19 | Sentry (error tracking) | INFRA | CONSOLIDADO_LOCALMENTE | LOCALMENTE | `@sentry/*` |
+| C-32 | Redis / cache distribuído | INFRA | DESCONHECIDO | NÃO_APLICAVEL | Fallback no-op; sem confirmação de produção |
+| C-33 | Rate limiting | INFRA | PARCIAL | REMOTAMENTE | Middleware existe, Redis ausente → in-memory |
 
-## Verticais
-| Módulo | Status |
-|---|---|
-| BarberGestor | ✅ Completo (backend refatorado, frontend ~4.990 linhas em Barber.jsx) |
-| ClimaGestor | 🔴 Scaffold — backend ~50% (schema+rotas+service; 3 tabelas com RLS) / frontend ~1% (`Clima.jsx` = 7 linhas, **confirmado**); nenhuma empresa real usando (não verificado). ~~usa `requireBarberAdminAuth` por engano~~ **corrigido D-01**: usa `requireTenantAdminAuth`, que é **alias** da função barber — acoplamento deliberado e documentado, não bug. Problema real = reimplementa o motor de booking → [[matriz-consolidacao-core]] `NICHEKIT-002` |
+### Core — Shared Kernel (Governança)
 
+| ID | Capacidade | Domínio | Estado Gate 4 | Localização | Fonte |
+|---|---|---|---|---|---|
+| C-07 | Error kernel (AppError) | GOV | CONSOLIDADO_LOCALMENTE | LOCALMENTE | 10 tipos de erro + middleware |
+| C-08 | Validation kernel (Zod) | GOV | CONSOLIDADO_LOCALMENTE | LOCALMENTE | Zod schemas + `validateRequest` |
+| C-09 | Logging kernel (Pino) | GOV | CONSOLIDADO_LOCALMENTE | LOCALMENTE | Pino + request-logger |
+| C-10 | Outbox (eventos duráveis) | GOV | CONSOLIDADO | REMOTAMENTE | `outbox-worker.js`, 15 handlers |
+| C-11 | Event bus (in-memory) | GOV | CONSOLIDADO_LOCALMENTE | LOCALMENTE | `event-bus.js`, `contracts.js`, `factories/` |
+| C-12 | Plan gating / feature guards | GOV | CONSOLIDADO_LOCALMENTE | LOCALMENTE | `requirePlanFeature`, `planFeatures.js` |
+| C-34 | columnExists (shared util) | GOV | PARCIAL | REMOTAMENTE | Util compartilhado; performance issue (11 queries/request) |
+| C-35 | Métricas / dashboard | GOV | PARCIAL | REMOTAMENTE | Incompleto; sem dashboard de métricas |
+| C-36 | Testes automatizados (backend) | GOV | PARCIAL | REMOTAMENTE | Cobertura insuficiente |
+
+### Core — Domínio Compartilhável
+
+| ID | Capacidade | Domínio | Estado Gate 4 | Localização | Fonte |
+|---|---|---|---|---|---|
+| C-13 | Billing engine (assinaturas) | CORE | CONSOLIDADO_LOCALMENTE | LOCALMENTE | Registry + Kiwify + AbacatePay |
+| C-14 | Booking engine (completo) | CORE | PARCIAL | REMOTAMENTE | VIEW acoplada ao BarberGestor |
+| C-15 | Repository pattern | CORE | CONSOLIDADO_LOCALMENTE | LOCALMENTE | 10 repos, `BaseRepository.js`, `UnitOfWork` |
+
+### BarberGestor (Vertical 1)
+
+| ID | Capacidade | Domínio | Estado Gate 4 | Localização | Fonte |
+|---|---|---|---|---|---|
+| C-16 | CRUD completo (226 endpoints) | BARBER | CONSOLIDADO_LOCALMENTE | LOCALMENTE | 50 services, 226 endpoints |
+| C-17 | WhatsApp | BARBER | PARCIAL | REMOTAMENTE | Real send pendente; mock ativo |
+| C-18 | Master admin (44 endpoints) | BARBER | CONSOLIDADO_LOCALMENTE | LOCALMENTE | Painel administrativo |
+| C-20 | Email (3 providers) | BARBER | CONSOLIDADO_LOCALMENTE | LOCALMENTE | Resend + SMTP + Mock |
+| C-21 | Premium UI (32+ componentes) | BARBER | CONSOLIDADO_LOCALMENTE | LOCALMENTE | Frontend React |
+| C-22 | Landing page (12 seções) | BARBER | CONSOLIDADO_LOCALMENTE | LOCALMENTE | Booking landing pages |
+| C-23 | Design system (shell, tokens) | BARBER | CONSOLIDADO_LOCALMENTE | LOCALMENTE | Tokens + componentes atômicos |
+| C-24 | Mobile (BottomNav, FAB) | BARBER | CONSOLIDADO_LOCALMENTE | LOCALMENTE | Suporte PWA mobile |
+| C-25 | Onboarding (SetupWizard) | BARBER | CONSOLIDADO_LOCALMENTE | LOCALMENTE | Wizard de configuração |
+| C-26 | Badge system | BARBER | CONSOLIDADO_LOCALMENTE | LOCALMENTE | Sistema de conquistas |
+| C-28 | God service (barber.service.js) | BARBER | PARCIAL | REMOTAMENTE | ~6500 linhas, decomposição pendente |
+
+### ClimaGestor (Vertical 2)
+
+| ID | Capacidade | Domínio | Estado Gate 4 | Localização | Fonte |
+|---|---|---|---|---|---|
+| C-29 | ClimaGestor (scaffold) | NICHO | PARCIAL | REMOTAMENTE | Backend ~50%, frontend ~1% |
+
+### Integração e Deploy
+
+| ID | Capacidade | Domínio | Estado Gate 4 | Localização | Fonte |
+|---|---|---|---|---|---|
+| C-05 | CI/CD pipeline | DEPLOY | CONSOLIDADO | REMOTAMENTE | `ci.yml` + `deploy.yml` (GitHub Actions) |
+| C-27 | Backup system | DEPLOY | CONSOLIDADO_LOCALMENTE | LOCALMENTE | `ops/backup/` |
+| C-31 | Integration Layer | FUTURO | PARCIAL | REMOTAMENTE | Providers pendentes |
+
+### Futuro / Ausente
+
+| ID | Capacidade | Domínio | Estado Gate 4 | Localização | Fonte |
+|---|---|---|---|---|---|
+| C-30 | AI / LLM Provider | FUTURO | EM_EXPERIMENTO | REMOTAMENTE | Apenas MockProvider |
+| C-37 | Testes frontend | GOV | AUSENTE | NÃO_APLICAVEL | 2 arquivos apenas |
+| C-38 | Automation Engine | FUTURO | AUSENTE | NÃO_APLICAVEL | Nenhum código |
+| C-39 | Omnichannel Layer | FUTURO | AUSENTE | NÃO_APLICAVEL | Nenhum código |
+| C-40 | Novos nichos (Odonto, Pet, etc.) | FUTURO | AUSENTE | NÃO_APLICAVEL | Apenas scaffold Clima |
+
+---
 ## Gaps / capabilities aspiracionais (documentadas, NÃO implementadas)
 - Automation Engine, AI Operational Layer, N8N Bridge, Omnichannel — descritas em `docs/` e `.agent/runtime/` mas **não executadas**. Não tratar como reais (ver `lessons-learned`).

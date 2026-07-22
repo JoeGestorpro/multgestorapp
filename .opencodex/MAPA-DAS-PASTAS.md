@@ -15,15 +15,15 @@ Cada pasta responde **uma pergunta**. Se sua resposta não está ali, você est�
 | [[rules/]] | O que nunca pode ser quebrado? | Governança | Regras vinculantes (proteção de rota, eventos, auditoria) | Todos | Pouco | ✅ Único |
 | [[prompts/]] | Como conversar com a IA? | Execução | Comandos prontos para agentes de IA | IA | Sim | 🟡 Parcial (há prompts em brain/) |
 | [[templates/]] | Como criar documentos novos? | Execução | Modelos (preflight check, etc.) | Todos | Pouco | ✅ Único |
-| [[audits/]] | O que já foi conferido? | Governança | Relatórios de auditoria e verificação | QA, IA, Humanos | Sim | ✅ Único |
+| [[auditorias/]] | O que já foi conferido? | Governança | Relatórios de auditoria e verificação | QA, IA, Humanos | Sim | ✅ Único |
 | [[ops/]] | Como opera e produz? | Operação | Playbooks, procedimentos de deploy e produção | Ops, IA | Médio | ✅ Único |
 | [[automation/]] | O que acontece automaticamente? | Operação | Políticas de automação, allowlists | IA, Ops | Médio | ✅ Único |
 | [[chatJoe/]] | Como planejar a próxima missão? | Execução | Conversa, contexto, skills, agentes, prompts, compactação | IA, Product Manager | Sim | ✅ Único |
 | [[handoff/]] | Como outra IA continua daqui? | Memória | Contexto de passagem entre fases/agentes | IA | Pouco | ✅ Único |
-| [[archive/]] | O que pertence ao passado? | Memória | Dados congelados, histórico antigo | Consulta | Não | ✅ Único |
+| [[_inbox/antigos/]] | O que pertence ao passado? | Memória | Dados congelados, histórico antigo | Consulta | Não | ✅ Único |
 | [[agents/]] | Quem são os agentes? | Execução | Definições de agentes especializados | IA | Médio | 🟡 Parcial (há agentes em brain/) |
-| [[state/]] | Qual é o estado do projeto? (legado) | Memória | Fotografia antiga do estado | Consulta (prefira brain/) | Não | 🟠 Obsoleto — usar [[brain/01-CURRENT-STATE.md]] |
-| [[segundo cerebro/]] | Onde é o Obsidian? (legado) | Conhecimento | Entrada humana, boas-vindas | Humanos | Não | 🟠 Obsoleto — usar [[HOME.md]] |
+| [[state/]] | Qual é o estado do projeto? (legado) | Memória | Fotografia antiga do estado | Consulta (prefira brain/) | Não | 🟠 Obsoleto — usar [[projetos/multgestor/status-atual]] |
+| [[segundo cerebro/]] | Onde é o Obsidian? (legado) | Conhecimento | Entrada humana, boas-vindas | Humanos | Não | 🟠 Obsoleto — usar [[00-HOME]] |
 | [[.obsidian/]] | Como o Obsidian aparece? | — | Configuração visual, workspace, plugins | Obsidian | Não | ✅ Único |
 | [[Nichos/]] | Como criar um novo nicho? | Produto | Templates, instrutor, prompts, checklists, kanban de nichos | Joe, IA | Sim | 🆕 Novo |
 
@@ -36,7 +36,7 @@ Pastas que existem **tanto em [[brain/]] quanto na raiz**:
 | Pasta | brain/ (organizado por camada) | Raiz (arquivos diretos) |
 |---|---|---|
 | [[agents/]] | Índice + definições completas | Definição do joefelipe-agent |
-| [[audits/]] | Índice de auditorias | Relatórios completos |
+| [[auditorias/]] | Índice de auditorias | Relatórios completos |
 | [[ops/]] | Memória operacional | Playbooks avulsos |
 | [[prompts/]] | Biblioteca organizada por categoria | Prompts avulsos |
 | [[rules/]] | Regras no contexto do Knowledge OS | Regras canônicas vinculantes |
