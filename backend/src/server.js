@@ -22,6 +22,7 @@ const clientRoutes = require('./routes/client.routes');
 const publicAuthRoutes = require('./routes/public-auth.routes');
 const publicBookingRoutes = require('./routes/public-booking.routes');
 const webhooksRoutes = require('./routes/webhooks.routes');
+const { webhookAbuseRateLimit } = require('./middlewares/webhook-rate-limit');
 const internalRoutes = require('./routes/internal.routes');
 const { getAppBaseUrl } = require('./services/email/email.service');
 const { appLogger } = require('./shared/core/logger');
@@ -373,8 +374,11 @@ app.use('/api', publicAuthRoutes);
 app.use('/api/public', publicBookingRoutes);
 app.use('/api/webhooks', webhooksRoutes);
 
-app.get('/api/webhooks/whatsapp', (req, res) => whatsappWebhook.handleVerification(req, res));
-app.post('/api/webhooks/whatsapp', (req, res) => whatsappWebhook.handleIncoming(req, res));
+// Webhook público do WhatsApp (Meta) — mesmo controle de abuso/flood dos webhooks
+// de pagamento (R-003). Assinatura Meta (x-hub-signature-256) é verificada no handler;
+// este teto é o backstop de disponibilidade. Ver webhook-rate-limit.js.
+app.get('/api/webhooks/whatsapp', webhookAbuseRateLimit, (req, res) => whatsappWebhook.handleVerification(req, res));
+app.post('/api/webhooks/whatsapp', webhookAbuseRateLimit, (req, res) => whatsappWebhook.handleIncoming(req, res));
 app.use('/internal', internalRoutes);
 app.use('/api/master', masterRoutes);
 app.use('/api/client', clientRoutes);
