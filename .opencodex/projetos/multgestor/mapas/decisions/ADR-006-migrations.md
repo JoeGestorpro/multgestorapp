@@ -177,16 +177,18 @@ Adotar **`render.yaml` (Blueprint)** para tirar `buildCommand`/`startCommand` do
 
 ## O que falta
 
-Lacunas reais do runner, verificadas por leitura direta — **insumo da Fase 3**:
+> ⚠️ **Tabela parcialmente superada — corrigida em 2026-07-22 (achado da auditoria `OPS-MIGRATIONS-001`).** As 3 lacunas de gravidade Alta abaixo já foram resolvidas pela **OPS-MIGRATIONS-03C** (o próprio `run-migrations.js` se autodescreve no cabeçalho como implementação dessa fase). Esta seção não tinha sido revisada quando a 03C concluiu — o banner de topo do ADR foi atualizado na 03D, mas esta tabela mais antiga ficou para trás. Confirmado por leitura direta do código atual, não por inferência.
 
-| Lacuna | Onde | Gravidade |
-|---|---|---|
-| **Sem trava de concorrência** — nenhum `pg_advisory_lock` | runner inteiro | Alta |
-| **Bookkeeping não-atômico** — `pool.query(sql)` e o `INSERT` em `schema_migrations` são queries separadas. Crash entre as duas deixa a migration **aplicada e não registrada**; a reexecução tenta aplicá-la de novo. | `run-migrations.js:99-108` | Alta |
-| **Arquivo ausente não falha** — `[warn] arquivo não encontrado` e o loop **continua**, sem registrar. Uma migration sumida passa silenciosamente. Contradiz "interromper ao primeiro erro". | `run-migrations.js:89-92` | Alta |
-| Sem timeout próprio — depende do `timeout` externo do workflow | runner | Média |
-| Não registra `commit`, ambiente, executor nem status | `schema_migrations` | Média |
-| Usa o pool da app — sem usuário de privilégio mínimo | `run-migrations.js:4` | Média |
+Lacunas reais do runner, verificadas por leitura direta:
+
+| Lacuna | Onde | Gravidade | Status |
+|---|---|---|---|
+| ~~Sem trava de concorrência — nenhum `pg_advisory_lock`~~ | runner inteiro | Alta | ✅ **Resolvido (OPS-MIGRATIONS-03C).** `pg_try_advisory_lock` numa sessão de client único (`run-migrations.js:306-313`); segunda execução concorrente falha limpo (`LOCK_BUSY`). |
+| ~~Bookkeeping não-atômico~~ — `pool.query(sql)` e o `INSERT` em `schema_migrations` eram queries separadas | `run-migrations.js:99-108` (linhas antigas) | Alta | ✅ **Resolvido (OPS-MIGRATIONS-03C).** SQL da migration + `INSERT` em `schema_migrations` rodam na mesma transação (`BEGIN`…`COMMIT`, `run-migrations.js:240-260`) — crash entre aplicar e registrar é hoje impossível. |
+| ~~Arquivo ausente não falha~~ — `[warn]` e o loop continuava | `run-migrations.js:89-92` (linhas antigas) | Alta | ✅ **Resolvido (OPS-MIGRATIONS-03C).** Arquivo ausente lança `MIGRATION_FILE_MISSING` e interrompe (`run-migrations.js:215-227`) — deixou de ser warning-e-continua. |
+| Sem timeout próprio — depende do `timeout` externo do workflow | runner | Média | ⚠️ **Ainda pendente.** O teto externo (`timeout`) só existe no step do `ci.yml`; o caminho de produção (`buildCommand` do Render) não tem timeout próprio do runner, apenas o limite implícito da plataforma. |
+| Não registra `commit`, ambiente, executor nem status | `schema_migrations` | Média | ⚠️ **Ainda pendente.** `schema_migrations` continua só com `version/name/applied_at/duration_ms`. |
+| Usa o pool da app — sem usuário de privilégio mínimo | `run-migrations.js:4` | Média | ⚠️ **Não verificável pelo agente sem revelar `MIGRATION_DATABASE_URL`** (sigilo é regra vinculante da Emenda 01) — permanece registrado como pendência até confirmação do operador. |
 
 ## Riscos
 
