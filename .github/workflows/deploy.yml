@@ -6,6 +6,8 @@ on:
       - main
     paths-ignore:
       - '.opencodex/**'
+      - '.opencode/**'
+      - 'docs/**'
       - 'CLAUDE.md'
       - 'AGENTS.md'
       - '.github/PULL_REQUEST_TEMPLATE.md'
