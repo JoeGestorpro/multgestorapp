@@ -2,6 +2,7 @@ const { appLogger } = require('../shared/core/logger');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const pool = require('../config/database');
+const { runPublicTenantOperation } = require('../config/database');
 const emailService = require('./email/email.service');
 const {
   createError,
@@ -156,167 +157,159 @@ async function preRegisterClient(companySlug, data, meta = {}) {
     email: maskEmailPreview(email)
   });
 
-  const client = await pool.connect();
+  const company = await getCompanyBySlug(companySlug);
+  logFlowStep('pre-register', 'company_resolved', {
+    companySlug: company.public_booking_slug,
+    companyId: company.id
+  });
+
   let verificationEmailJob = null;
   let responsePayload = null;
 
   try {
-    await client.query('BEGIN');
+    await runPublicTenantOperation(company.id, async () => {
+      const existingCustomerResult = await pool.query(
+        `SELECT id, company_id, email_verified, status
+         FROM booking_customers
+         WHERE company_id = $1
+           AND lower(email) = $2
+         LIMIT 1`,
+        [company.id, email]
+      );
 
-    const company = await getCompanyBySlug(companySlug, client);
-    logFlowStep('pre-register', 'company_resolved', {
-      companySlug: company.public_booking_slug,
-      companyId: company.id
-    });
+      const conflictingAdminResult = await pool.query(
+        `SELECT id
+         FROM users
+         WHERE company_id = $1
+           AND lower(email) = $2
+         LIMIT 1`,
+        [company.id, email]
+      );
 
-    const existingCustomerResult = await client.query(
-      `SELECT id, company_id, email_verified, status
-       FROM booking_customers
-       WHERE company_id = $1
-         AND lower(email) = $2
-       LIMIT 1`,
-      [company.id, email]
-    );
+      const passwordHash = await bcrypt.hash(password, 10);
 
-    const conflictingAdminResult = await client.query(
-      `SELECT id
-       FROM users
-       WHERE company_id = $1
-         AND lower(email) = $2
-       LIMIT 1`,
-      [company.id, email]
-    );
-
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    if (conflictingAdminResult.rowCount > 0) {
-      throw createError('Este email ja pertence a um usuario administrativo desta empresa. Faca login com a conta existente.', 409);
-    }
-
-    if (existingCustomerResult.rowCount > 0) {
-      const existingCustomer = existingCustomerResult.rows[0];
-      logFlowStep('pre-register', 'existing_user_found', {
-        customerId: existingCustomer.id,
-        companyMatches: String(existingCustomer.company_id) === String(company.id),
-        emailVerified: existingCustomer.email_verified,
-        status: existingCustomer.status
-      });
-
-
-      if (existingCustomer.email_verified && existingCustomer.status === 'active') {
-        throw createError('E-mail já cadastrado. Faça login.', 409);
+      if (conflictingAdminResult.rowCount > 0) {
+        throw createError('Este email ja pertence a um usuario administrativo desta empresa. Faca login com a conta existente.', 409);
       }
 
-      await client.query(
-        `UPDATE booking_customers
-         SET name = $1,
-             phone = $2,
-             password_hash = $3,
-             email_verified = false,
-             status = 'pending',
-             source = 'agendamento_online',
-             updated_at = NOW()
-         WHERE id = $4
-           AND company_id = $5`,
-        [name, phone, passwordHash, existingCustomer.id, company.id]
-      );
-      logFlowStep('pre-register', 'pending_user_updated', {
-        customerId: existingCustomer.id
-      });
+      if (existingCustomerResult.rowCount > 0) {
+        const existingCustomer = existingCustomerResult.rows[0];
+        logFlowStep('pre-register', 'existing_user_found', {
+          customerId: existingCustomer.id,
+          companyMatches: String(existingCustomer.company_id) === String(company.id),
+          emailVerified: existingCustomer.email_verified,
+          status: existingCustomer.status
+        });
 
-      verificationEmailJob = await createVerificationToken({
-        customer: {
-          id: existingCustomer.id,
-          name,
-          email
-        },
-        company,
-        client
-      });
-      logFlowStep('pre-register', 'verification_token_created', {
-        customerId: existingCustomer.id,
-        tokenId: verificationEmailJob.tokenId,
-        tokenPreview: maskTokenPreview(verificationEmailJob.rawToken)
-      });
 
-      await client.query('COMMIT');
-      logFlowStep('pre-register', 'transaction_committed', {
-        customerId: existingCustomer.id
-      });
-
-      responsePayload = {
-        alreadyExisted: true,
-        message: 'Cadastro já iniciado. Reenviamos a confirmação.',
-        customer: {
-          id: existingCustomer.id,
-          name,
-          email
-        },
-        token: verificationEmailJob
-      };
-    } else {
-      const userResult = await client.query(
-        `INSERT INTO booking_customers (
-           company_id,
-           name,
-           phone,
-           email,
-           password_hash,
-           email_verified,
-           status,
-           source,
-           updated_at
-         )
-         VALUES ($1, $2, $3, $4, $5, false, 'pending', 'agendamento_online', NOW())
-         RETURNING id, name, email`,
-        [company.id, name, phone, email, passwordHash]
-      );
-      logFlowStep('pre-register', 'client_user_created', {
-        customerId: userResult.rows[0].id,
-        companyId: company.id
-      });
-
-      verificationEmailJob = await createVerificationToken({
-        customer: userResult.rows[0],
-        company,
-        client
-      });
-      logFlowStep('pre-register', 'verification_token_created', {
-        customerId: userResult.rows[0].id,
-        tokenId: verificationEmailJob.tokenId,
-        tokenPreview: maskTokenPreview(verificationEmailJob.rawToken)
-      });
-
-      await writeAuthAudit('client_pre_registered', {
-        email,
-        ipAddress: meta.ipAddress,
-        userAgent: meta.userAgent,
-        details: {
-          company_id: company.id,
-          booking_customer_id: userResult.rows[0].id
+        if (existingCustomer.email_verified && existingCustomer.status === 'active') {
+          throw createError('E-mail já cadastrado. Faça login.', 409);
         }
-      }, client);
 
-      await client.query('COMMIT');
-      logFlowStep('pre-register', 'transaction_committed', {
-        customerId: userResult.rows[0].id
-      });
+        await pool.query(
+          `UPDATE booking_customers
+           SET name = $1,
+               phone = $2,
+               password_hash = $3,
+               email_verified = false,
+               status = 'pending',
+               source = 'agendamento_online',
+               updated_at = NOW()
+           WHERE id = $4
+             AND company_id = $5`,
+          [name, phone, passwordHash, existingCustomer.id, company.id]
+        );
+        logFlowStep('pre-register', 'pending_user_updated', {
+          customerId: existingCustomer.id
+        });
 
-      responsePayload = {
-        message: 'Cadastro iniciado. Verifique seu e-mail.',
-        customer: userResult.rows[0],
-        token: verificationEmailJob
-      };
-    }
+        verificationEmailJob = await createVerificationToken({
+          customer: {
+            id: existingCustomer.id,
+            name,
+            email
+          },
+          company
+        });
+        logFlowStep('pre-register', 'verification_token_created', {
+          customerId: existingCustomer.id,
+          tokenId: verificationEmailJob.tokenId,
+          tokenPreview: maskTokenPreview(verificationEmailJob.rawToken)
+        });
+
+        logFlowStep('pre-register', 'transaction_committed', {
+          customerId: existingCustomer.id
+        });
+
+        responsePayload = {
+          alreadyExisted: true,
+          message: 'Cadastro já iniciado. Reenviamos a confirmação.',
+          customer: {
+            id: existingCustomer.id,
+            name,
+            email
+          },
+          token: verificationEmailJob
+        };
+      } else {
+        const userResult = await pool.query(
+          `INSERT INTO booking_customers (
+             company_id,
+             name,
+             phone,
+             email,
+             password_hash,
+             email_verified,
+             status,
+             source,
+             updated_at
+           )
+           VALUES ($1, $2, $3, $4, $5, false, 'pending', 'agendamento_online', NOW())
+           RETURNING id, name, email`,
+          [company.id, name, phone, email, passwordHash]
+        );
+        logFlowStep('pre-register', 'client_user_created', {
+          customerId: userResult.rows[0].id,
+          companyId: company.id
+        });
+
+        verificationEmailJob = await createVerificationToken({
+          customer: userResult.rows[0],
+          company
+        });
+        logFlowStep('pre-register', 'verification_token_created', {
+          customerId: userResult.rows[0].id,
+          tokenId: verificationEmailJob.tokenId,
+          tokenPreview: maskTokenPreview(verificationEmailJob.rawToken)
+        });
+
+        await writeAuthAudit('client_pre_registered', {
+          email,
+          ipAddress: meta.ipAddress,
+          userAgent: meta.userAgent,
+          details: {
+            company_id: company.id,
+            booking_customer_id: userResult.rows[0].id
+          }
+        });
+
+        logFlowStep('pre-register', 'transaction_committed', {
+          customerId: userResult.rows[0].id
+        });
+
+        responsePayload = {
+          message: 'Cadastro iniciado. Verifique seu e-mail.',
+          customer: userResult.rows[0],
+          token: verificationEmailJob
+        };
+      }
+    });
   } catch (error) {
-    await client.query('ROLLBACK');
     logFlowStep('pre-register', 'transaction_rolled_back', {
       error: error.message,
       statusCode: error.statusCode || 500
     });
     throw error;
-  } finally {
-    client.release();
   }
 
   const emailConfig = validateEmailConfiguration();
@@ -372,24 +365,21 @@ async function resendClientConfirmation(data, meta = {}) {
     throw createError('Email e companySlug sao obrigatorios', 400);
   }
 
-  const client = await pool.connect();
   let emailJob = null;
   let user = null;
-  let company = null;
 
-  try {
-    await client.query('BEGIN');
+  logFlowStep('resend-confirmation', 'request_received', {
+    companySlug,
+    email: maskEmailPreview(email)
+  });
 
-    logFlowStep('resend-confirmation', 'request_received', {
-      companySlug,
-      email: maskEmailPreview(email)
-    });
+  const company = await getCompanyBySlug(companySlug);
+  logFlowStep('resend-confirmation', 'company_resolved', {
+    companyId: company.id
+  });
 
-    company = await getCompanyBySlug(companySlug, client);
-    logFlowStep('resend-confirmation', 'company_resolved', {
-      companyId: company.id
-    });
-    const userResult = await client.query(
+  await runPublicTenantOperation(company.id, async () => {
+    const userResult = await pool.query(
       `SELECT id, name, email, company_id, email_verified, status
        FROM booking_customers
        WHERE company_id = $1
@@ -408,7 +398,7 @@ async function resendClientConfirmation(data, meta = {}) {
       throw createError('Este email ja foi confirmado. Faca login para continuar.', 409);
     }
 
-    emailJob = await createVerificationToken({ customer: user, company, client });
+    emailJob = await createVerificationToken({ customer: user, company });
     logFlowStep('resend-confirmation', 'verification_token_created', {
       customerId: user.id,
       tokenId: emailJob.tokenId,
@@ -423,15 +413,8 @@ async function resendClientConfirmation(data, meta = {}) {
         company_id: company.id,
         booking_customer_id: user.id
       }
-    }, client);
-
-    await client.query('COMMIT');
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+    });
+  });
 
   let emailSent = false;
   let emailError = null;
@@ -475,62 +458,72 @@ async function confirmClientEmail(token, meta = {}) {
     throw createError('Token de confirmacao obrigatorio', 400);
   }
 
-  const client = await pool.connect();
+  logFlowStep('confirm-email', 'request_received', {
+    tokenPreview: maskTokenPreview(rawToken)
+  });
 
-  try {
-    await client.query('BEGIN');
-    logFlowStep('confirm-email', 'request_received', {
-      tokenPreview: maskTokenPreview(rawToken)
-    });
+  // O tenant só é conhecido depois de resolver o token — esta primeira leitura
+  // roda no pool privilegiado por necessidade estrutural (não há slug nesta rota,
+  // o token é a própria autoridade). Nenhuma coluna sensível de outro cliente é
+  // exposta aqui além do que o token já revela sobre si mesmo.
+  const tokenResult = await pool.query(
+    `SELECT
+       email_verification_tokens.id,
+       email_verification_tokens.booking_customer_id,
+       email_verification_tokens.company_id,
+       email_verification_tokens.expires_at,
+       email_verification_tokens.used_at,
+       booking_customers.name,
+       booking_customers.email,
+       companies.public_booking_slug
+     FROM email_verification_tokens
+     INNER JOIN booking_customers
+       ON booking_customers.id = email_verification_tokens.booking_customer_id
+      AND booking_customers.company_id = email_verification_tokens.company_id
+     INNER JOIN companies ON companies.id = email_verification_tokens.company_id
+     WHERE email_verification_tokens.token_hash = $1
+     LIMIT 1`,
+    [hashToken(rawToken)]
+  );
 
-    const tokenResult = await client.query(
-      `SELECT
-         email_verification_tokens.id,
-         email_verification_tokens.booking_customer_id,
-         email_verification_tokens.company_id,
-         email_verification_tokens.expires_at,
-         email_verification_tokens.used_at,
-         booking_customers.name,
-         booking_customers.email,
-         companies.public_booking_slug
-       FROM email_verification_tokens
-       INNER JOIN booking_customers
-         ON booking_customers.id = email_verification_tokens.booking_customer_id
-        AND booking_customers.company_id = email_verification_tokens.company_id
-       INNER JOIN companies ON companies.id = email_verification_tokens.company_id
-       WHERE email_verification_tokens.token_hash = $1
-       LIMIT 1
-       FOR UPDATE`,
-      [hashToken(rawToken)]
-    );
+  if (tokenResult.rowCount === 0) {
+    throw createError('Token de confirmacao invalido', 404);
+  }
 
-    if (tokenResult.rowCount === 0) {
-      throw createError('Token de confirmacao invalido', 404);
-    }
+  const verification = tokenResult.rows[0];
+  logFlowStep('confirm-email', 'token_resolved', {
+    tokenId: verification.id,
+    customerId: verification.booking_customer_id,
+    tokenAlreadyUsed: Boolean(verification.used_at)
+  });
 
-    const verification = tokenResult.rows[0];
-    logFlowStep('confirm-email', 'token_resolved', {
-      tokenId: verification.id,
-      customerId: verification.booking_customer_id,
-      tokenAlreadyUsed: Boolean(verification.used_at)
-    });
+  if (verification.used_at) {
+    throw createError('Este token ja foi utilizado', 410);
+  }
 
-    if (verification.used_at) {
-      throw createError('Este token ja foi utilizado', 410);
-    }
+  if (new Date(verification.expires_at) <= new Date()) {
+    throw createError('Este token expirou', 410);
+  }
 
-    if (new Date(verification.expires_at) <= new Date()) {
-      throw createError('Este token expirou', 410);
-    }
-
-    await client.query(
+  return runPublicTenantOperation(verification.company_id, async () => {
+    // used_at IS NULL na própria escrita fecha a janela entre a leitura acima
+    // (sem contexto de tenant ainda) e esta transação: uma segunda confirmação
+    // concorrente para o mesmo token encontra 0 linhas e falha, em vez de
+    // duplicar a confirmação.
+    const markUsedResult = await pool.query(
       `UPDATE email_verification_tokens
        SET used_at = NOW()
-       WHERE id = $1`,
+       WHERE id = $1
+         AND used_at IS NULL
+       RETURNING id`,
       [verification.id]
     );
 
-    await client.query(
+    if (markUsedResult.rowCount === 0) {
+      throw createError('Este token ja foi utilizado', 410);
+    }
+
+    await pool.query(
       `UPDATE booking_customers
        SET email_verified = true,
            status = 'active',
@@ -549,9 +542,7 @@ async function confirmClientEmail(token, meta = {}) {
         token_id: verification.id,
         token_preview: maskTokenPreview(rawToken)
       }
-    }, client);
-
-    await client.query('COMMIT');
+    });
 
     const bookingUrl = `/agendar/${verification.public_booking_slug}`;
 
@@ -560,12 +551,7 @@ async function confirmClientEmail(token, meta = {}) {
       booking_url: bookingUrl,
       login_url: `/agendar/${verification.public_booking_slug}/login?redirect=${encodeURIComponent(bookingUrl)}`
     };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 module.exports = { preRegisterClient, resendClientConfirmation, confirmClientEmail };

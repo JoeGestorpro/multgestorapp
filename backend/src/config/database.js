@@ -123,6 +123,27 @@ function runWithTenantClient(client, companyIdOrFn, maybeFn) {
   return tenantStore.run({ client, companyId }, fn);
 }
 
+// Capacidade de Core: abre uma conexão contextualizada por tenant (poolTenant,
+// RLS ativo) para fluxos que não passam por sessão autenticada nem por
+// requireCompany — ex.: booking público por slug. Qualquer nicho que precise
+// de operações públicas isoladas por empresa reutiliza esta função; nenhuma
+// regra de negócio de nicho deve ser adicionada aqui.
+async function runPublicTenantOperation(companyId, fn) {
+  const client = await poolTenant.connect();
+  try {
+    await client.query('BEGIN');
+    await withTenantContext(client, companyId, () => {});
+    const result = await runWithTenantClient(client, companyId, fn);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 const _originalConnect = pool.connect.bind(pool);
 const BEGIN_RE = /^\s*(BEGIN|START\s+TRANSACTION)\b/i;
 
@@ -180,5 +201,6 @@ module.exports = pool;
 module.exports.poolTenant = poolTenant;
 module.exports.tenantStore = tenantStore;
 module.exports.runWithTenantClient = runWithTenantClient;
+module.exports.runPublicTenantOperation = runPublicTenantOperation;
 module.exports._originalQuery = _originalQuery;
 module.exports._originalConnect = _originalConnect;
