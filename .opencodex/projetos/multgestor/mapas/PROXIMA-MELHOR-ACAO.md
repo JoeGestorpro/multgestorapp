@@ -1,41 +1,37 @@
 ---
 tipo: missao
 area: core
-status: em_validacao
-progresso: 60
+status: vigente
+progresso: 0
 criticidade: alta
-bloqueia_producao: true
-bloqueia_venda: false
-ultima_revisao: 2026-06-19
+bloqueia_producao: false
+bloqueia_venda: true
+ultima_revisao: 2026-07-23
+atualizado_por: KNOWLEDGE-001
 ---
 
 # Próxima Melhor Ação
 
-## O que é
-Recomendação de próxima ação com base no estado conhecido. Documentação — não executar nada aqui. Volta para [[MAPA-MULTGESTOR-CORE]].
+> Fonte canônica de estado: [[../../../PROJECT-SNAPSHOT]] · [[../../../02-ESTADO-REAL-DO-PROJETO]]. Backlog priorizado: [[../matriz-consolidacao-core|matriz ANEXO F]]. Este documento aponta a próxima ação; não a executa.
 
-## Estado atual
-Fundação P1 aberta. Missão operacional `ops/backup-external-copy` com [[backblaze-b2]] escolhido; scripts feature-flagged escritos (flag OFF); upload real ainda não testado.
+## Estado atual (2026-07-23)
+Fundação **sólida**: migrations automáticas/bloqueantes (OPS-MIGRATIONS-03D), RLS runtime ativo, booking público contextualizado (TENANT-003A), webhooks públicos com controle de abuso (R-003, em produção `7a313fd`). BarberGestor **funcional em código**, mas o **circuito comercial não fecha** (billing depende de config externa Kiwify + secrets).
 
-## Recomendação
-**Fechar o backup externo B2** — validar o primeiro upload controlado (Método A, sem persistir flag), depois ligar `BRCHK_EXTERNAL_ENABLED=1`.
+## Recomendação — separar as duas próximas ações
 
-## Por que esta ação
-- **Produção:** elimina o maior risco catastrófico (perda do HD = perda de todos os backups, A-002) → [[PRODUCAO]]
-- **Risco:** maior redução de risco com menor blast radius → [[RISCOS-MULTGESTOR]]
-- **Sistema vendável:** pré-requisito de confiança antes de cobrar de cliente → [[SISTEMA-VENDAVEL]]
+### Prioridade ESTRATÉGICA
+**Transformar o BarberGestor em produto vendável** — ativar o entitlement de billing em produção. Código pronto e gating **já genérico** (D-04 elimina o pré-requisito antes presumido). Falta: config de produção (planos/produtos Kiwify, `VITE_KIWIFY_URL_*`, D-016) + evidência ponta a ponta — **ação externa/humana**, não código.
 
-## Sequência (Roadmap Camada 1)
-1. [[backblaze-b2]] — cópia externa (atual)
-2. [[rls-seguranca]] — policies companies/users
-3. Redis em produção ([[render-backend]])
-4. [[ci-cd]] — migrations fail-fast (gated por OPS-SUPAVISOR)
+### Próxima missão EXECUTÁVEL (código-side, desbloqueada)
+Eleger o item de maior rank **desbloqueado** na [[../matriz-consolidacao-core|matriz ANEXO F]]. Bloqueados hoje: `TENANT-003` (inventário de RLS em prod — Supabase MCP `Unauthorized`), billing (externo). Candidatos código-side desbloqueados: `IDENT-002` (escopo de auth por módulo), `AUDIT-001` (trilha de auditoria unificada), `SEC-003` (gate de segurança bloqueante), `FRONTCORE-002` (decompor `Barber.jsx`).
 
-## Riscos de não agir
-Backup permanece single point of failure local.
+## Por que esta separação
+Priorizar produto sem confundir com o que é executável agora: a ação de maior valor (billing) está bloqueada por dependência externa; a ação executável imediata é a de maior rank desbloqueada. Não escolher missão de infra só porque há dívida técnica.
 
-## Próximas ações
-Validar upload B2 controlado (pré-teste já planejado). Não executar sem autorização humana.
+## Bloqueios ativos
+- Supabase MCP sem acesso → sem inventário de RLS em produção.
+- Billing → config externa Kiwify + secrets.
+- TLS do banco sem validação de cert (`SEC-DATABASE-TLS-001`).
 
 ## Links
-- [[backblaze-b2]] · [[fluxo-backup-restore]] · [[ROADMAP-MESTRE-MULTGESTOR-2026]]
+- [[../../../PROJECT-SNAPSHOT]] · [[../../../02-ESTADO-REAL-DO-PROJETO]] · [[../matriz-consolidacao-core]] · [[../roadmap/00-MAPA-MESTRE-CONCLUSAO-MULTGESTOR]]

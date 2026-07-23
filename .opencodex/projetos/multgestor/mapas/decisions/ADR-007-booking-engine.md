@@ -1,17 +1,20 @@
 ---
 tipo: decisao
 area: dominio
-status: proposto
-progresso: 0
+status: superseded
+progresso: 100
+substituido_por: [ADR-008-booking-engine-formalizacao, ADR-009-booking-engine-reposicionamento-estrategico]
 criticidade: alta
 bloqueia_producao: false
 bloqueia_venda: false
-ultima_revisao: 2026-07-20
+ultima_revisao: 2026-07-23
 ---
 
 # ADR-007 — Booking Engine: rebaixar ou promover
 
-> **Status:** PROPOSTA — requer decisão humana. Nenhum código alterado.
+> ⚠️ **SUPERSEDED (2026-07-23, KNOWLEDGE-001).** Este ADR **não representa mais a decisão vigente**. A decisão foi tomada e consolidada por [[ADR-008-booking-engine-formalizacao]] (rebaixar — o motor permanece em `services/barber/`) e reposicionada estrategicamente por [[ADR-009-booking-engine-reposicionamento-estrategico]] (o Core terá, no futuro, uma Booking Capability genérica; o BarberGestor é o primeiro consumidor, não o dono). O conteúdo abaixo é preservado apenas para **rastreabilidade histórica** da proposta original.
+
+> **Status original:** PROPOSTA — requer decisão humana. Nenhum código alterado.
 > **Origem:** [[../matriz-consolidacao-core]] `DOMAIN-002`, ANEXO F item #1 (backlog pós-03D)
 > **Regra vigente do backlog:** *"escrever código antes do ADR é o erro que criou o achado A7"* — este documento existe para não repetir esse erro.
 
