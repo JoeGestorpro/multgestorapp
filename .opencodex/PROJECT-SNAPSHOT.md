@@ -64,4 +64,4 @@ TLS do banco      → cert não validado (SEC-DATABASE-TLS-001, aberto)
 - Arquitetura: [[projetos/multgestor/arquitetura-canonica/00-LEIA-PRIMEIRO]]
 - Matriz de capacidades + backlog: [[projetos/multgestor/matriz-consolidacao-core]]
 - Estado operacional (máquina): [[projetos/multgestor/status-atual]]
-- Governança: [[brain/constitution]] · [[ATLAS]]
+- Governança: [[rules/constitution-knowledge-os|Constitution]] · [[ATLAS]]
