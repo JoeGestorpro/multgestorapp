@@ -9,6 +9,44 @@
 
 ---
 
+## 🔤 KNOWLEDGE-002 — Re-encoding UTF-8 dos docs canônicos corrompidos
+
+---
+status: ready
+task_id: knowledge-002-reencoding-utf8
+title: Corrigir corrupção de encoding (mojibake) em 4 docs canônicos, com validação byte-a-byte
+type: docs-fix
+executor: Claude Code
+created_by: KNOWLEDGE-001
+created_at: 2026-07-23
+depends_on: null
+unblock_condition: decisão humana de prioridade (sem dependência técnica)
+mission_source: .opencodex/auditorias/multgestor/2026-07-23-knowledge-001-consolidacao.md §A1
+---
+
+### Contexto
+A auditoria de consistência da KNOWLEDGE-001 encontrou **mojibake (double-encoding UTF-8) pré-existente** em 4 docs canônicos commitados. Não foi corrigido na KNOWLEDGE-001 porque re-encoding confiável exige leitura de bytes crus + reversão validada — edições inline casando bytes mojibake arriscariam corromper mais.
+
+| Arquivo | Linhas com mojibake |
+|---|---|
+| `.opencodex/projetos/multgestor/matriz-consolidacao-core.md` | 378 (grave) |
+| `.opencodex/FLUXOS.md` | 28 |
+| `.opencodex/ATLAS.md` | 16 |
+| `.opencodex/Diário do Projeto.md` | 12 |
+
+### Escopo
+- Reverter o double-encoding (ex.: reinterpretar bytes como UTF-8→Latin-1) **por arquivo**, com **diff de validação antes/depois** confirmando que só os caracteres acentuados mudaram (nenhuma perda de conteúdo).
+- Após corrigir: (a) atualizar o **ATLAS** com o estágio atual do ecossistema (bloqueado na KNOWLEDGE-001 pela corrupção); (b) marcar **R-003 (#4)** como concluído na **matriz ANEXO F**.
+- **NÃO** tocar código, banco, deploy.
+
+### Critério de aceite
+- [ ] 0 ocorrências de mojibake (`grep "Ã©\|â€\|ÃƒÂ"`) nos 4 arquivos.
+- [ ] Diff prova só normalização de acentos (sem alteração semântica).
+- [ ] ATLAS atualizado + R-003 marcado na matriz.
+- [ ] Wikilinks e frontmatter revalidados.
+
+---
+
 ## 📋 Auditoria Mestre MultGestor v2 — pronta, aguardando prioridade humana
 
 ---
