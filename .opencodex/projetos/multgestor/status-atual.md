@@ -1,21 +1,23 @@
 # 📌 ESTADO DO PROJETO — Estado Atual Real
 
-> **Atualizado:** 2026-07-10 · **state_version:** 22
+> ⚠️ **Fonte canônica de estado migrou (KNOWLEDGE-001, 2026-07-23):** o resumo de estado real do projeto agora é [[../../PROJECT-SNAPSHOT]] (1 página) + [[../../02-ESTADO-REAL-DO-PROJETO]] (detalhado). **Este arquivo permanece como continuidade operacional (estado de máquina/fila).** Em conflito de estado, os dois acima prevalecem.
+>
+> **Atualizado:** 2026-07-23 · **state_version:** 23
 > **REGRA:** este arquivo é atualizado a cada missão APPROVE (Loop de Fechamento). Se estiver desatualizado, o CHECK 0 deve bloquear/reduzir o Context Confidence.
 > **Origem:** substitui `.opencodex/state/project-state.md` (V2, congelado 06-04) e `.agent/memory/current-state.md`.
 > **Formato:** fonte viva de continuidade operacional (YAML = estado de máquina/agentes · Markdown = visão humana). Sequência arquitetural completa em [[roadmap/00-MAPA-MESTRE-CONCLUSAO-MULTGESTOR|Mapa Mestre]].
 
 ```yaml
 project: MultGestor v2
-state_version: 22
-updated: "2026-07-10"
-phase: "estabilizacao-de-producao — foco: fechar circuito comercial (Fase 6 / entitlement)"
+state_version: 23
+updated: "2026-07-23"
+phase: "produto-vendavel — fundacao solida; foco estrategico: fechar circuito comercial (billing em producao, dependente de config externa)"
 
 git:
   branch: main
-  ahead_of_origin: 14   # commits locais NÃO publicados (feature IA + npm audit fix 13/14 + migration 031); verificado 2026-07-10 (git rev-list --count origin/main..HEAD)
-  diverged: true        # main divergiu de origin/main — publicar é gate humano (release/push-p0-batch)
-  origin_main: "e95d43b (origin/main HEAD, verificado 2026-06-23 Fase D) — Merge PR #12 (feat/master-panel-clean), mergeado APÓS o último fechamento. Ancestral: af04618 (era apontado como head pelo doc; correção de freeze)."
+  ahead_of_origin: 0    # main publicada; R-003 mergeado (#73, 7a313fd) e deployado; verificado 2026-07-23
+  diverged: false       # main == origin/main
+  origin_main: "7a313fd (origin/main HEAD, 2026-07-23) — Merge PR #73 (R-003 webhooks). Antecessores recentes: #72 paths-ignore, #71 TENANT-003A, #70 SEC-BOOKING-RLS."
   reconciliation: >-
     FASE C FECHADA (2026-06-23). PR #16 (bd13f69) mergeado → deploy disparou e terminou success.
     PR #15 (af04618) mergeado → NÃO disparou deploy (paths-ignore funcionou). origin/main head = af04618.
@@ -44,10 +46,10 @@ prod_evidence_2026_06_15:
   - "POST /api/auth/register com <script> → 400 (portão XSS ativo)"
 
 queue:
-  current_task: "idle — auditoria-readonly-mapa-mestre CONCLUÍDA (2026-07-10)."
-  next_task: "fase6/ativacao-entitlement-pagamento-prod — pré-condição: release/push-p0-batch (gate humano). NÃO misturar push do lote com ativação de pagamento (gates separados). Paralelo seguro: fase7/onboarding-credenciais-whatsapp-tenant."
-  unblocked_ready: "fase6/ativacao-entitlement-pagamento-prod (após push do batch — gate humano)"
-  backlog_anterior: "cleanup/fase-c-branches-worktrees (HUMAN_APPROVAL_REQUIRED) — permanece pendente se não executado; agent/joefelipe-consolidation depois."
+  current_task: "KNOWLEDGE-001 (consolidação documental) — em execução 2026-07-23."
+  next_task: "Prioridade ESTRATÉGICA: fechar circuito comercial (billing em produção, dependente de config externa Kiwify+secrets — ação humana). Próxima EXECUTÁVEL: item de maior rank desbloqueado na matriz ANEXO F. Ver [[../../PROXIMA-MELHOR-ACAO]]."
+  unblocked_ready: "candidatos código-side: IDENT-002 (escopo auth por módulo), AUDIT-001, SEC-003, FRONTCORE-002 (decompor Barber.jsx). RLS-prod e billing bloqueados (externo)."
+  backlog_anterior: "R-003-WEBHOOKS CONCLUÍDA (2026-07-23, #73). OPS-MIGRATIONS-03D, TENANT-003A concluídas. Ver timeline em [[../../02-ESTADO-REAL-DO-PROJETO]]."
   last_decision: >-
     Auditoria READ_ONLY do Mapa Mestre concluída (2026-07-10). Próxima missão = Fase 6
     (entitlement de pagamento em prod). Reclassificação de severidade: entitlement = P1
@@ -85,6 +87,13 @@ open_risks:
 #   - PR #7 (chore/brain-queue-cleanup) — mergeado (21317cd); deploy workflow verde.
 
 ultimas_missoes:
+  - "KNOWLEDGE-001 EM EXECUÇÃO (2026-07-23) — consolidação documental do OpenCodex p/ refletir o estado real de julho. Incorpora Arquitetura Canônica (Fase 1), consolida ADRs (007 SUPERSEDED + FASE-C + REDIS), cria PROJECT-SNAPSHOT.md + 02-ESTADO-REAL-DO-PROJETO.md, atualiza estado/backlog/matriz. state_version 22→23."
+  - "R-003-WEBHOOKS CONCLUÍDA (2026-07-23, #73 7a313fd) — webhooks públicos (kiwify/abacatepay + whatsapp) com controle de abuso IP-based (fail-open). Deploy dep-d9glrj3eo5us73ccc440 live; health healthy, db ok 177ms; migrations pendentes 0. Evidência: 2026-07-22-r003-webhooks-abuse-hardening.md."
+  - "OPS-MIGRATIONS-001 CONCLUÍDA (2026-07-22) — auditoria READ_ONLY do pipeline de migrations; confirmou 03D (automáticas/bloqueantes/estritas/idempotentes); corrigiu tabela 'O que falta' do ADR-006 (#70)."
+  - "paths-ignore fix (#72, 2026-07-22) — deploy.yml ignora .opencode/** e docs/** (docs-only não dispara deploy)."
+  - "TENANT-003A CONCLUÍDA (2026-07-21, #71) — rotas públicas de booking passam a rodar em contexto de tenant/RLS (runPublicTenantOperation). Deploy live; 10/10 testes de isolamento em banco de teste dedicado."
+  - "OPS-MIGRATIONS-03D CONCLUÍDA (2026-07-20) — migrations de produção automáticas e bloqueantes (buildCommand = npm install && npm run migrate:prod)."
+  - "Booking Engine rebaixado (ADR-007 SUPERSEDED / ADR-008 / ADR-009, 2026-07-20, #67) — motor permanece em services/barber/; não promovido ao Core."
   - "auditoria-readonly-mapa-mestre CONCLUÍDA (2026-07-10) — auditoria READ_ONLY da raiz real; 16 fases classificadas por evidência; Mapa Mestre criado + painel Seção 15 preenchido + índice atualizado; relatório em .opencodex/auditorias/multgestor/2026-07-10-auditoria-readonly-mapa-mestre.md. Reclassificação: entitlement pagamento P0→P1 (sem vendas reais via gateway); 14 commits unpushed = P1 operacional. Nenhum código/banco/deploy alterado. state_version 21→22."
   - "fase-d/p1a-public-booking-rate-limit CONCLUÍDO (2026-06-23) — rate limit adicionado nas rotas públicas duplicadas em barber.routes.js (GET /public/:slug/booking-info, GET /public/:slug/available-slots, POST /public/:slug/appointments). Mesmos limites de public-booking.routes.js: 60/15min leitura, 10/15min IP + 30/60min tenant para criação. Testes existentes de tenant keyGenerator reaproveitados + novos testes para barber public rates. state_version 19→20. trust proxy já ativo (server.js:92)."
   - "fase-c/consolidar-segundo-cerebro-opencodex-safe-write-1 CONCLUÍDO (2026-06-23) — D-015 criada, .gitignore atualizado (5 padrões), 12 arquivos do Living OS oficial adicionados ao git, wikilinks corrigidos no INDEX.md ([[living-os/...]] → [[brain/living-os/...]]). state_version 19."
